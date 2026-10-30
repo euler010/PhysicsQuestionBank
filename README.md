@@ -1,2 +1,2 @@
-# PhysicsQuestionBank
-A library of physics questions to be used with my review app builder
+# Physics Question Bank
+This repository houses the master JSON question library for my physics review application.

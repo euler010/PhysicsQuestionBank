@@ -215,6 +215,8 @@ const INITIAL_QUESTION_LIBRARY = [
     baseVars: { knotsY: [0, 4, -1, 3], tAvg1: 0, tAvg2: 6, tInst1: 1.75, tDisp1: 3, tDisp2: 9, tInst2: 4.5 },
     randomize: () => generateSplineProblemVars(1),
     renderPrompt: (v) => 'An object moves along a straight horizontal track. Its 10-second motion is recorded in the <strong>position vs. time</strong> graph shown below. Use the graph to answer each question part:<br/><strong>a.</strong> Average Velocity from <em>t</em> = <strong>' + v.tAvg1 + ' s</strong> to <em>t</em> = <strong>' + v.tAvg2 + ' s</strong><br/><strong>b.</strong> Instantaneous Velocity at <em>t</em> = <strong>' + v.tInst1 + ' s</strong><br/><strong>c.</strong> Time when object is at rest (separate multiple times with a comma, e.g. 1.5, 5.0)<br/><strong>d.</strong> Displacement from <em>t</em> = <strong>' + v.tDisp1 + ' s</strong> to <em>t</em> = <strong>' + v.tDisp2 + ' s</strong><br/><strong>e.</strong> Instantaneous Velocity at <em>t</em> = <strong>' + v.tInst2 + ' s</strong>',
+    hasGraph: true,
+    graphType: "position_time_tangent",
     parts: [
       {
         label: "a. Average Velocity",
@@ -298,6 +300,8 @@ const INITIAL_QUESTION_LIBRARY = [
       const vbSign = v.vb > 0 ? '+' + v.vb : '' + v.vb;
       return 'An object moves along a straight horizontal track. Its 10-second motion is recorded in the <strong>velocity vs. time</strong> graph shown below. Use the graph to answer each question part:<br/><strong>a.</strong> What is the object’s velocity at <em>t</em> = <strong>' + v.ta + ' s</strong>?<br/><strong>b.</strong> At what point(s) in time is the object’s velocity <strong>' + vbSign + ' m/s</strong>? (separate multiple times with a comma, e.g. 1.5, 5.0)<br/><strong>c.</strong> What is the average acceleration of the object from <em>t</em> = <strong>' + v.tc1 + ' s</strong> to <em>t</em> = <strong>' + v.tc2 + ' s</strong>?<br/><strong>d.</strong> What is the acceleration of the object at <em>t</em> = <strong>' + v.td + ' s</strong>?';
     },
+    hasGraph: true,
+    graphType: "velocity_time_secant",
     parts: [
       {
         label: "a. Velocity at specified time",
@@ -1076,8 +1080,11 @@ const INITIAL_QUESTION_LIBRARY = [
     randomize: (b) => ({ m: rnd(b.m, 0.2, 1), theta: rnd(b.theta, 0.15, 1), muK: rnd(b.muK, 0.15, 2), d: rnd(b.d, 0.2, 1) }),
     renderPrompt: (v) => 'A <strong>' + v.m + '-kg</strong> snowboarder beginning at rest goes down a <strong>' + v.theta + '°</strong> slope, and μ<sub>k</sub> = <strong>' + v.muK + '</strong>.<br/><strong>a.</strong> Find the acceleration of the snowboarder.<br/><strong>b.</strong> Find his speed after traveling <strong>' + v.d + ' m</strong>.',
     parts: [
-      { label: "a. Acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.muK * Math.cos(v.theta * DEG2RAD)), steps: (v, ans) => '<em>a</em> = <em>g</em>(sin θ − μ<sub>k</sub> cos θ) = ' + ans.toFixed
-{
+      { label: "a. Acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.muK * Math.cos(v.theta * DEG2RAD)), steps: (v, ans) => '<em>a</em> = <em>g</em>(sin θ − μ<sub>k</sub> cos θ) = ' + ans.toFixed(2) + ' m/s².' },
+      { label: "b. Speed after distance (<em>v</em>)", unit: "m/s", solve: (v) => Math.sqrt(2 * G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.muK * Math.cos(v.theta * DEG2RAD)) * v.d), steps: (v, ans) => '<em>v</em> = √(2 <em>a d</em>) = ' + ans.toFixed(2) + ' m/s.' }
+    ]
+  },
+  {
     id: "DYN-68",
     tag: "Unit 2: Force and Translational Dynamics",
     topic: "Unit 2: Newton's Laws",
@@ -1088,8 +1095,8 @@ const INITIAL_QUESTION_LIBRARY = [
         { label: "a. Weight of rock", unit: "N", solve: (v) => v.mRock * v.gPlanet, steps: (v, ans) => '<em>W</em> = <em>m</em>·<em>g</em> = (' + v.mRock + ')(' + v.gPlanet + ') = ' + (v.mRock * v.gPlanet).toFixed(1) + ' N' },
         { label: "b. Mass of boulder", unit: "kg", solve: (v) => v.wBoulder / v.gPlanet, steps: (v, ans) => '<em>m</em> = <em>W</em> / <em>g</em> = (' + v.wBoulder + ') / (' + v.gPlanet + ') = ' + (v.wBoulder / v.gPlanet).toFixed(1) + ' kg' }
     ]
-},
-{
+  },
+  {
     id: "DYN-69",
     tag: "Unit 2: Force and Translational Dynamics",
     topic: "Unit 2: Newton's Laws",
@@ -1099,8 +1106,8 @@ const INITIAL_QUESTION_LIBRARY = [
     parts: [
         { label: "Force", unit: "N", solve: (v) => (0.5 * v.m * v.v0 * v.v0) / v.d, steps: (v, ans) => '<em>F</em>·<em>d</em> = ½<em>m</em><em>v</em>² → <em>F</em> = (½(' + v.m + ')(' + v.v0 + ')²) / ' + v.d + ' = ' + ((0.5 * v.m * v.v0 * v.v0) / v.d).toExponential(2) + ' N' }
     ]
-},
-{
+  },
+  {
     id: "DYN-70",
     tag: "Unit 2: Force and Translational Dynamics",
     topic: "Unit 2: Newton's Laws",
@@ -1112,8 +1119,8 @@ const INITIAL_QUESTION_LIBRARY = [
         { label: "b. Force in pounds", unit: "lb", solve: (v) => (v.m * v.aG * 9.8) / 4.45, steps: (v, ans) => '<em>F</em><sub>lb</sub> = ' + (v.m * v.aG * 9.8).toFixed(0) + ' / 4.45 = ' + ((v.m * v.aG * 9.8) / 4.45).toFixed(0) + ' lb' },
         { label: "c. Stopping distance", unit: "m", solve: (v) => { let vMS = v.vKmH / 3.6; let a = v.aG * 9.8; return (vMS * vMS) / (2 * a); }, steps: (v, ans) => '<em>d</em> = <em>v</em>² / (2<em>a</em>)' }
     ]
-},
-{
+  },
+  {
     id: "DYN-71",
     tag: "Unit 2: Force and Translational Dynamics",
     topic: "Unit 2: Connected Objects",
@@ -1126,8 +1133,8 @@ const INITIAL_QUESTION_LIBRARY = [
         { label: "b. Force between 2 & 3", unit: "N", solve: (v) => (v.m1 + v.m2) * 9.8, steps: (v, ans) => '<em>F</em><sub>23</sub> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)<em>g</em> = ' + ((v.m1 + v.m2) * 9.8).toFixed(1) + ' N' },
         { label: "c. Force with ground", unit: "N", solve: (v) => (v.m1 + v.m2 + v.m3) * 9.8, steps: (v, ans) => '<em>F</em><sub>3g</sub> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub> + <em>m</em><sub>3</sub>)<em>g</em> = ' + ((v.m1 + v.m2 + v.m3) * 9.8).toFixed(1) + ' N' }
     ]
-},
-{
+  },
+  {
     id: "DYN-72",
     tag: "Unit 2: Force and Translational Dynamics",
     topic: "Unit 2: Newton's Laws",
@@ -1138,8 +1145,8 @@ const INITIAL_QUESTION_LIBRARY = [
         { label: "a. Upward tension", unit: "N", solve: (v) => v.m * (9.8 + v.aUp), steps: (v, ans) => '<em>T</em> = <em>m</em>(<em>g</em> + <em>a</em>) = (' + v.m + ')(9.8 + ' + v.aUp + ') = ' + (v.m * (9.8 + v.aUp)).toFixed(1) + ' N' },
         { label: "b. Downward tension", unit: "N", solve: (v) => v.m * (9.8 - v.aDown), steps: (v, ans) => '<em>T</em> = <em>m</em>(<em>g</em> - <em>a</em>) = (' + v.m + ')(9.8 - ' + v.aDown + ') = ' + (v.m * (9.8 - v.aDown)).toFixed(1) + ' N' }
     ]
-},
-{
+  },
+  {
     id: "DYN-73",
     tag: "Unit 2: Force and Translational Dynamics",
     topic: "Unit 2: Newton's Laws",
@@ -1149,8 +1156,8 @@ const INITIAL_QUESTION_LIBRARY = [
     parts: [
         { label: "Time", unit: "s", solve: (v) => (v.m * v.deltaV) / v.f, steps: (v, ans) => '<em>t</em> = (<em>m</em>·Δ<em>v</em>) / <em>F</em> = (' + v.m + '·' + v.deltaV + ') / ' + v.f + ' = ' + ((v.m * v.deltaV) / v.f).toExponential(2) + ' s' }
     ]
-},
-{
+  },
+  {
     id: "DYN-74",
     tag: "Unit 2: Force and Translational Dynamics",
     topic: "Unit 2: Forces in 2D",
@@ -1160,8 +1167,8 @@ const INITIAL_QUESTION_LIBRARY = [
     parts: [
         { label: "Acceleration magnitude", unit: "m/s²", solve: (v) => (v.fEngine - v.fWind - v.fWater) / v.m, steps: (v, ans) => '<em>a</em> = (<em>F</em><sub>net</sub>) / <em>m</em> = ' + ((v.fEngine - v.fWind - v.fWater) / v.m).toFixed(3) + ' m/s²' }
     ]
-},
-{
+  },
+  {
     id: "DYN-75",
     tag: "Unit 2: Force and Translational Dynamics",
     topic: "Unit 2: Newton's Laws",
@@ -1171,8 +1178,8 @@ const INITIAL_QUESTION_LIBRARY = [
     parts: [
         { label: "Net Force", unit: "N", solve: (v) => { let m = v.mP + v.mK; return (m * v.vFinal * v.vFinal) / (2 * v.dist); }, steps: (v, ans) => '<em>F</em> = (<em>m</em>·<em>v</em>²) / (2<em>d</em>)' }
     ]
-},
-{
+  },
+  {
     id: "DYN-76",
     tag: "Unit 2: Force and Translational Dynamics",
     topic: "Unit 2: Newton's Laws",
@@ -1182,5 +1189,5 @@ const INITIAL_QUESTION_LIBRARY = [
     parts: [
         { label: "Net Force", unit: "N", solve: (v) => { let m = v.mGrams / 1000; return (m * v.vFinal * v.vFinal) / (2 * v.dist); }, steps: (v, ans) => '<em>F</em> = (<em>m</em>·<em>v</em>²) / (2<em>d</em>)' }
     ]
-}
+  }
 ];

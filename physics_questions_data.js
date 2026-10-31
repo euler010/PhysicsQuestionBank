@@ -1159,6 +1159,7 @@ const INITIAL_QUESTION_LIBRARY = [
     renderPrompt: (v) => 'A boat has a mass of <strong>' + v.m + '</strong> kg. Its engines generate a drive force of <strong>' + v.fEngine + '</strong> N due west, while the wind exerts <strong>' + v.fWind + '</strong> N due east and the water exerts <strong>' + v.fWater + '</strong> N due east. What is the acceleration?',
     parts: [
         { label: "Acceleration magnitude", unit: "m/s²", solve: (v) => (v.fEngine - v.fWind - v.fWater) / v.m, steps: (v, ans) => '<em>a</em> = (<em>F</em><sub>net</sub>) / <em>m</em> = ' + ((v.fEngine - v.fWind - v.fWater) / v.m).toFixed(3) + ' m/s²' }
+    ]
 },
 {
     id: "DYN-75",

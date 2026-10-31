@@ -1077,3 +1077,109 @@ const INITIAL_QUESTION_LIBRARY = [
     renderPrompt: (v) => 'A <strong>' + v.m + '-kg</strong> snowboarder beginning at rest goes down a <strong>' + v.theta + '°</strong> slope, and μ<sub>k</sub> = <strong>' + v.muK + '</strong>.<br/><strong>a.</strong> Find the acceleration of the snowboarder.<br/><strong>b.</strong> Find his speed after traveling <strong>' + v.d + ' m</strong>.',
     parts: [
       { label: "a. Acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.muK * Math.cos(v.theta * DEG2RAD)), steps: (v, ans) => '<em>a</em> = <em>g</em>(sin θ − μ<sub>k</sub> cos θ) = ' + ans.toFixed
+{
+    id: "DYN-68",
+    tag: "Unit 2: Force and Translational Dynamics",
+    topic: "Unit 2: Newton's Laws",
+    baseVars: { mRock: 6.3, gPlanet: 14.4, wBoulder: 2300 },
+    randomize: (b) => ({ mRock: rnd(b.mRock, 0.2, 1), gPlanet: rnd(b.gPlanet, 0.2, 1), wBoulder: rnd(b.wBoulder, 0.2, 0) }),
+    renderPrompt: (v) => 'a. What is the weight of a <strong>' + v.mRock + '</strong>-kg rock on a planet in which the acceleration due to gravity is <strong>' + v.gPlanet + '</strong> m/s²?<br>b. What is the mass of a boulder on the same planet that has a weight of <strong>' + v.wBoulder + '</strong> N?',
+    parts: [
+        { label: "a. Weight of rock", unit: "N", solve: (v) => v.mRock * v.gPlanet, steps: (v, ans) => '<em>W</em> = <em>m</em>·<em>g</em> = (' + v.mRock + ')(' + v.gPlanet + ') = ' + (v.mRock * v.gPlanet).toFixed(1) + ' N' },
+        { label: "b. Mass of boulder", unit: "kg", solve: (v) => v.wBoulder / v.gPlanet, steps: (v, ans) => '<em>m</em> = <em>W</em> / <em>g</em> = (' + v.wBoulder + ') / (' + v.gPlanet + ') = ' + (v.wBoulder / v.gPlanet).toFixed(1) + ' kg' }
+    ]
+},
+{
+    id: "DYN-69",
+    tag: "Unit 2: Force and Translational Dynamics",
+    topic: "Unit 2: Newton's Laws",
+    baseVars: { m: 380000, d: 135, v0: 42 },
+    randomize: (b) => ({ m: rnd(b.m, 0.2, 0), d: rnd(b.d, 0.2, 0), v0: rnd(b.v0, 0.2, 0) }),
+    renderPrompt: (v) => 'Superman must stop a train in <strong>' + v.d + '</strong> m to keep it from hitting a stalled car on the tracks. If the train’s mass is <strong>' + v.m.toExponential(1) + '</strong> kg and its initial speed is <strong>' + v.v0 + '</strong> m/s, how much force must Superman exert?',
+    parts: [
+        { label: "Force", unit: "N", solve: (v) => (0.5 * v.m * v.v0 * v.v0) / v.d, steps: (v, ans) => '<em>F</em>·<em>d</em> = ½<em>m</em><em>v</em>² → <em>F</em> = (½(' + v.m + ')(' + v.v0 + ')²) / ' + v.d + ' = ' + ((0.5 * v.m * v.v0 * v.v0) / v.d).toExponential(2) + ' N' }
+    ]
+},
+{
+    id: "DYN-70",
+    tag: "Unit 2: Force and Translational Dynamics",
+    topic: "Unit 2: Newton's Laws",
+    baseVars: { m: 58, aG: 30, vKmH: 86 },
+    randomize: (b) => ({ m: rnd(b.m, 0.2, 0), aG: rnd(b.aG, 0.2, 0), vKmH: rnd(b.vKmH, 0.2, 0) }),
+    renderPrompt: (v) => 'A person has a reasonable chance of surviving an automobile crash if the deceleration is no more than <strong>' + v.aG + '</strong> g’s.<br>a. Calculate the net force on a <strong>' + v.m + '</strong>-kg person accelerating at this rate.<br>b. What is that force in pounds? (Use 1 lb. = 4.45 N)<br>c. What distance does this person travel if brought to rest at this rate of acceleration from <strong>' + v.vKmH + '</strong> km/hr?',
+    parts: [
+        { label: "a. Net force", unit: "N", solve: (v) => v.m * v.aG * 9.8, steps: (v, ans) => '<em>F</em> = <em>m</em>(<em>n</em><em>g</em>) = (' + v.m + ')(' + v.aG + '·9.8) = ' + (v.m * v.aG * 9.8).toFixed(0) + ' N' },
+        { label: "b. Force in pounds", unit: "lb", solve: (v) => (v.m * v.aG * 9.8) / 4.45, steps: (v, ans) => '<em>F</em><sub>lb</sub> = ' + (v.m * v.aG * 9.8).toFixed(0) + ' / 4.45 = ' + ((v.m * v.aG * 9.8) / 4.45).toFixed(0) + ' lb' },
+        { label: "c. Stopping distance", unit: "m", solve: (v) => { let vMS = v.vKmH / 3.6; let a = v.aG * 9.8; return (vMS * vMS) / (2 * a); }, steps: (v, ans) => '<em>d</em> = <em>v</em>² / (2<em>a</em>)' }
+    ]
+},
+{
+    id: "DYN-71",
+    tag: "Unit 2: Force and Translational Dynamics",
+    topic: "Unit 2: Connected Objects",
+    diagram: "stacked_blocks",
+    baseVars: { m1: 12.8, m2: 15.4, m3: 18.3 },
+    randomize: (b) => ({ m1: rnd(b.m1, 0.2, 1), m2: rnd(b.m2, 0.2, 1), m3: rnd(b.m3, 0.2, 1) }),
+    renderPrompt: (v) => 'Blocks one, two, and three are stacked on top of each other, and their masses are <strong>' + v.m1 + '</strong> kg, <strong>' + v.m2 + '</strong> kg, and <strong>' + v.m3 + '</strong> kg, respectively.<br>a. What is the size of the force blocks one and two exert on each other?<br>b. What is the size of the force blocks two and three exert on each other?<br>c. What is the size of the force block three and the ground exert on each other?',
+    parts: [
+        { label: "a. Force between 1 & 2", unit: "N", solve: (v) => v.m1 * 9.8, steps: (v, ans) => '<em>F</em><sub>12</sub> = <em>m</em><sub>1</sub><em>g</em> = (' + v.m1 + ')(9.8) = ' + (v.m1 * 9.8).toFixed(1) + ' N' },
+        { label: "b. Force between 2 & 3", unit: "N", solve: (v) => (v.m1 + v.m2) * 9.8, steps: (v, ans) => '<em>F</em><sub>23</sub> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)<em>g</em> = ' + ((v.m1 + v.m2) * 9.8).toFixed(1) + ' N' },
+        { label: "c. Force with ground", unit: "N", solve: (v) => (v.m1 + v.m2 + v.m3) * 9.8, steps: (v, ans) => '<em>F</em><sub>3g</sub> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub> + <em>m</em><sub>3</sub>)<em>g</em> = ' + ((v.m1 + v.m2 + v.m3) * 9.8).toFixed(1) + ' N' }
+    ]
+},
+{
+    id: "DYN-72",
+    tag: "Unit 2: Force and Translational Dynamics",
+    topic: "Unit 2: Newton's Laws",
+    baseVars: { m: 14.6, aUp: 0.92, aDown: 1.06 },
+    randomize: (b) => ({ m: rnd(b.m, 0.2, 1), aUp: rnd(b.aUp, 0.2, 2), aDown: rnd(b.aDown, 0.2, 2) }),
+    renderPrompt: (v) => 'A bucket with water has a mass of <strong>' + v.m + '</strong> kg.<br>a. Find the size of the tension in the rope supporting the bucket if it is accelerated upwards at <strong>' + v.aUp + '</strong> m/s².<br>b. Find the size of the tension in the rope supporting the bucket if it is accelerated downwards at <strong>' + v.aDown + '</strong> m/s².',
+    parts: [
+        { label: "a. Upward tension", unit: "N", solve: (v) => v.m * (9.8 + v.aUp), steps: (v, ans) => '<em>T</em> = <em>m</em>(<em>g</em> + <em>a</em>) = (' + v.m + ')(9.8 + ' + v.aUp + ') = ' + (v.m * (9.8 + v.aUp)).toFixed(1) + ' N' },
+        { label: "b. Downward tension", unit: "N", solve: (v) => v.m * (9.8 - v.aDown), steps: (v, ans) => '<em>T</em> = <em>m</em>(<em>g</em> - <em>a</em>) = (' + v.m + ')(9.8 - ' + v.aDown + ') = ' + (v.m * (9.8 - v.aDown)).toFixed(1) + ' N' }
+    ]
+},
+{
+    id: "DYN-73",
+    tag: "Unit 2: Force and Translational Dynamics",
+    topic: "Unit 2: Newton's Laws",
+    baseVars: { m: 1000000000, deltaV: 0.003, f: 2.8 },
+    randomize: (b) => ({ m: rnd(b.m, 0.2, 0), deltaV: rnd(b.deltaV, 0.2, 3), f: rnd(b.f, 0.2, 1) }),
+    renderPrompt: (v) => 'A “doomsday” asteroid with a mass of <strong>' + v.m.toExponential(1) + '</strong> kg is hurtling through space. Unless the asteroid’s speed is changed by <strong>' + (v.deltaV * 100) + '</strong> cm/s, it will collide with Earth. A space tug exerts a constant force of <strong>' + v.f + '</strong> N. For how long must this force act?',
+    parts: [
+        { label: "Time", unit: "s", solve: (v) => (v.m * v.deltaV) / v.f, steps: (v, ans) => '<em>t</em> = (<em>m</em>·Δ<em>v</em>) / <em>F</em> = (' + v.m + '·' + v.deltaV + ') / ' + v.f + ' = ' + ((v.m * v.deltaV) / v.f).toExponential(2) + ' s' }
+    ]
+},
+{
+    id: "DYN-74",
+    tag: "Unit 2: Force and Translational Dynamics",
+    topic: "Unit 2: Forces in 2D",
+    baseVars: { m: 6300, fEngine: 4400, fWind: 950, fWater: 1600 },
+    randomize: (b) => ({ m: rnd(b.m, 0.2, 0), fEngine: rnd(b.fEngine, 0.2, 0), fWind: rnd(b.fWind, 0.2, 0), fWater: rnd(b.fWater, 0.2, 0) }),
+    renderPrompt: (v) => 'A boat has a mass of <strong>' + v.m + '</strong> kg. Its engines generate a drive force of <strong>' + v.fEngine + '</strong> N due west, while the wind exerts <strong>' + v.fWind + '</strong> N due east and the water exerts <strong>' + v.fWater + '</strong> N due east. What is the acceleration?',
+    parts: [
+        { label: "Acceleration magnitude", unit: "m/s²", solve: (v) => (v.fEngine - v.fWind - v.fWater) / v.m, steps: (v, ans) => '<em>a</em> = (<em>F</em><sub>net</sub>) / <em>m</em> = ' + ((v.fEngine - v.fWind - v.fWater) / v.m).toFixed(3) + ' m/s²' }
+    ]
+},
+{
+    id: "DYN-75",
+    tag: "Unit 2: Force and Translational Dynamics",
+    topic: "Unit 2: Newton's Laws",
+    baseVars: { mP: 61, mK: 13, vFinal: 0.80, dist: 0.52 },
+    randomize: (b) => ({ mP: rnd(b.mP, 0.2, 0), mK: rnd(b.mK, 0.2, 0), vFinal: rnd(b.vFinal, 0.2, 2), dist: rnd(b.dist, 0.2, 2) }),
+    renderPrompt: (v) => 'A <strong>' + v.mP + '</strong>-kg person in a <strong>' + v.mK + '</strong>-kg kayak starts paddling, accelerating from 0 to <strong>' + v.vFinal + '</strong> m/s over <strong>' + v.dist + '</strong> m. What is the net force?',
+    parts: [
+        { label: "Net Force", unit: "N", solve: (v) => { let m = v.mP + v.mK; return (m * v.vFinal * v.vFinal) / (2 * v.dist); }, steps: (v, ans) => '<em>F</em> = (<em>m</em>·<em>v</em>²) / (2<em>d</em>)' }
+    ]
+},
+{
+    id: "DYN-76",
+    tag: "Unit 2: Force and Translational Dynamics",
+    topic: "Unit 2: Newton's Laws",
+    baseVars: { mGrams: 57, vFinal: 46, dist: 0.43 },
+    randomize: (b) => ({ mGrams: rnd(b.mGrams, 0.2, 0), vFinal: rnd(b.vFinal, 0.2, 0), dist: rnd(b.dist, 0.2, 2) }),
+    renderPrompt: (v) => 'When a <strong>' + v.mGrams + '</strong>-g tennis ball is served, it accelerates from rest to <strong>' + v.vFinal + '</strong> m/s over <strong>' + v.dist + '</strong> m. What is the net force?',
+    parts: [
+        { label: "Net Force", unit: "N", solve: (v) => { let m = v.mGrams / 1000; return (m * v.vFinal * v.vFinal) / (2 * v.dist); }, steps: (v, ans) => '<em>F</em> = (<em>m</em>·<em>v</em>²) / (2<em>d</em>)' }
+    ]
+}

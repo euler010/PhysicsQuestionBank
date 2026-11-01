@@ -1487,7 +1487,7 @@ const PHYSICS_QUESTIONS = [
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
     baseVars: { m: 2.00, h: 1.00, t: 0.64 },
     randomize: (b) => ({ m: rnd(b.m, 0.20, 2), h: rnd(b.h, 0.20, 2), t: rnd(b.t, 0.18, 2) }),
-    renderPrompt: (v) => `An astronaut drops a <strong>${v.m.toFixed(2)} kg</strong> rock from a height of <strong>${v.h.toFixed(2)} meter</strong> above the surface of a new planet. It takes the rock <strong>${v.t} seconds</strong> to hit the ground.<br/><strong>a.</strong> What is the acceleration due to gravity on the planet?<br/><strong>b.</strong> What is the rock&rsquo;s weight on the planet?`,
+    renderPrompt: (v) => `An astronaut drops a <strong>${v.m.toFixed(2)} kg</strong> rock from a height of <strong>${v.h.toFixed(2)} meter</strong> above the surface of a new planet. It takes the rock <strong>${v.t} seconds</strong> to hit the ground.<br/><strong>a.</strong> What is the acceleration due to gravity on the planet?<br/><strong>b.</strong> What is the rock's weight on the planet?`,
     parts: [
       { label: "a. Acceleration due to gravity (<em>g</em><sub>planet</sub>)", unit: "m/s²", acceptedUnits: ["m/s²", "N/kg"], solve: (v) => (2 * v.h) / (v.t * v.t), steps: (v, ans) => `<em>g</em><sub>planet</sub> = 2 <em>h</em> / <em>t</em>&sup2; = ${ans.toFixed(2)} m/s².` },
       { label: "b. Rock's weight on the planet (<em>W</em>)", unit: "N", solve: (v) => v.m * ((2 * v.h) / (v.t * v.t)), steps: (v, ans) => `<em>W</em> = <em>m g</em><sub>planet</sub> = ${ans.toFixed(2)} N.` }

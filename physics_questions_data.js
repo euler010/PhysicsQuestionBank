@@ -2524,14 +2524,14 @@ const PHYSICS_QUESTIONS = [
   {
     id: "DYN-58", docNum: "Set 3 #4", title: "Skydiver Acceleration and Parachute Terminal Descent",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
-    baseVars: { m: 62 },
-    randomize: (b) => ({ m: rnd(b.m, 0.20, 1) }),
-    renderPrompt: (v) => `<strong>a.</strong> What is the acceleration of a <strong>${v.m}-kg</strong> skydiver, when the force of air resistance acting on her is one-fourth of her weight?<br/><strong>b.</strong> After opening the parachute, she descends to the ground at a constant speed. What is the force of air resistance now?`,
+    baseVars: { m: 62, den: 4 },
+    randomize: (b) => ({ m: rnd(b.m, 0.20, 1), den: randInt(2, 5) }),
+    renderPrompt: (v) => `<strong>a.</strong> What is the acceleration of a <strong>${v.m}-kg</strong> skydiver, when the force of air resistance acting on her is ${({2:"one-half",3:"one-third",4:"one-fourth",5:"one-fifth"})[v.den]} of her weight?<br/><strong>b.</strong> After opening the parachute, she descends to the ground at a constant speed. What is the force of air resistance now?`,
     parts: [
-      { label: "a. Acceleration of skydiver (<em>a</em>)", unit: "m/s²", acceptNegative: true, solve: () => 0.75 * G_ACCEL, steps: (v, ans) => guidedSteps(
-          `Take down as positive. Two forces act on the skydiver: her weight <em>m</em><em>g</em> (down) and air resistance, which is one-fourth of her weight, 0.25<em>m</em><em>g</em> (up).`,
-          `Net force: <em>F</em><sub>net</sub> = <em>m</em><em>g</em> &minus; 0.25<em>m</em><em>g</em> = 0.75<em>m</em><em>g</em>. Newton's second law: <em>a</em> = <em>F</em><sub>net</sub> / <em>m</em> = 0.75<em>g</em>. The mass (${v.m} kg) cancels.`,
-          `Substitute: <em>a</em> = 0.75 &times; 9.80 = <strong>${ans.toFixed(2)} m/s²</strong>, directed downward.`
+      { label: "a. Acceleration of skydiver (<em>a</em>)", unit: "m/s²", acceptNegative: true, solve: (v) => (1 - 1 / v.den) * G_ACCEL, steps: (v, ans) => guidedSteps(
+          `Take down as positive. Two forces act on the skydiver: her weight <em>m</em><em>g</em> (down) and air resistance, which is ${({2:"one-half",3:"one-third",4:"one-fourth",5:"one-fifth"})[v.den]} of her weight, <em>m</em><em>g</em>/${v.den} = ${(1 / v.den).toFixed(3)}<em>m</em><em>g</em> (up).`,
+          `Net force: <em>F</em><sub>net</sub> = <em>m</em><em>g</em> &minus; ${(1 / v.den).toFixed(3)}<em>m</em><em>g</em> = ${(1 - 1 / v.den).toFixed(3)}<em>m</em><em>g</em>. Newton's second law: <em>a</em> = <em>F</em><sub>net</sub> / <em>m</em> = ${(1 - 1 / v.den).toFixed(3)}<em>g</em>. The mass (${v.m} kg) cancels.`,
+          `Substitute: <em>a</em> = ${(1 - 1 / v.den).toFixed(3)} &times; 9.80 = <strong>${ans.toFixed(2)} m/s²</strong>, directed downward.`
         )},
       { label: "b. Force of air resistance at constant speed (<em>F</em><sub>air</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL, steps: (v, ans) => guidedSteps(
           `A constant speed means zero acceleration, so the net force is zero. Only two vertical forces act: her weight (down) and air resistance (up).`,

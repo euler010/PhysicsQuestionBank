@@ -1691,5 +1691,43 @@ const PHYSICS_QUESTIONS = [
         }
       }
     ]
+  },
+  {
+    id: "DYN-84", docNum: "Doc 4 #1", title: "Two Hanging Buckets Connected by a Rope",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Multi-Body Systems and Pulleys", diagram: "hangingBuckets",
+    baseVars: { m1: 8.3, m2: 6.5, aUp: 1.6, aDown: 0.94 },
+    randomize: (b) => ({
+      m1: rnd(b.m1, 0.20, 1),
+      m2: rnd(b.m2, 0.20, 1),
+      aUp: rnd(b.aUp, 0.20, 2),
+      aDown: rnd(b.aDown, 0.20, 2)
+    }),
+    renderPrompt: (v) => 'Two hanging buckets are connected by a rope. The top bucket has a mass of <strong>' + v.m1 + ' kg</strong>, the bottom one has a mass of <strong>' + v.m2 + ' kg</strong>, and a force of tension accelerates them upwards at <strong>' + v.aUp + ' m/s²</strong>.<br/><strong>a.</strong> Find the tension in the top rope.<br/><strong>b.</strong> Find the tension in the bottom rope.<br/><strong>c.</strong> Find the tension in the top rope if the buckets are accelerating downwards at <strong>' + v.aDown + ' m/s²</strong>.<br/><strong>d.</strong> Find the tension in the bottom rope if the buckets are accelerating downwards at <strong>' + v.aDown + ' m/s²</strong>.',
+    parts: [
+      {
+        label: "a. Tension in the top rope (accelerating upwards)",
+        unit: "N",
+        solve: (v) => (v.m1 + v.m2) * (G_ACCEL + v.aUp),
+        steps: (v, ans) => 'The top rope supports <em>both</em> buckets, so treat them as one system of mass <em>m</em><sub>1</sub> + <em>m</em><sub>2</sub> = ' + (v.m1 + v.m2).toFixed(1) + ' kg. <em>T</em><sub>top</sub> − (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)<em>g</em> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)<em>a</em> ⇒ <em>T</em><sub>top</sub> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)(<em>g</em> + <em>a</em>) = (' + (v.m1 + v.m2).toFixed(1) + ' kg)(9.80 + ' + v.aUp + ') = <strong>' + ans.toFixed(1) + ' N</strong>.'
+      },
+      {
+        label: "b. Tension in the bottom rope (accelerating upwards)",
+        unit: "N",
+        solve: (v) => v.m2 * (G_ACCEL + v.aUp),
+        steps: (v, ans) => 'The bottom rope supports only the <em>bottom</em> bucket. <em>T</em><sub>bottom</sub> − <em>m</em><sub>2</sub><em>g</em> = <em>m</em><sub>2</sub><em>a</em> ⇒ <em>T</em><sub>bottom</sub> = <em>m</em><sub>2</sub>(<em>g</em> + <em>a</em>) = (' + v.m2 + ' kg)(9.80 + ' + v.aUp + ') = <strong>' + ans.toFixed(1) + ' N</strong>.'
+      },
+      {
+        label: "c. Tension in the top rope (accelerating downwards)",
+        unit: "N",
+        solve: (v) => (v.m1 + v.m2) * (G_ACCEL - v.aDown),
+        steps: (v, ans) => 'Both buckets again, with the acceleration now pointing down: (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)<em>g</em> − <em>T</em><sub>top</sub> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)<em>a</em> ⇒ <em>T</em><sub>top</sub> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)(<em>g</em> − <em>a</em>) = (' + (v.m1 + v.m2).toFixed(1) + ' kg)(9.80 − ' + v.aDown + ') = <strong>' + ans.toFixed(1) + ' N</strong>.'
+      },
+      {
+        label: "d. Tension in the bottom rope (accelerating downwards)",
+        unit: "N",
+        solve: (v) => v.m2 * (G_ACCEL - v.aDown),
+        steps: (v, ans) => 'Bottom bucket only: <em>m</em><sub>2</sub><em>g</em> − <em>T</em><sub>bottom</sub> = <em>m</em><sub>2</sub><em>a</em> ⇒ <em>T</em><sub>bottom</sub> = <em>m</em><sub>2</sub>(<em>g</em> − <em>a</em>) = (' + v.m2 + ' kg)(9.80 − ' + v.aDown + ') = <strong>' + ans.toFixed(1) + ' N</strong>.'
+      }
+    ]
   }
 ];

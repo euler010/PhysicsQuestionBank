@@ -1,107 +1,4278 @@
 // ============================================================================
 // PHYSICS QUESTION LIBRARY DATA (physics_questions_data.js)
-// 121 questions. Loaded by the Library App via <script src=".../physics_questions_data.js">
+// 137 questions, plus the code that draws their diagrams.
+// Loaded by the Library App via <script src=".../physics_questions_data.js">
+//
+// What is in this file, top to bottom:
+//   1. installSplineEngine()  - the interactive position/velocity graphs used by KIN-01 and KIN-02
+//   2. guidedSteps()          - builds the numbered Guided Solution text
+//   3. DIAGRAM_DRAWERS        - one drawing function per diagram name (a question says diagram: "incline")
+//   4. getDiagramSVG()        - looks up a diagram name and draws it
+//   5. PHYSICS_QUESTIONS      - the questions themselves
+//
+// To add a NEW kind of picture: add one more entry to DIAGRAM_DRAWERS and set
+// diagram: "yourName" on the question. The Library App does not need to change.
 //
 // NOTE: This file intentionally does NOT declare G_ACCEL, G_CONST, DEG2RAD,
-// RAD2DEG, rnd, randInt or buildSplineModel. The Library App already defines
-// them, and declaring them twice makes the browser stop with
-// "Identifier 'G_ACCEL' has already been declared".
+// RAD2DEG, rnd or randInt. The Library App already defines them, and declaring
+// them twice makes the browser stop with "Identifier ... has already been declared".
 // ============================================================================
 
-function generateSplineProblemVars(probId) {
-  let model = null;
-  let chosenKnots = probId === 1 ? [0, 4, -1, 3] : [1, 5, -1, 3];
+// 1. Interactive spline graph engine (position and velocity graphs for KIN-01 / KIN-02).
+function installSplineEngine() {
+    // =========================================================================
+    // INTERACTIVE SPLINE GRAPH ENGINE (QUESTIONS 1 & 2: x-t AND v-t GRAPHS)
+    // =========================================================================
+    const SVG_CONFIG = { xLeft: 95, xRight: 625, yTop: 25, yBottom: 355, tMin: 0, tMax: 10, yMin: -2, yMax: 8 };
 
-  for (let attempt = 0; attempt < 250; attempt++) {
-    const y0 = randInt(-1, 5);
-    const dir = Math.random() < 0.5 ? 1 : -1;
-    const delta1 = randInt(3, 5) * dir;
-    const y1 = y0 + delta1;
-    const delta2 = -randInt(3, 6) * dir;
-    const y2 = y1 + delta2;
-    const delta3 = randInt(2, 5) * dir;
-    const y3 = y2 + delta3;
+    function tToSvgX(t) { return SVG_CONFIG.xLeft + ((t - SVG_CONFIG.tMin) / (SVG_CONFIG.tMax - SVG_CONFIG.tMin)) * (SVG_CONFIG.xRight - SVG_CONFIG.xLeft); }
+    function svgXToT(px) { return Math.max(0, Math.min(10, SVG_CONFIG.tMin + ((px - SVG_CONFIG.xLeft) / (SVG_CONFIG.xRight - SVG_CONFIG.xLeft)) * (SVG_CONFIG.tMax - SVG_CONFIG.tMin))); }
+    function yToSvgY(y) { return SVG_CONFIG.yBottom - ((y - SVG_CONFIG.yMin) / (SVG_CONFIG.yMax - SVG_CONFIG.yMin)) * (SVG_CONFIG.yBottom - SVG_CONFIG.yTop); }
+    function svgYToY(py) { return SVG_CONFIG.yMin + ((SVG_CONFIG.yBottom - py) / (SVG_CONFIG.yBottom - SVG_CONFIG.yTop)) * (SVG_CONFIG.yMax - SVG_CONFIG.yMin); }
 
-    if (y1 < -1 || y1 > 7 || y2 < -1 || y2 > 7 || y3 < -1 || y3 > 6) continue;
+    function buildSplineModel(knotsY) {
+      const [y0, y1, y2, y3] = knotsY;
+      const h = 3;
+      const D1 = y2 - 2 * y1 + y0;
+      const D2 = y3 - 2 * y2 + y1;
+      const M = [0, (2 / 45) * (4 * D1 - D2), (2 / 45) * (4 * D2 - D1), 0];
+      const tKnots = [0, 3, 6, 9];
+      const yKnots = [y0, y1, y2, y3];
 
-    const candidate = buildSplineModel([y0, y1, y2, y3]);
-    let inBounds = true;
-    for (let t = 0; t <= 10; t += 0.1) {
-      const val = candidate.evalValue(t);
-      if (val < -1.85 || val > 7.85) {
-        inBounds = false;
-        break;
+      function getSegmentIndex(t) { return t <= 3 ? 0 : t <= 6 ? 1 : 2; }
+      function evalValue(t) {
+        const i = getSegmentIndex(t);
+        const u = t - tKnots[i], v = h - u;
+        return (M[i] * Math.pow(v, 3) + M[i + 1] * Math.pow(u, 3)) / (6 * h) + (yKnots[i] / h - (M[i] * h) / 6) * v + (yKnots[i + 1] / h - (M[i + 1] * h) / 6) * u;
+      }
+      function evalSlope(t) {
+        const i = getSegmentIndex(t);
+        const u = t - tKnots[i], v = h - u;
+        return (-M[i] * v * v + M[i + 1] * u * u) / (2 * h) + (yKnots[i + 1] - yKnots[i]) / h - ((M[i + 1] - M[i]) * h) / 6;
+      }
+      function findZeroSlopeTimes() {
+        const roots = [];
+        const step = 0.02;
+        for (let t = 0; t < 10; t += step) {
+          const s1 = evalSlope(t), s2 = evalSlope(t + step);
+          if (Math.abs(s1) < 1e-7) {
+            if (roots.length === 0 || Math.abs(t - roots[roots.length - 1]) > 0.2) roots.push(t);
+          } else if (s1 * s2 < 0) {
+            let a = t, b = t + step;
+            for (let iter = 0; iter < 30; iter++) {
+              const mid = 0.5 * (a + b);
+              if (evalSlope(a) * evalSlope(mid) <= 0) b = mid; else a = mid;
+            }
+            const r = 0.5 * (a + b);
+            if (r >= 0.05 && r <= 9.95 && (roots.length === 0 || Math.abs(r - roots[roots.length - 1]) > 0.2)) roots.push(r);
+          }
+        }
+        return roots;
+      }
+      function findTimesForValue(targetY) {
+        const roots = [];
+        const step = 0.02;
+        for (let t = 0; t <= 10 - step + 1e-9; t += step) {
+          const f1 = evalValue(t) - targetY, f2 = evalValue(t + step) - targetY;
+          if (Math.abs(f1) < 1e-6) {
+            if (roots.length === 0 || Math.abs(t - roots[roots.length - 1]) > 0.2) roots.push(t);
+          } else if (f1 * f2 <= 0) {
+            let a = t, b = t + step;
+            for (let iter = 0; iter < 30; iter++) {
+              const mid = 0.5 * (a + b);
+              if ((evalValue(a) - targetY) * (evalValue(mid) - targetY) <= 0) b = mid; else a = mid;
+            }
+            const r = 0.5 * (a + b);
+            if (r >= 0 && r <= 10.001 && (roots.length === 0 || Math.abs(r - roots[roots.length - 1]) > 0.2)) roots.push(Math.min(10, Math.max(0, r)));
+          }
+        }
+        return roots;
+      }
+      return { knotsY, evalValue, evalSlope, findZeroSlopeTimes, findTimesForValue };
+    }
+
+    // Spline-graph problem generator (needed by KIN-01 / KIN-02). Kept in the app so it works with any version of the data file.
+    function generateSplineProblemVars(probId) {
+      let model = null;
+      let chosenKnots = probId === 1 ? [0, 4, -1, 3] : [1, 5, -1, 3];
+
+      for (let attempt = 0; attempt < 250; attempt++) {
+        const y0 = randInt(-1, 5);
+        const dir = Math.random() < 0.5 ? 1 : -1;
+        const delta1 = randInt(3, 5) * dir;
+        const y1 = y0 + delta1;
+        const delta2 = -randInt(3, 6) * dir;
+        const y2 = y1 + delta2;
+        const delta3 = randInt(2, 5) * dir;
+        const y3 = y2 + delta3;
+
+        if (y1 < -1 || y1 > 7 || y2 < -1 || y2 > 7 || y3 < -1 || y3 > 6) continue;
+
+        const candidate = buildSplineModel([y0, y1, y2, y3]);
+        let inBounds = true;
+        for (let t = 0; t <= 10; t += 0.1) {
+          const val = candidate.evalValue(t);
+          if (val < -1.85 || val > 7.85) {
+            inBounds = false;
+            break;
+          }
+        }
+        if (!inBounds) continue;
+
+        const restTimes = candidate.findZeroSlopeTimes();
+        if (restTimes.length >= 1 && restTimes.length <= 2) {
+          model = candidate;
+          chosenKnots = [y0, y1, y2, y3];
+          break;
+        }
+      }
+
+      if (!model) {
+        model = buildSplineModel(chosenKnots);
+      }
+
+      const intervalPairs = [
+        [0, 3], [0, 6], [0, 9], [3, 6], [3, 9], [6, 9], [1, 7], [2, 8]
+      ];
+      const pair1 = intervalPairs[randInt(0, intervalPairs.length - 1)];
+      let pair2 = intervalPairs[randInt(0, intervalPairs.length - 1)];
+      if (pair2[0] === pair1[0] && pair2[1] === pair1[1]) {
+        pair2 = [3, 9];
+      }
+
+      if (probId === 1) {
+        const instCandidates1 = [1.0, 1.25, 1.5, 1.75, 2.0, 2.5];
+        const instCandidates2 = [4.25, 4.5, 4.75, 5.0, 5.5, 7.5];
+        const tInst1 = instCandidates1[randInt(0, instCandidates1.length - 1)];
+        const tInst2 = instCandidates2[randInt(0, instCandidates2.length - 1)];
+        return {
+          knotsY: chosenKnots,
+          tAvg1: pair1[0],
+          tAvg2: pair1[1],
+          tInst1,
+          tDisp1: pair2[0],
+          tDisp2: pair2[1],
+          tInst2
+        };
+      } else {
+        const taCandidates = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        const ta = taCandidates[randInt(0, taCandidates.length - 1)];
+        const possibleVb = [-1, 0, 1, 2, 3, 4, 5];
+        let chosenVb = 0;
+        const validVbs = possibleVb.filter(v => {
+          const roots = model.findTimesForValue(v);
+          if (roots.length === 0 || roots.length > 3) return false;
+          return roots.every(r => Math.abs(model.evalSlope(r)) > 0.35);
+        });
+        if (validVbs.length > 0) {
+          chosenVb = validVbs[randInt(0, validVbs.length - 1)];
+        }
+        const tdCandidates = [1.5, 1.75, 2.0, 3.5, 4.5, 5.0, 7.5, 8.0];
+        const td = tdCandidates[randInt(0, tdCandidates.length - 1)];
+        return {
+          knotsY: chosenKnots,
+          ta,
+          vb: chosenVb,
+          tc1: pair1[0],
+          tc2: pair1[1],
+          td
+        };
       }
     }
-    if (!inBounds) continue;
 
-    const restTimes = candidate.findZeroSlopeTimes();
-    if (restTimes.length >= 1 && restTimes.length <= 2) {
-      model = candidate;
-      chosenKnots = [y0, y1, y2, y3];
-      break;
+    function formatSigned(val, decimals = 2) {
+      const rounded = Number(val.toFixed(decimals));
+      if (Math.abs(rounded) < 1e-9) return (0).toFixed(decimals);
+      return (rounded > 0 ? "+" : "") + rounded.toFixed(decimals);
     }
-  }
 
-  if (!model) {
-    model = buildSplineModel(chosenKnots);
-  }
+    function findNeutralSplineTimes(probId, model, params) {
+      let qTimes = probId === 1 
+        ? [params.tAvg1, params.tAvg2, params.tInst1, params.tDisp1, params.tDisp2, params.tInst2]
+        : [params.ta, ...(model ? (model.findTimesForValue(params.vb) || []) : []), params.tc1, params.tc2, params.td];
 
-  const intervalPairs = [
-    [0, 3], [0, 6], [0, 9], [3, 6], [3, 9], [6, 9], [1, 7], [2, 8]
-  ];
-  const pair1 = intervalPairs[randInt(0, intervalPairs.length - 1)];
-  let pair2 = intervalPairs[randInt(0, intervalPairs.length - 1)];
-  if (pair2[0] === pair1[0] && pair2[1] === pair1[1]) {
-    pair2 = [3, 9];
-  }
+      let bestTangentT = 5.0, maxTanDist = -1;
+      for (let t = 1.0; t <= 9.0; t += 0.25) {
+        const minDist = Math.min(...qTimes.map(qt => Math.abs(t - qt)));
+        if (minDist > maxTanDist) { maxTanDist = minDist; bestTangentT = t; }
+      }
+      const pairCandidates = [[1.0, 4.0], [1.5, 4.5], [2.0, 5.0], [2.5, 5.5], [3.0, 6.0], [3.5, 6.5], [4.0, 7.0], [4.5, 7.5], [5.0, 8.0], [5.5, 8.5], [2.0, 7.0], [1.0, 5.0]];
+      let bestSecantPair = [2.0, 5.0], maxSecDist = -1;
+      for (const pair of pairCandidates) {
+        const score = Math.min(Math.min(...qTimes.map(qt => Math.abs(pair[0] - qt))), Math.min(...qTimes.map(qt => Math.abs(pair[1] - qt))));
+        if (score > maxSecDist) { maxSecDist = score; bestSecantPair = pair; }
+      }
+      return { tangentT: bestTangentT, secantT1: bestSecantPair[0], secantT2: bestSecantPair[1] };
+    }
 
-  if (probId === 1) {
-    const instCandidates1 = [1.0, 1.25, 1.5, 1.75, 2.0, 2.5];
-    const instCandidates2 = [4.25, 4.5, 4.75, 5.0, 5.5, 7.5];
-    const tInst1 = instCandidates1[randInt(0, instCandidates1.length - 1)];
-    const tInst2 = instCandidates2[randInt(0, instCandidates2.length - 1)];
-    return {
-      knotsY: chosenKnots,
-      tAvg1: pair1[0],
-      tAvg2: pair1[1],
-      tInst1,
-      tDisp1: pair2[0],
-      tDisp2: pair2[1],
-      tInst2
+    const splineWidgetStates = {
+      1: { probId: 1, unitPosition: "m", yAxisTitle: "Position x (meters)", zeroLabel: "x = 0 m", vars: null, model: null, showTangent: false, showSecant: false, tangentT: 5.0, secantT1: 2.0, secantT2: 5.0, hasMovedTangent: false, hasMovedSecant: false },
+      2: { probId: 2, unitPosition: "m/s", yAxisTitle: "Velocity v (m/s)", zeroLabel: "v = 0 m/s", vars: null, model: null, showTangent: false, showSecant: false, tangentT: 5.0, secantT1: 2.0, secantT2: 5.0, hasMovedTangent: false, hasMovedSecant: false }
     };
-  } else {
-    const taCandidates = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-    const ta = taCandidates[randInt(0, taCandidates.length - 1)];
-    const possibleVb = [-1, 0, 1, 2, 3, 4, 5];
-    let chosenVb = 0;
-    const validVbs = possibleVb.filter(v => {
-      const roots = model.findTimesForValue(v);
-      if (roots.length === 0 || roots.length > 3) return false;
-      return roots.every(r => Math.abs(model.evalSlope(r)) > 0.35);
+    let activeSplineDrag = null;
+
+    function syncSplineStateWithVars(probId, v, resetTools = false) {
+      const st = splineWidgetStates[probId];
+      const knotsKey = JSON.stringify(v.knotsY || []);
+      const prevKey = st.vars ? JSON.stringify(st.vars.knotsY || []) : "";
+      st.vars = v;
+      st.model = buildSplineModel(v.knotsY || (probId === 1 ? [0, 4, -1, 3] : [1, 5, -1, 3]));
+      if (resetTools || knotsKey !== prevKey) {
+        const neutral = findNeutralSplineTimes(probId, st.model, v);
+        st.tangentT = neutral.tangentT; st.secantT1 = neutral.secantT1; st.secantT2 = neutral.secantT2;
+        st.hasMovedTangent = false; st.hasMovedSecant = false;
+        if (resetTools) { st.showTangent = false; st.showSecant = false; }
+      }
+    }
+
+    function buildInteractiveSplineSVG(probId, v) {
+      syncSplineStateWithVars(probId, v, false);
+      const st = splineWidgetStates[probId];
+      const model = st.model;
+      let gridHTML = "";
+      for (let t = 0; t <= 10; t++) gridHTML += `<line x1="${tToSvgX(t)}" y1="${SVG_CONFIG.yTop}" x2="${tToSvgX(t)}" y2="${SVG_CONFIG.yBottom}" stroke="#f1f5f9" stroke-width="1.2"/>`;
+      for (let y = -2; y <= 8; y++) gridHTML += `<line x1="${SVG_CONFIG.xLeft}" y1="${yToSvgY(y)}" x2="${SVG_CONFIG.xRight + 20}" y2="${yToSvgY(y)}" stroke="#f1f5f9" stroke-width="1.2"/>`;
+
+      const pyZero = yToSvgY(0);
+      const zeroHTML = `<line x1="${SVG_CONFIG.xLeft}" y1="${pyZero}" x2="${SVG_CONFIG.xRight + 22}" y2="${pyZero}" stroke="#3b82f6" stroke-width="1.5" stroke-dasharray="3.5,2.5"/><text x="${SVG_CONFIG.xRight + 28}" y="${pyZero + 4}" fill="#1e3a8a" font-size="12.5" class="mono" font-weight="500">${st.zeroLabel}</text>`;
+
+      let axesHTML = `<line x1="${SVG_CONFIG.xLeft}" y1="${SVG_CONFIG.yTop}" x2="${SVG_CONFIG.xLeft}" y2="${SVG_CONFIG.yBottom}" stroke="#1e293b" stroke-width="1.8"/><line x1="${SVG_CONFIG.xLeft}" y1="${SVG_CONFIG.yBottom}" x2="${SVG_CONFIG.xRight}" y2="${SVG_CONFIG.yBottom}" stroke="#1e293b" stroke-width="1.8"/>`;
+      for (let y = -2; y <= 8; y++) {
+        const py = yToSvgY(y);
+        axesHTML += `<line x1="${SVG_CONFIG.xLeft - 5}" y1="${py}" x2="${SVG_CONFIG.xLeft + 4}" y2="${py}" stroke="#1e293b" stroke-width="1.5"/><text x="${SVG_CONFIG.xLeft - 9}" y="${py + 4.5}" text-anchor="end" fill="#0f172a" font-size="13.5" font-weight="700">${y > 0 ? '+' + y : y}</text>`;
+      }
+      for (let t = 0; t <= 10; t++) {
+        const px = tToSvgX(t);
+        axesHTML += `<line x1="${px}" y1="${SVG_CONFIG.yBottom - 5}" x2="${px}" y2="${SVG_CONFIG.yBottom + 5}" stroke="#1e293b" stroke-width="1.5"/><text x="${px}" y="${SVG_CONFIG.yBottom + 21}" text-anchor="middle" fill="#0f172a" font-size="13.5" font-weight="700">${t}</text>`;
+      }
+      const yCenter = (SVG_CONFIG.yTop + SVG_CONFIG.yBottom) / 2;
+      axesHTML += `<text x="${(SVG_CONFIG.xLeft + SVG_CONFIG.xRight) / 2}" y="${SVG_CONFIG.yBottom + 48}" text-anchor="middle" fill="#1e293b" font-size="14.5" font-weight="700">Time t (seconds)</text><text x="36" y="${yCenter}" text-anchor="middle" fill="#1e293b" font-size="14.5" font-weight="700" transform="rotate(-90, 36, ${yCenter})">${st.yAxisTitle}</text>`;
+
+      const pts = [];
+      for (let t = 0; t <= 10.45; t += 0.05) pts.push(`${t === 0 ? "M" : "L"} ${tToSvgX(t).toFixed(2)} ${yToSvgY(model.evalValue(t)).toFixed(2)}`);
+      const curveD = pts.join(" ");
+
+      const t0 = st.tangentT, y0 = model.evalValue(t0), slopeTan = model.evalSlope(t0);
+      const tanX1 = tToSvgX(-0.5), tanY1 = yToSvgY(y0 + slopeTan * (-0.5 - t0)), tanX2 = tToSvgX(11.0), tanY2 = yToSvgY(y0 + slopeTan * (11.0 - t0));
+      const tanCx = tToSvgX(t0), tanCy = yToSvgY(y0), tanLabelTransform = y0 > 6.5 ? "translate(0, 34)" : "translate(0, -16)";
+      const tanLabelStr = `(${t0.toFixed(2)}s, ${formatSigned(y0, 2)}${st.unitPosition})`;
+
+      const t1 = st.secantT1, t2 = st.secantT2, y1 = model.evalValue(t1), y2 = model.evalValue(t2);
+      const slopeSec = Math.abs(t2 - t1) > 1e-4 ? (y2 - y1) / (t2 - t1) : model.evalSlope(t1);
+      const secX1 = tToSvgX(-0.5), secY1 = yToSvgY(y1 + slopeSec * (-0.5 - t1)), secX2 = tToSvgX(11.0), secY2 = yToSvgY(y1 + slopeSec * (11.0 - t1));
+      const sec1Transform = y1 > 6.5 ? "translate(0, 34)" : "translate(0, -16)", sec2Transform = y2 > 6.5 ? "translate(0, 34)" : "translate(0, -16)";
+      const sec1Str = `(${t1.toFixed(1)}s, ${formatSigned(y1, 1)}${st.unitPosition})`, sec2Str = `(${t2.toFixed(1)}s, ${formatSigned(y2, 1)}${st.unitPosition})`;
+
+      const clipId = `plotClip_${probId}_${Math.random().toString(36).slice(2, 7)}`;
+
+      return `
+      <div class="spline-graph-widget bg-[#f8fafc] border border-slate-200/90 rounded-2xl p-3 sm:p-5 my-3" data-prob-id="${probId}" onclick="event.stopPropagation()">
+        <div class="max-w-3xl mx-auto mb-3 flex flex-wrap items-center justify-between gap-2 bg-white px-3.5 py-2.5 rounded-xl border border-slate-200 shadow-2xs">
+          <div class="flex flex-wrap items-center gap-4 sm:gap-6">
+            <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" data-role="chk-tangent" ${st.showTangent ? "checked" : ""} onchange="toggleSplineTool(${probId}, 'tangent', this.checked)" class="w-4 h-4 rounded text-rose-600 focus:ring-rose-500 border-slate-300 cursor-pointer accent-rose-600" />
+              <span class="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-full bg-rose-600 inline-block"></span>Draw Tangent</span>
+            </label>
+            <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" data-role="chk-secant" ${st.showSecant ? "checked" : ""} onchange="toggleSplineTool(${probId}, 'secant', this.checked)" class="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer accent-emerald-600" />
+              <span class="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-700"><span class="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block"></span>Draw Secant</span>
+            </label>
+          </div>
+          <span class="text-[11px] text-slate-500 font-medium">Drag handles on curve or hover to inspect coordinates</span>
+        </div>
+        <div class="max-w-3xl mx-auto bg-white border border-slate-200/90 rounded-2xl p-2 sm:p-4 shadow-2xs">
+          <div class="w-full overflow-hidden">
+            <svg data-role="svg-graph" viewBox="0 0 740 420" class="w-full h-auto block no-select touch-none">
+              <defs><clipPath id="${clipId}"><rect x="95" y="20" width="560" height="335" /></clipPath></defs>
+              <g>${gridHTML}</g><g>${zeroHTML}</g><g>${axesHTML}</g>
+              <g clip-path="url(#${clipId})">
+                <path data-role="curve-path" d="${curveD}" fill="none" stroke="#256eb8" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+                <line data-role="secant-line" x1="${secX1}" y1="${secY1}" x2="${secX2}" y2="${secY2}" stroke="#059669" stroke-width="2.5" stroke-dasharray="7,5" class="${st.showSecant ? "" : "hidden"}" />
+                <line data-role="tangent-line" x1="${tanX1}" y1="${tanY1}" x2="${tanX2}" y2="${tanY2}" stroke="#e11d48" stroke-width="2.5" class="${st.showTangent ? "" : "hidden"}" />
+                <g data-role="crosshair" class="hidden pointer-events-none">
+                  <line data-role="crosshair-v" x1="0" y1="25" x2="0" y2="355" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3" />
+                  <line data-role="crosshair-h" x1="95" y1="0" x2="645" y2="0" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3,3" />
+                  <circle data-role="crosshair-dot" cx="0" cy="0" r="3.5" fill="#475569" />
+                  <g data-role="crosshair-label" class="hidden">
+                    <rect data-role="crosshair-label-bg" x="0" y="0" width="124" height="24" rx="6" fill="#0f172a" stroke="#e11d48" stroke-width="1.5" />
+                    <text data-role="crosshair-label-text" x="62" y="16" text-anchor="middle" fill="#ffffff" font-size="11" class="mono" font-weight="600"></text>
+                  </g>
+                </g>
+              </g>
+              <rect x="95" y="20" width="560" height="335" fill="rgba(0,0,0,0.0001)" pointer-events="all" class="cursor-crosshair" onpointerdown="onSplinePlotPointerDown(event, ${probId})" />
+              <g data-role="secant-handles" class="${st.showSecant ? "" : "hidden"}">
+                <g data-role="secant-handle-1" transform="translate(${tToSvgX(t1)}, ${yToSvgY(y1)})" class="graph-handle" onpointerdown="startSplineHandleDrag(event, ${probId}, 'secant1')">
+                  <circle cx="0" cy="0" r="30" fill="rgba(0,0,0,0.001)" pointer-events="all" /><circle cx="0" cy="0" r="14" fill="rgba(5, 150, 105, 0.22)" class="handle-halo" pointer-events="none" /><circle cx="0" cy="0" r="7.5" fill="#059669" stroke="#ffffff" stroke-width="2.5" pointer-events="none" />
+                  <g data-role="secant-label-group-1" transform="${sec1Transform}" pointer-events="none"><rect x="-52" y="-18" width="104" height="20" rx="5" fill="#065f46" /><text data-role="secant-label-text-1" x="0" y="-4" text-anchor="middle" fill="#ffffff" font-size="10.5" class="mono" font-weight="600">${sec1Str}</text></g>
+                </g>
+                <g data-role="secant-handle-2" transform="translate(${tToSvgX(t2)}, ${yToSvgY(y2)})" class="graph-handle" onpointerdown="startSplineHandleDrag(event, ${probId}, 'secant2')">
+                  <circle cx="0" cy="0" r="30" fill="rgba(0,0,0,0.001)" pointer-events="all" /><circle cx="0" cy="0" r="14" fill="rgba(5, 150, 105, 0.22)" class="handle-halo" pointer-events="none" /><circle cx="0" cy="0" r="7.5" fill="#059669" stroke="#ffffff" stroke-width="2.5" pointer-events="none" />
+                  <g data-role="secant-label-group-2" transform="${sec2Transform}" pointer-events="none"><rect x="-52" y="-18" width="104" height="20" rx="5" fill="#065f46" /><text data-role="secant-label-text-2" x="0" y="-4" text-anchor="middle" fill="#ffffff" font-size="10.5" class="mono" font-weight="600">${sec2Str}</text></g>
+                </g>
+              </g>
+              <g data-role="tangent-handles" class="${st.showTangent ? "" : "hidden"}">
+                <g data-role="tangent-handle" transform="translate(${tanCx}, ${tanCy})" class="graph-handle" onpointerdown="startSplineHandleDrag(event, ${probId}, 'tangent')">
+                  <circle cx="0" cy="0" r="30" fill="rgba(0,0,0,0.001)" pointer-events="all" /><circle cx="0" cy="0" r="15" fill="rgba(225, 29, 72, 0.22)" class="handle-halo" pointer-events="none" /><circle cx="0" cy="0" r="7.5" fill="#e11d48" stroke="#ffffff" stroke-width="2.5" pointer-events="none" />
+                  <g data-role="tangent-label-group" transform="${tanLabelTransform}" pointer-events="none"><rect x="-58" y="-19" width="116" height="21" rx="5" fill="#9f1239" /><text data-role="tangent-label-text" x="0" y="-5" text-anchor="middle" fill="#ffffff" font-size="10.5" class="mono" font-weight="600">${tanLabelStr}</text></g>
+                </g>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    function updateSplineWidgetsDOM(probId) {
+      const st = splineWidgetStates[probId];
+      if (!st || !st.model) return;
+      const model = st.model;
+      document.querySelectorAll(`.spline-graph-widget[data-prob-id="${probId}"]`).forEach(widget => {
+        const chkTan = widget.querySelector('[data-role="chk-tangent"]');
+        const chkSec = widget.querySelector('[data-role="chk-secant"]');
+        if (chkTan) chkTan.checked = st.showTangent;
+        if (chkSec) chkSec.checked = st.showSecant;
+        const tanLine = widget.querySelector('[data-role="tangent-line"]'), tanHandles = widget.querySelector('[data-role="tangent-handles"]');
+        if (tanLine && tanHandles) {
+          if (!st.showTangent) { tanLine.classList.add("hidden"); tanHandles.classList.add("hidden"); }
+          else {
+            tanLine.classList.remove("hidden"); tanHandles.classList.remove("hidden");
+            const t0 = st.tangentT, y0 = model.evalValue(t0), slope = model.evalSlope(t0);
+            tanLine.setAttribute("x1", tToSvgX(-0.5)); tanLine.setAttribute("y1", yToSvgY(y0 + slope * (-0.5 - t0)));
+            tanLine.setAttribute("x2", tToSvgX(11.0)); tanLine.setAttribute("y2", yToSvgY(y0 + slope * (11.0 - t0)));
+            const handle = widget.querySelector('[data-role="tangent-handle"]'); if (handle) handle.setAttribute("transform", `translate(${tToSvgX(t0)}, ${yToSvgY(y0)})`);
+            const lg = widget.querySelector('[data-role="tangent-label-group"]'); if (lg) lg.setAttribute("transform", y0 > 6.5 ? "translate(0, 34)" : "translate(0, -16)");
+            const lt = widget.querySelector('[data-role="tangent-label-text"]'); if (lt) lt.textContent = `(${t0.toFixed(2)}s, ${formatSigned(y0, 2)}${st.unitPosition})`;
+          }
+        }
+        const secLine = widget.querySelector('[data-role="secant-line"]'), secHandles = widget.querySelector('[data-role="secant-handles"]');
+        if (secLine && secHandles) {
+          if (!st.showSecant) { secLine.classList.add("hidden"); secHandles.classList.add("hidden"); }
+          else {
+            secLine.classList.remove("hidden"); secHandles.classList.remove("hidden");
+            const t1 = st.secantT1, t2 = st.secantT2, y1 = model.evalValue(t1), y2 = model.evalValue(t2);
+            const slope = Math.abs(t2 - t1) > 1e-4 ? (y2 - y1) / (t2 - t1) : model.evalSlope(t1);
+            secLine.setAttribute("x1", tToSvgX(-0.5)); secLine.setAttribute("y1", yToSvgY(y1 + slope * (-0.5 - t1)));
+            secLine.setAttribute("x2", tToSvgX(11.0)); secLine.setAttribute("y2", yToSvgY(y1 + slope * (11.0 - t1)));
+            const h1 = widget.querySelector('[data-role="secant-handle-1"]'), h2 = widget.querySelector('[data-role="secant-handle-2"]');
+            if (h1) h1.setAttribute("transform", `translate(${tToSvgX(t1)}, ${yToSvgY(y1)})`);
+            if (h2) h2.setAttribute("transform", `translate(${tToSvgX(t2)}, ${yToSvgY(y2)})`);
+            const lg1 = widget.querySelector('[data-role="secant-label-group-1"]'), lg2 = widget.querySelector('[data-role="secant-label-group-2"]');
+            if (lg1) lg1.setAttribute("transform", y1 > 6.5 ? "translate(0, 34)" : "translate(0, -16)");
+            if (lg2) lg2.setAttribute("transform", y2 > 6.5 ? "translate(0, 34)" : "translate(0, -16)");
+            const lt1 = widget.querySelector('[data-role="secant-label-text-1"]'), lt2 = widget.querySelector('[data-role="secant-label-text-2"]');
+            if (lt1) lt1.textContent = `(${t1.toFixed(1)}s, ${formatSigned(y1, 1)}${st.unitPosition})`;
+            if (lt2) lt2.textContent = `(${t2.toFixed(1)}s, ${formatSigned(y2, 1)}${st.unitPosition})`;
+          }
+        }
+      });
+    }
+
+    function toggleSplineTool(probId, toolName, isChecked) {
+      const st = splineWidgetStates[probId];
+      if (!st) return;
+      if (toolName === "tangent") {
+        st.showTangent = isChecked;
+        if (isChecked && !st.hasMovedTangent && st.model && st.vars) st.tangentT = findNeutralSplineTimes(probId, st.model, st.vars).tangentT;
+      } else if (toolName === "secant") {
+        st.showSecant = isChecked;
+        if (isChecked && !st.hasMovedSecant && st.model && st.vars) {
+          const neutral = findNeutralSplineTimes(probId, st.model, st.vars);
+          st.secantT1 = neutral.secantT1; st.secantT2 = neutral.secantT2;
+        }
+      }
+      updateSplineWidgetsDOM(probId);
+    }
+
+    function getSvgPointFromEvent(svgEl, evt) {
+      const pt = svgEl.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
+      const ctm = svgEl.getScreenCTM();
+      return ctm ? pt.matrixTransform(ctm.inverse()) : { x: 0, y: 0 };
+    }
+
+    function startSplineHandleDrag(evt, probId, handleType) {
+      evt.stopPropagation(); evt.preventDefault();
+      activeSplineDrag = { probId, handleType, svgEl: evt.currentTarget.closest("svg") };
+      document.body.style.cursor = "grabbing";
+    }
+
+    function onSplinePlotPointerDown(evt, probId) {
+      const st = splineWidgetStates[probId];
+      if (!st || (!st.showTangent && !st.showSecant)) return;
+      const svgEl = evt.currentTarget.closest("svg");
+      if (!svgEl) return;
+      const clickedT = Math.max(0, Math.min(10, svgXToT(getSvgPointFromEvent(svgEl, evt).x)));
+      const candidates = [];
+      if (st.showTangent) candidates.push({ type: "tangent", dist: Math.abs(clickedT - st.tangentT) });
+      if (st.showSecant) { candidates.push({ type: "secant1", dist: Math.abs(clickedT - st.secantT1) }); candidates.push({ type: "secant2", dist: Math.abs(clickedT - st.secantT2) }); }
+      if (candidates.length > 0) {
+        candidates.sort((a, b) => a.dist - b.dist);
+        if (candidates[0].dist < 1.8) {
+          activeSplineDrag = { probId, handleType: candidates[0].type, svgEl };
+          document.body.style.cursor = "grabbing";
+          const snappedT = Math.round(clickedT * 20) / 20;
+          if (candidates[0].type === "tangent") { st.tangentT = snappedT; st.hasMovedTangent = true; }
+          else if (candidates[0].type === "secant1") { st.secantT1 = snappedT; st.hasMovedSecant = true; }
+          else if (candidates[0].type === "secant2") { st.secantT2 = snappedT; st.hasMovedSecant = true; }
+          updateSplineWidgetsDOM(probId);
+        }
+      }
+    }
+
+    window.addEventListener("pointermove", (evt) => {
+      if (activeSplineDrag && activeSplineDrag.svgEl) {
+        const { probId, handleType, svgEl } = activeSplineDrag;
+        const st = splineWidgetStates[probId];
+        if (st) {
+          const snappedT = Math.max(0, Math.min(10, Math.round(svgXToT(getSvgPointFromEvent(svgEl, evt).x) * 20) / 20));
+          if (handleType === "tangent") { st.tangentT = snappedT; st.hasMovedTangent = true; }
+          else if (handleType === "secant1") { st.secantT1 = snappedT; st.hasMovedSecant = true; }
+          else if (handleType === "secant2") { st.secantT2 = snappedT; st.hasMovedSecant = true; }
+          updateSplineWidgetsDOM(probId);
+        }
+      }
+      document.querySelectorAll(".spline-graph-widget").forEach(widget => {
+        const probId = Number(widget.getAttribute("data-prob-id")), st = splineWidgetStates[probId], svgEl = widget.querySelector('[data-role="svg-graph"]');
+        if (!st || !st.model || !svgEl || svgEl.getBoundingClientRect().width === 0) return;
+        const svgPt = getSvgPointFromEvent(svgEl, evt);
+        const crosshair = widget.querySelector('[data-role="crosshair"]'), labelGroup = widget.querySelector('[data-role="crosshair-label"]');
+        if (!crosshair) return;
+        if (svgPt.x >= SVG_CONFIG.xLeft && svgPt.x <= SVG_CONFIG.xRight + 20 && svgPt.y >= SVG_CONFIG.yTop && svgPt.y <= SVG_CONFIG.yBottom) {
+          const tVal = Math.max(0, Math.min(10, svgXToT(svgPt.x)));
+          let displayY = svgYToY(svgPt.y), hitLine = null;
+          if (st.showTangent) {
+            const t0 = st.tangentT, y0 = st.model.evalValue(t0), slopeTan = st.model.evalSlope(t0), yTan = y0 + slopeTan * (tVal - t0);
+            const dx = (SVG_CONFIG.xRight - SVG_CONFIG.xLeft) / 10, dy = -slopeTan * (SVG_CONFIG.yBottom - SVG_CONFIG.yTop) / 10;
+            if (Math.abs((svgPt.x - tToSvgX(t0)) * dy - (svgPt.y - yToSvgY(y0)) * dx) / (Math.hypot(dx, dy) || 1) < 14 && yTan >= SVG_CONFIG.yMin - 0.6 && yTan <= SVG_CONFIG.yMax + 0.6) {
+              hitLine = { type: "tangent", yVal: yTan, color: "#e11d48" }; displayY = yTan;
+            }
+          }
+          const px = tToSvgX(tVal), py = yToSvgY(displayY);
+          crosshair.classList.remove("hidden");
+          const chV = widget.querySelector('[data-role="crosshair-v"]'), chH = widget.querySelector('[data-role="crosshair-h"]'), dot = widget.querySelector('[data-role="crosshair-dot"]');
+          if (chV) { chV.setAttribute("x1", px); chV.setAttribute("x2", px); }
+          if (chH) { chH.setAttribute("y1", py); chH.setAttribute("y2", py); }
+          if (dot) { dot.setAttribute("cx", px); dot.setAttribute("cy", py); }
+          if (hitLine && labelGroup && dot) {
+            labelGroup.classList.remove("hidden"); dot.setAttribute("r", "5"); dot.setAttribute("fill", hitLine.color);
+            const labelBg = widget.querySelector('[data-role="crosshair-label-bg"]'), labelText = widget.querySelector('[data-role="crosshair-label-text"]');
+            if (labelBg && labelText) {
+              labelBg.setAttribute("stroke", hitLine.color); labelText.textContent = `(${tVal.toFixed(2)}s, ${formatSigned(displayY, 2)}${st.unitPosition})`;
+              const badgeW = st.unitPosition.length > 2 ? 134 : 124, badgeH = 24;
+              let badgeX = px + 12, badgeY = py - 28;
+              if (badgeX + badgeW > SVG_CONFIG.xRight + 20) badgeX = px - badgeW - 12;
+              if (badgeX < SVG_CONFIG.xLeft + 2) badgeX = SVG_CONFIG.xLeft + 2;
+              if (badgeY < SVG_CONFIG.yTop) badgeY = py + 12;
+              if (badgeY + badgeH > SVG_CONFIG.yBottom) badgeY = SVG_CONFIG.yBottom - badgeH;
+              labelBg.setAttribute("width", badgeW); labelBg.setAttribute("height", badgeH);
+              labelBg.setAttribute("x", badgeX); labelBg.setAttribute("y", badgeY);
+              labelText.setAttribute("x", badgeX + badgeW / 2); labelText.setAttribute("y", badgeY + 16);
+            }
+          } else if (labelGroup && dot) {
+            labelGroup.classList.add("hidden"); dot.setAttribute("r", "3.5"); dot.setAttribute("fill", "#475569");
+          }
+        } else {
+          crosshair.classList.add("hidden"); if (labelGroup) labelGroup.classList.add("hidden");
+        }
+      });
     });
-    if (validVbs.length > 0) {
-      chosenVb = validVbs[randInt(0, validVbs.length - 1)];
-    }
-    const tdCandidates = [1.5, 1.75, 2.0, 3.5, 4.5, 5.0, 7.5, 8.0];
-    const td = tdCandidates[randInt(0, tdCandidates.length - 1)];
-    return {
-      knotsY: chosenKnots,
-      ta,
-      vb: chosenVb,
-      tc1: pair1[0],
-      tc2: pair1[1],
-      td
-    };
-  }
-}
 
-// Builds the text shown under "Guided Solution": a short numbered list of steps.
+    window.addEventListener("pointerup", () => { activeSplineDrag = null; document.body.style.cursor = ""; });
+    window.addEventListener("pointercancel", () => { activeSplineDrag = null; document.body.style.cursor = ""; });
+
+    window.buildSplineModel = buildSplineModel;
+    window.generateSplineProblemVars = generateSplineProblemVars;
+    window.buildInteractiveSplineSVG = buildInteractiveSplineSVG;
+    window.syncSplineStateWithVars = syncSplineStateWithVars;
+    window.toggleSplineTool = toggleSplineTool;
+    window.startSplineHandleDrag = startSplineHandleDrag;
+    window.onSplinePlotPointerDown = onSplinePlotPointerDown;
+}
+installSplineEngine();
+
+// 2. Builds the text shown under "Guided Solution": a short numbered list of steps.
 function guidedSteps() {
   const items = Array.prototype.slice.call(arguments).filter(function (s) { return s; });
   return items.map(function (s, i) { return '<strong>Step ' + (i + 1) + ':</strong> ' + s; }).join('<br/>');
 }
 
+// 3. One drawing function per diagram name.
+const DIAGRAM_DRAWERS = {
+  splinePosGraph: function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return buildInteractiveSplineSVG(1, v);
+  },
+  splineVelGraph: function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return buildInteractiveSplineSVG(2, v);
+  },
+  collinearMasses: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 500 165" class="w-full max-w-lg mx-auto h-40 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <!-- Centerline axis -->
+        <line x1="30" y1="75" x2="470" y2="75" stroke="${stroke}" stroke-dasharray="5 5" stroke-width="1.5"/>
+        
+        <!-- Mass A -->
+        <circle cx="75" cy="75" r="24" fill="${boxFill}" stroke="${accent}" stroke-width="3"/>
+        <text x="75" y="75" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="16" font-weight="800">A</text>
+        <rect x="43" y="105" width="64" height="20" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+        <text x="75" y="119" text-anchor="middle" fill="#475569" font-size="12" font-weight="700">${v.mA} kg</text>
+        
+        <!-- Mass B -->
+        <circle cx="230" cy="75" r="28" fill="${boxFill}" stroke="#7c3aed" stroke-width="3"/>
+        <text x="230" y="75" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="16" font-weight="800">B</text>
+        <rect x="198" y="108" width="64" height="20" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+        <text x="230" y="122" text-anchor="middle" fill="#475569" font-size="12" font-weight="700">${v.mB} kg</text>
+
+        <!-- Mass C -->
+        <circle cx="410" cy="75" r="22" fill="${boxFill}" stroke="#059669" stroke-width="3"/>
+        <text x="410" y="75" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="16" font-weight="800">C</text>
+        <rect x="378" y="103" width="64" height="20" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+        <text x="410" y="117" text-anchor="middle" fill="#475569" font-size="12" font-weight="700">${v.mC} kg</text>
+
+        <!-- Top dimension: r_AB -->
+        <line x1="75" y1="34" x2="230" y2="34" stroke="${accent}" stroke-width="2"/>
+        <line x1="75" y1="28" x2="75" y2="40" stroke="${accent}" stroke-width="2"/>
+        <line x1="230" y1="28" x2="230" y2="40" stroke="${accent}" stroke-width="2"/>
+        <rect x="105" y="12" width="95" height="20" rx="4" fill="#ffffff" stroke="#93c5fd" stroke-width="1"/>
+        <text x="152" y="26" text-anchor="middle" fill="${accent}" font-size="12" font-weight="800">r<tspan baseline-shift="sub" font-size="9">AB</tspan> = ${v.rABcm} cm</text>
+
+        <!-- Bottom dimension: r_AC -->
+        <rect x="135" y="137" width="230" height="23" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+        <text x="250" y="153" text-anchor="middle" fill="#334155" font-size="12" font-weight="700">Total r<tspan baseline-shift="sub" font-size="9">AC</tspan> = ${v.rACcm} cm (+x right &rarr;)</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  vtGraph: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 420 230" class="w-full max-w-sm mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <!-- Axes -->
+        <line x1="70" y1="25" x2="70" y2="175" stroke="${stroke}" stroke-width="2.5"/>
+        <line x1="70" y1="175" x2="385" y2="175" stroke="${stroke}" stroke-width="2.5"/>
+        
+        <!-- Axis Arrows -->
+        <polygon points="70,18 65,28 75,28" fill="${stroke}"/>
+        <polygon points="392,175 382,170 382,180" fill="${stroke}"/>
+
+        <!-- Axis Labels -->
+        <text x="225" y="215" text-anchor="middle" fill="${textCol}" font-size="14" font-weight="700">Time t (s)</text>
+        <text x="-100" y="24" text-anchor="middle" fill="${textCol}" font-size="14" font-weight="700" transform="rotate(-90)">Speed v (m/s)</text>
+
+        <!-- Origin Label -->
+        <text x="58" y="190" text-anchor="end" fill="#64748b" font-size="13" font-weight="600">0</text>
+
+        <!-- Guide Dashes -->
+        <line x1="70" y1="65" x2="320" y2="65" stroke="#cbd5e1" stroke-dasharray="4 4" stroke-width="2"/>
+        <line x1="320" y1="65" x2="320" y2="175" stroke="#cbd5e1" stroke-dasharray="4 4" stroke-width="2"/>
+
+        <!-- Value Labels on Axes with Badges -->
+        <rect x="20" y="53" width="44" height="24" rx="4" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+        <text x="42" y="69" text-anchor="middle" fill="${accent}" font-size="13" font-weight="800">${v.vf}</text>
+
+        <rect x="296" y="180" width="48" height="22" rx="4" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+        <text x="320" y="195" text-anchor="middle" fill="${accent}" font-size="13" font-weight="800">${v.t} s</text>
+
+        <!-- Velocity Slope Line -->
+        <line x1="70" y1="175" x2="320" y2="65" stroke="${accent}" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="320" cy="65" r="5.5" fill="${forceCol}"/>
+
+        <!-- Point Coordinates Badge (comfortably above point) -->
+        <rect x="205" y="26" width="130" height="26" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1.5"/>
+        <text x="270" y="43" text-anchor="middle" fill="${textCol}" font-size="13" font-weight="700">(${v.t} s, ${v.vf} m/s)</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  threeBlocksPush: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 480 155" class="w-full max-w-lg mx-auto h-40 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <!-- Floor line -->
+        <line x1="20" y1="112" x2="460" y2="112" stroke="${stroke}" stroke-width="3"/>
+        
+        <!-- Applied Force F Arrow and Badge -->
+        <line x1="25" y1="72" x2="95" y2="72" stroke="${forceCol}" stroke-width="4"/>
+        <polygon points="95,64 107,72 95,80" fill="${forceCol}"/>
+        <rect x="42" y="44" width="36" height="22" rx="4" fill="#ffffff" stroke="#fecdd3" stroke-width="1"/>
+        <text x="60" y="59" text-anchor="middle" fill="${forceCol}" font-size="14" font-weight="800">F</text>
+        
+        <!-- Block 1 -->
+        <rect x="110" y="46" width="70" height="66" rx="5" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="145" y="78" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">1</tspan></text>
+        <rect x="117" y="120" width="56" height="20" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+        <text x="145" y="134" text-anchor="middle" fill="#475569" font-size="12" font-weight="700">${v.m1} kg</text>
+        
+        <!-- Block 2 -->
+        <rect x="182" y="38" width="86" height="74" rx="5" fill="${boxFill}" stroke="#7c3aed" stroke-width="2.5"/>
+        <text x="225" y="74" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">2</tspan></text>
+        <rect x="197" y="120" width="56" height="20" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+        <text x="225" y="134" text-anchor="middle" fill="#475569" font-size="12" font-weight="700">${v.m2} kg</text>
+        
+        <!-- Block 3 -->
+        <rect x="270" y="26" width="104" height="86" rx="5" fill="${boxFill}" stroke="#059669" stroke-width="2.5"/>
+        <text x="322" y="68" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">3</tspan></text>
+        <rect x="294" y="120" width="56" height="20" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+        <text x="322" y="134" text-anchor="middle" fill="#475569" font-size="12" font-weight="700">${v.m3} kg</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  twoBlocksPush: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 440 155" class="w-full max-w-md mx-auto h-40 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <!-- Floor line -->
+        <line x1="20" y1="112" x2="420" y2="112" stroke="${stroke}" stroke-width="3"/>
+        
+        <!-- Applied Force F Arrow and Badge -->
+        <line x1="30" y1="70" x2="115" y2="70" stroke="${forceCol}" stroke-width="4"/>
+        <polygon points="115,62 127,70 115,78" fill="${forceCol}"/>
+        <rect x="32" y="38" width="85" height="22" rx="4" fill="#ffffff" stroke="#fecdd3" stroke-width="1"/>
+        <text x="74.5" y="53" text-anchor="middle" fill="${forceCol}" font-size="13" font-weight="800">F = ${v.F} N</text>
+        
+        <!-- Block 1 -->
+        <rect x="125" y="34" width="110" height="78" rx="6" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="180" y="60" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="16" font-weight="800">m<tspan baseline-shift="sub" font-size="12">1</tspan></text>
+        <rect x="142" y="74" width="76" height="22" rx="4" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+        <text x="180" y="89" text-anchor="middle" fill="${accent}" font-size="13" font-weight="700">${v.m1} kg</text>
+
+        <!-- Block 2 -->
+        <rect x="237" y="46" width="95" height="66" rx="6" fill="${boxFill}" stroke="#059669" stroke-width="2.5"/>
+        <text x="285" y="68" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="16" font-weight="800">m<tspan baseline-shift="sub" font-size="12">2</tspan></text>
+        <rect x="252" y="78" width="66" height="22" rx="4" fill="#ffffff" stroke="#a7f3d0" stroke-width="1"/>
+        <text x="285" y="93" text-anchor="middle" fill="#059669" font-size="13" font-weight="700">${v.m2} kg</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  threeBlocksRope: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 560 155" class="w-full max-w-xl mx-auto h-40 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <!-- Floor line -->
+        <line x1="15" y1="112" x2="545" y2="112" stroke="${stroke}" stroke-width="3"/>
+        
+        <!-- Block 1 -->
+        <rect x="25" y="46" width="90" height="66" rx="6" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="70" y="68" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">1</tspan></text>
+        <rect x="42" y="81" width="56" height="20" rx="4" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+        <text x="70" y="95" text-anchor="middle" fill="${accent}" font-size="12" font-weight="700">${v.m1} kg</text>
+
+        <!-- Rope 1-2 & Badge -->
+        <line x1="115" y1="78" x2="185" y2="78" stroke="#d97706" stroke-width="3.5"/>
+        <rect x="127" y="48" width="46" height="22" rx="4" fill="#ffffff" stroke="#fde68a" stroke-width="1.2"/>
+        <text x="150" y="63" text-anchor="middle" fill="#b45309" font-size="12" font-weight="800">T<tspan baseline-shift="sub" font-size="9">12</tspan></text>
+
+        <!-- Block 2 -->
+        <rect x="185" y="50" width="86" height="62" rx="6" fill="${boxFill}" stroke="#7c3aed" stroke-width="2.5"/>
+        <text x="228" y="72" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">2</tspan></text>
+        <rect x="200" y="83" width="56" height="20" rx="4" fill="#ffffff" stroke="#ddd6fe" stroke-width="1"/>
+        <text x="228" y="97" text-anchor="middle" fill="#7c3aed" font-size="12" font-weight="700">${v.m2} kg</text>
+
+        <!-- Rope 2-3 & Badge -->
+        <line x1="271" y1="78" x2="341" y2="78" stroke="#d97706" stroke-width="3.5"/>
+        <rect x="283" y="48" width="46" height="22" rx="4" fill="#ffffff" stroke="#fde68a" stroke-width="1.2"/>
+        <text x="306" y="63" text-anchor="middle" fill="#b45309" font-size="12" font-weight="800">T<tspan baseline-shift="sub" font-size="9">23</tspan></text>
+
+        <!-- Block 3 -->
+        <rect x="341" y="55" width="82" height="57" rx="6" fill="${boxFill}" stroke="#059669" stroke-width="2.5"/>
+        <text x="382" y="74" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">3</tspan></text>
+        <rect x="354" y="85" width="56" height="20" rx="4" fill="#ffffff" stroke="#a7f3d0" stroke-width="1"/>
+        <text x="382" y="99" text-anchor="middle" fill="#059669" font-size="12" font-weight="700">${v.m3} kg</text>
+
+        <!-- Pulling Force F & Badge -->
+        <line x1="423" y1="78" x2="490" y2="78" stroke="${forceCol}" stroke-width="4"/>
+        <polygon points="490,70 503,78 490,86" fill="${forceCol}"/>
+        <rect x="430" y="48" width="80" height="22" rx="4" fill="#ffffff" stroke="#fecdd3" stroke-width="1.2"/>
+        <text x="470" y="63" text-anchor="middle" fill="${forceCol}" font-size="12" font-weight="800">F = ${v.F} N</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  atwood: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 340 230" class="w-full max-w-xs mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <!-- Ceiling Support -->
+        <line x1="100" y1="18" x2="240" y2="18" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>
+        <line x1="170" y1="18" x2="170" y2="48" stroke="${stroke}" stroke-width="3.5"/>
+        
+        <!-- Pulley -->
+        <circle cx="170" cy="48" r="30" fill="#e2e8f0" stroke="${accent}" stroke-width="3.5"/>
+        <circle cx="170" cy="48" r="6" fill="${stroke}"/>
+
+        <!-- Ropes -->
+        <line x1="140" y1="48" x2="140" y2="135" stroke="#d97706" stroke-width="3"/>
+        <line x1="200" y1="48" x2="200" y2="105" stroke="#d97706" stroke-width="3"/>
+
+        <!-- Mass 1 (Left, Lower) -->
+        <rect x="110" y="135" width="60" height="52" rx="6" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="140" y="152" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">1</tspan></text>
+        <rect x="117" y="162" width="46" height="20" rx="4" fill="#ffffff" stroke="#bfdbfe" stroke-width="1"/>
+        <text x="140" y="176" text-anchor="middle" fill="${accent}" font-size="12" font-weight="700">${v.m1} kg</text>
+
+        <!-- Mass 2 (Right, Higher) -->
+        <rect x="172" y="105" width="56" height="46" rx="6" fill="${boxFill}" stroke="#059669" stroke-width="2.5"/>
+        <text x="200" y="121" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">2</tspan></text>
+        <rect x="177" y="131" width="46" height="20" rx="4" fill="#ffffff" stroke="#a7f3d0" stroke-width="1"/>
+        <text x="200" y="145" text-anchor="middle" fill="#059669" font-size="12" font-weight="700">${v.m2} kg</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  halfAtwood: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 420 200" class="w-full max-w-sm mx-auto h-50 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <!-- Table Base -->
+        <rect x="30" y="85" width="240" height="100" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        
+        <!-- Pulley at corner -->
+        <circle cx="272" cy="85" r="18" fill="${boxFill}" stroke="${accent}" stroke-width="3"/>
+        <circle cx="272" cy="85" r="4.5" fill="${stroke}"/>
+
+        <!-- Mass 2 on table -->
+        <rect x="90" y="40" width="76" height="45" rx="6" fill="${boxFill}" stroke="#7c3aed" stroke-width="2.5"/>
+        <text x="128" y="55" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">2</tspan></text>
+        <rect x="100" y="64" width="56" height="20" rx="4" fill="#ffffff" stroke="#ddd6fe" stroke-width="1"/>
+        <text x="128" y="78" text-anchor="middle" fill="#7c3aed" font-size="12" font-weight="700">${v.m2} kg</text>
+
+        <!-- String connecting masses -->
+        <line x1="166" y1="68" x2="272" y2="68" stroke="#d97706" stroke-width="3"/>
+        <line x1="290" y1="85" x2="290" y2="135" stroke="#d97706" stroke-width="3"/>
+
+        <!-- Mass 1 hanging -->
+        <rect x="262" y="135" width="56" height="48" rx="6" fill="${boxFill}" stroke="#059669" stroke-width="2.5"/>
+        <text x="290" y="150" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">1</tspan></text>
+        <rect x="267" y="160" width="46" height="20" rx="4" fill="#ffffff" stroke="#a7f3d0" stroke-width="1"/>
+        <text x="290" y="174" text-anchor="middle" fill="#059669" font-size="12" font-weight="700">${v.m1} kg</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  symmetricRopes: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    {
+      const hasTheta = typeof v.theta === 'number';
+      return `<svg viewBox="0 0 440 190" class="w-full max-w-sm mx-auto h-48 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <!-- Ceiling -->
+        <line x1="30" y1="26" x2="410" y2="26" stroke="${stroke}" stroke-width="4" stroke-linecap="round"/>
+        
+        <!-- Support Ropes -->
+        <line x1="75" y1="26" x2="220" y2="92" stroke="#d97706" stroke-width="3.5"/>
+        <line x1="365" y1="26" x2="220" y2="92" stroke="#d97706" stroke-width="3.5"/>
+        
+        ${hasTheta ? `
+        <!-- Left Angle Reference & Arc -->
+        <line x1="75" y1="26" x2="145" y2="26" stroke="#94a3b8" stroke-dasharray="3 3" stroke-width="1.5"/>
+        <path d="M 120 26 A 45 45 0 0 1 116 46" fill="none" stroke="${accent}" stroke-width="2"/>
+        <rect x="126" y="32" width="76" height="22" rx="4" fill="#ffffff" stroke="#93c5fd" stroke-width="1.2"/>
+        <text x="164" y="47" text-anchor="middle" fill="${accent}" font-size="12" font-weight="800">&theta; = ${v.theta}&deg;</text>
+
+        <!-- Right Angle Reference & Arc -->
+        <line x1="365" y1="26" x2="295" y2="26" stroke="#94a3b8" stroke-dasharray="3 3" stroke-width="1.5"/>
+        <path d="M 320 26 A 45 45 0 0 0 324 46" fill="none" stroke="${accent}" stroke-width="2"/>
+        <rect x="238" y="32" width="76" height="22" rx="4" fill="#ffffff" stroke="#93c5fd" stroke-width="1.2"/>
+        <text x="276" y="47" text-anchor="middle" fill="${accent}" font-size="12" font-weight="800">&theta; = ${v.theta}&deg;</text>
+        ` : `
+        ${v.FT ? `
+        <rect x="95" y="36" width="84" height="22" rx="4" fill="#ffffff" stroke="#fde68a" stroke-width="1.2"/>
+        <text x="137" y="51" text-anchor="middle" fill="#b45309" font-size="12" font-weight="800">T = ${v.FT} N</text>
+        <rect x="261" y="36" width="84" height="22" rx="4" fill="#ffffff" stroke="#fde68a" stroke-width="1.2"/>
+        <text x="303" y="51" text-anchor="middle" fill="#b45309" font-size="12" font-weight="800">T = ${v.FT} N</text>
+        ` : ''}
+        `}
+
+        <!-- Knot and Vertical Drop -->
+        <circle cx="220" cy="92" r="5" fill="#b45309"/>
+        <line x1="220" y1="92" x2="220" y2="120" stroke="#d97706" stroke-width="3.5"/>
+
+        <!-- Suspended Mass Block -->
+        <rect x="185" y="120" width="70" height="50" rx="6" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="220" y="142" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">Mass</text>
+        <text x="220" y="158" text-anchor="middle" dominant-baseline="central" fill="#475569" font-size="12" font-weight="700">${v.W ? v.W + ' N' : (v.m ? v.m + ' kg' : '')}</text>
+      </svg>`;
+    }
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  twoMenRopesRock: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 460 195" class="w-full max-w-md mx-auto h-48 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <!-- Left & Right Platforms -->
+        <line x1="15" y1="55" x2="115" y2="55" stroke="${stroke}" stroke-width="3"/>
+        <line x1="345" y1="45" x2="445" y2="45" stroke="${stroke}" stroke-width="3"/>
+
+        <!-- Left Person -->
+        <circle cx="65" cy="22" r="8" fill="${boxFill}" stroke="${textCol}" stroke-width="2.5"/>
+        <line x1="65" y1="30" x2="65" y2="45" stroke="${textCol}" stroke-width="2.8"/>
+        <line x1="65" y1="45" x2="56" y2="55" stroke="${textCol}" stroke-width="2.8"/>
+        <line x1="65" y1="45" x2="74" y2="55" stroke="${textCol}" stroke-width="2.8"/>
+
+        <!-- Right Person -->
+        <circle cx="395" cy="14" r="8" fill="${boxFill}" stroke="${textCol}" stroke-width="2.5"/>
+        <line x1="395" y1="22" x2="395" y2="36" stroke="${textCol}" stroke-width="2.8"/>
+        <line x1="395" y1="36" x2="386" y2="45" stroke="${textCol}" stroke-width="2.8"/>
+        <line x1="395" y1="36" x2="404" y2="45" stroke="${textCol}" stroke-width="2.8"/>
+
+        <!-- Ropes to Rock -->
+        <line x1="72" y1="38" x2="230" y2="112" stroke="#d97706" stroke-width="3.5"/>
+        <line x1="388" y1="30" x2="230" y2="112" stroke="#d97706" stroke-width="3.5"/>
+
+        <!-- Horizontal Reference Line at Rock Knot -->
+        <line x1="125" y1="112" x2="335" y2="112" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1.5"/>
+
+        <!-- Left Rope Labels -->
+        <rect x="92" y="64" width="88" height="22" rx="4" fill="#ffffff" stroke="#93c5fd" stroke-width="1.2"/>
+        <text x="136" y="79" text-anchor="middle" fill="${accent}" font-size="12" font-weight="800">${v.T1} N @ ${v.theta1}&deg;</text>
+
+        <!-- Right Rope Labels -->
+        <rect x="280" y="60" width="82" height="22" rx="4" fill="#ffffff" stroke="#fde68a" stroke-width="1.2"/>
+        <text x="321" y="75" text-anchor="middle" fill="#b45309" font-size="12" font-weight="800">T<tspan baseline-shift="sub" font-size="9">2</tspan>, &theta;<tspan baseline-shift="sub" font-size="9">2</tspan> = ?</text>
+
+        <!-- Suspended Rock -->
+        <circle cx="230" cy="146" r="28" fill="#cbd5e1" stroke="${stroke}" stroke-width="2.5"/>
+        <line x1="230" y1="112" x2="230" y2="118" stroke="#d97706" stroke-width="3.5"/>
+        <text x="230" y="146" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="13" font-weight="800">${v.m} kg</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  inclineAtwood: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", textCol = "#0f172a", boxFill = "#f8fafc", G = "#059669", O = "#d97706";
+    const th = v.theta || 26, t = th * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t), xr = 290;
+    const run = Math.min(250, 105 / Math.tan(t)), H = run * Math.tan(t), x0 = xr - run, vy = 100, gy = vy + H;
+    const ux = c, uy = -sn, nx = -sn, ny = -c;
+    const Cx = xr + 7 * nx + 24 * ux, Cy = vy + 7 * ny + 24 * uy;
+    const Tx = Cx + 13 * nx, Ty = Cy + 13 * ny;
+    const s = 0.34, px = x0 + run * s, py = gy - H * s;
+    const ax = px + 32 * c - 20 * sn, ay = py - 32 * sn - 20 * c;
+    const bx = Cx + 13, bTop = Cy + 50;
+    const mx = (ax + Tx) / 2, my = (ay + Ty) / 2;
+    return `<svg viewBox="0 0 440 225" class="w-full max-w-md mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <polygon points="${x0},${gy} ${xr},${gy} ${xr},${vy}" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        <line x1="${xr}" y1="${vy}" x2="${Cx}" y2="${Cy}" stroke="${stroke}" stroke-width="3"/>
+        <circle cx="${Cx}" cy="${Cy}" r="13" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/><circle cx="${Cx}" cy="${Cy}" r="3.5" fill="${stroke}"/>
+        <path d="M ${x0 + 55} ${gy} A 55 55 0 0 0 ${x0 + 55 * c} ${gy - 55 * sn}" fill="none" stroke="${accent}" stroke-width="2.2"/>
+        <text x="${x0 + 62}" y="${th < 16 ? gy + 17 : gy - 6}" text-anchor="start" fill="${accent}" font-size="12.5" font-weight="800">&theta; = ${th}&deg;</text>
+        <g transform="translate(${px}, ${py}) rotate(${-th})">
+          <rect x="-32" y="-36" width="64" height="36" rx="5" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+          <text x="0" y="-18" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="12" font-weight="800">m<tspan baseline-shift="sub" font-size="9">2</tspan> = ${v.m2} kg</text>
+        </g>
+        <line x1="${ax}" y1="${ay}" x2="${Tx}" y2="${Ty}" stroke="${O}" stroke-width="3"/>
+        <path d="M ${Tx} ${Ty} A 13 13 0 0 1 ${bx} ${Cy}" fill="none" stroke="${O}" stroke-width="3"/>
+        <line x1="${bx}" y1="${Cy}" x2="${bx}" y2="${bTop}" stroke="${O}" stroke-width="3"/>
+        <rect x="${bx - 30}" y="${bTop}" width="60" height="44" rx="5" fill="${boxFill}" stroke="${G}" stroke-width="2.5"/>
+        <text x="${bx}" y="${bTop + 22}" text-anchor="middle" dominant-baseline="central" fill="${G}" font-size="12" font-weight="800">m<tspan baseline-shift="sub" font-size="9">1</tspan> = ?</text>
+        <text x="${mx - 22}" y="${my - 16}" text-anchor="middle" fill="#b45309" font-size="12.5" font-weight="800">F<tspan baseline-shift="sub" font-size="9">T</tspan> = ${v.FT} N</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  incline: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", textCol = "#0f172a", boxFill = "#f8fafc";
+    const th = v.theta || 30, t = th * Math.PI / 180, gy = 175, x0 = 40;
+    const run = Math.min(340, 135 / Math.tan(t)), H = run * Math.tan(t), xr = x0 + run, yt = gy - H;
+    const s = 0.38, px = x0 + run * s, py = yt + H * s;
+    const lx = th < 16 ? xr - 58 : xr - 58, ly = th < 16 ? gy + 17 : gy - 8;
+    return `<svg viewBox="0 0 440 200" class="w-full max-w-md mx-auto h-52 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <polygon points="${x0},${gy} ${xr},${gy} ${x0},${yt}" fill="#e2e8f0" stroke="${stroke}" stroke-width="3"/>
+        <path d="M ${xr - 50} ${gy} A 50 50 0 0 1 ${xr - 50 * Math.cos(t)} ${gy - 50 * Math.sin(t)}" fill="none" stroke="${accent}" stroke-width="2.5"/>
+        <text x="${lx}" y="${ly}" text-anchor="end" fill="${accent}" font-size="14" font-weight="800">&theta; = ${th}&deg;</text>
+        <g transform="translate(${px}, ${py}) rotate(${th})">
+          <rect x="-32" y="-38" width="64" height="38" rx="6" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+          <text x="0" y="-19" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="16" font-weight="800">m</text>
+        </g>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  inclinePull: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", textCol = "#0f172a", boxFill = "#f8fafc", accent = "#2563eb";
+    const th = (v.theta || 26), t = th * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t);
+    const gy = 190, run = Math.min(230, 115 / Math.tan(t)), H = run * Math.tan(t), x0 = 260 - run, yTop = gy - H;
+    // crate sits on the slope; rope leaves its right side parallel to the slope
+    const s = 0.34, px = x0 + run * s, py = gy - H * s;
+    const ax = px + 28 * c - 17 * sn, ay = py - 28 * sn - 17 * c;
+    const hx = 305, L = (hx - ax) / c, hy = ay - L * sn;
+    const mx = (ax + hx) / 2, my = (ay + hy) / 2;
+    const mx0 = 338, shY = yTop - 40;
+    const fLabel = (v.F !== undefined) ? "F = " + v.F + " N" : "F = ?";
+    const note = (v.F !== undefined) ? "rough incline (finding &mu;k), crate accelerates up the slope at a = " + v.a + " m/s&sup2;" : "frictionless incline, crate accelerates up the slope at a = " + v.a + " m/s&sup2;";
+    return `<svg viewBox="0 0 460 236" class="w-full max-w-md mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <polygon points="${x0},${gy} 260,${gy} 260,${yTop}" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        <rect x="260" y="${yTop}" width="170" height="${H}" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        <path d="M ${x0 + 60} ${gy} A 60 60 0 0 0 ${x0 + 60 * c} ${gy - 60 * sn}" fill="none" stroke="${textCol}" stroke-width="1.8"/>
+        <text x="${x0 + 68}" y="${th < 18 ? gy + 16 : gy - 6}" text-anchor="start" fill="${textCol}" font-size="13" font-weight="700">&theta; = ${th}&deg;</text>
+        <g transform="translate(${px}, ${py}) rotate(${-th})">
+          <rect x="-28" y="-34" width="56" height="34" rx="5" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+          <text x="0" y="-17" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="12" font-weight="700">${v.m} kg</text>
+        </g>
+        <line x1="${ax}" y1="${ay}" x2="${hx}" y2="${hy}" stroke="#d97706" stroke-width="3"/>
+        <polygon points="${hx - 12 * c + 4 * sn},${hy + 12 * sn + 4 * c} ${hx + 3 * c},${hy - 3 * sn} ${hx - 12 * c - 4 * sn},${hy + 12 * sn - 4 * c}" fill="#d97706" stroke="#d97706" stroke-width="1"/>
+        <text x="${mx - 30}" y="${my - 20}" text-anchor="middle" fill="#b45309" font-size="13" font-weight="700">${fLabel}</text>
+        <circle cx="${mx0}" cy="${yTop - 50}" r="9" fill="${boxFill}" stroke="${textCol}" stroke-width="2.5"/>
+        <line x1="${mx0}" y1="${yTop - 41}" x2="${mx0}" y2="${yTop - 20}" stroke="${textCol}" stroke-width="3"/>
+        <line x1="${mx0}" y1="${yTop - 20}" x2="${mx0 - 9}" y2="${yTop}" stroke="${textCol}" stroke-width="3"/>
+        <line x1="${mx0}" y1="${yTop - 20}" x2="${mx0 + 9}" y2="${yTop}" stroke="${textCol}" stroke-width="3"/>
+        <line x1="${mx0}" y1="${shY}" x2="${hx}" y2="${hy}" stroke="${textCol}" stroke-width="2.5"/>
+        <text x="230" y="230" text-anchor="middle" fill="#475569" font-size="12" font-weight="700">${note}</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  posTimeGraph: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 1050 480" class="w-full max-w-2xl mx-auto h-auto bg-white rounded-2xl border border-slate-200 p-2 shadow-xs select-none">
+        <defs>
+          <pattern id="kinGrid" width="85" height="35" patternUnits="userSpaceOnUse" x="85" y="50">
+            <path d="M 85 0 L 0 0 0 35" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect x="85" y="50" width="850" height="350" fill="url(#kinGrid)" />
+        <line x1="85" y1="330" x2="935" y2="330" stroke="${accent}" stroke-width="2" stroke-dasharray="6,3" />
+        <text x="942" y="335" font-size="18" font-weight="bold" fill="${accent}" class="mono">x = 0 m</text>
+        <line x1="85" y1="400" x2="935" y2="400" stroke="${textCol}" stroke-width="2"/>
+        <line x1="85" y1="45" x2="85" y2="408" stroke="${textCol}" stroke-width="2.5"/>
+        ${[0,1,2,3,4,5,6,7,8,9,10].map(t => `
+          <line x1="${85 + t*85}" y1="394" x2="${85 + t*85}" y2="406" stroke="${textCol}" stroke-width="2"/>
+          <text x="${85 + t*85}" y="432" font-size="22" font-weight="bold" fill="#334155" text-anchor="middle">${t}</text>
+        `).join('')}
+        <text x="510" y="466" font-size="22" font-weight="bold" fill="#334155" text-anchor="middle">Time t (seconds)</text>
+        ${[-2,-1,0,1,2,3,4,5,6,7,8].map(y => {
+          const cy = 400 - (y + 2) * 35;
+          return `
+            <line x1="75" y1="${cy}" x2="85" y2="${cy}" stroke="${textCol}" stroke-width="2"/>
+            <text x="70" y="${cy + 7}" font-size="22" font-weight="bold" fill="#334155" text-anchor="end">${y > 0 ? '+' + y : y}</text>
+          `;
+        }).join('')}
+        <text x="24" y="225" font-size="22" font-weight="bold" fill="#334155" text-anchor="middle" transform="rotate(-90, 24, 225)">Position x (meters)</text>
+        <path d="M 85 330 C 240 185, 280 185, 340 190 C 415 195, 485 295, 595 365 C 655 400, 720 365, 880 190 C 925 140, 960 85, 975 50" fill="none" stroke="${accent}" stroke-width="4.5" stroke-linecap="round"/>
+        <circle cx="85" cy="330" r="5" fill="${accent}" />
+        <circle cx="340" cy="190" r="4.5" fill="${accent}" />
+        <circle cx="595" cy="365" r="4.5" fill="${accent}" />
+        <circle cx="850" cy="225" r="4.5" fill="${accent}" />
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  elevatorVtGraph: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    {
+      const padL = 65, padR = 35, padT = 35, padB = 45;
+      const w = 540, h = 230;
+      const graphW = w - padL - padR;
+      const graphH = h - padT - padB;
+      const t1 = v.t1 || 4, t2 = v.t2 || 10, t3 = v.t3 || 14, vMax = v.vMax || 20;
+      const getX = (t) => padL + (t / t3) * graphW;
+      const getY = (vel) => (h - padB) - (vel / vMax) * graphH;
+      const x0 = getX(0), y0 = getY(0);
+      const x1 = getX(t1), y1 = getY(vMax);
+      const x2 = getX(t2), y2 = getY(vMax);
+      const x3 = getX(t3), y3 = getY(0);
+      return `<svg viewBox="0 0 ${w} ${h}" class="w-full max-w-lg mx-auto h-52 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${h - padB}" stroke="${stroke}" stroke-width="2.5"/>
+        <line x1="${padL}" y1="${h - padB}" x2="${w - padR}" y2="${h - padB}" stroke="${stroke}" stroke-width="2.5"/>
+        <polygon points="${x0},${y0} ${x1},${y1} ${x2},${y2} ${x3},${y3}" fill="rgba(37, 99, 235, 0.12)" />
+        <polyline points="${x0},${y0} ${x1},${y1} ${x2},${y2} ${x3},${y3}" fill="none" stroke="${accent}" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+        <line x1="${padL}" y1="${y1}" x2="${x1}" y2="${y1}" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1.5"/>
+        <line x1="${x1}" y1="${y1}" x2="${x1}" y2="${h - padB}" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1.5"/>
+        <line x1="${x2}" y1="${y2}" x2="${x2}" y2="${h - padB}" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1.5"/>
+        <text x="${x0}" y="${h - padB + 18}" text-anchor="middle" fill="${textCol}" font-size="13" font-weight="700">0</text>
+        <text x="${x1}" y="${h - padB + 18}" text-anchor="middle" fill="${textCol}" font-size="13" font-weight="700">t<tspan baseline-shift="sub" font-size="10">1</tspan> = ${t1} s</text>
+        <text x="${x2}" y="${h - padB + 18}" text-anchor="middle" fill="${textCol}" font-size="13" font-weight="700">t<tspan baseline-shift="sub" font-size="10">2</tspan> = ${t2} s</text>
+        <text x="${x3}" y="${h - padB + 18}" text-anchor="middle" fill="${textCol}" font-size="13" font-weight="700">t<tspan baseline-shift="sub" font-size="10">3</tspan> = ${t3} s</text>
+        <text x="${padL - 10}" y="${y1 + 5}" text-anchor="end" fill="${accent}" font-size="13" font-weight="800">${vMax}</text>
+        <text x="${padL - 10}" y="${y0 + 4}" text-anchor="end" fill="${textCol}" font-size="13" font-weight="700">0</text>
+        <text x="${padL - 8}" y="${padT - 12}" text-anchor="end" fill="${textCol}" font-size="13" font-weight="800">v (m/s)</text>
+        <text x="${padL + graphW / 2}" y="${h - 4}" text-anchor="middle" fill="${textCol}" font-size="13" font-weight="800">Time t (seconds)</text>
+      </svg>`;
+    }
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  projBaseball: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const t = (v.theta || 29) * Math.PI / 180, gy = 192, sc = 0.55;
+    const by = gy - v.y0Cm * sc, bx = 180, L = 70, ex = 404;
+    const half = (ex - bx) * 0.5, cy = by - half * Math.tan(t), py = (u) => (1 - u) * (1 - u) * by + 2 * u * (1 - u) * cy + u * u * gy;
+    const ua = (by - cy) / ((by - cy) + (gy - cy)), ax = (1 - ua) * (1 - ua) * bx + 2 * ua * (1 - ua) * (bx + half) + ua * ua * ex, ay = py(ua);
+    const sh = gy - 84, person = `<circle cx="76" cy="${gy - 100}" r="9" fill="${B}" stroke="${T}" stroke-width="2.5"/><line x1="76" y1="${gy - 91}" x2="76" y2="${gy - 52}" stroke="${T}" stroke-width="3"/><line x1="76" y1="${gy - 52}" x2="66" y2="${gy}" stroke="${T}" stroke-width="3"/><line x1="76" y1="${gy - 52}" x2="90" y2="${gy}" stroke="${T}" stroke-width="3"/><line x1="76" y1="${sh}" x2="126" y2="${by + 8}" stroke="${T}" stroke-width="3"/>`;
+    return svg(215, gnd(gy) + person + `<line x1="122" y1="${by + 10}" x2="${bx - 2}" y2="${by + 2}" stroke="#b45309" stroke-width="7" stroke-linecap="round"/>` + `<line x1="${bx}" y1="${by}" x2="${bx + 90}" y2="${by}" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + `<path d="M ${bx} ${by} Q ${bx + half} ${cy} ${ex} ${gy}" fill="none" stroke="${G}" stroke-width="2.5" stroke-dasharray="6 5"/>` + ar(bx, by, bx + L * Math.cos(t), by - L * Math.sin(t), A) + `<circle cx="${bx}" cy="${by}" r="6" fill="#ffffff" stroke="${R}" stroke-width="2.5"/>` + `<path d="M ${bx + 40} ${by} A 40 40 0 0 0 ${bx + 40 * Math.cos(t)} ${by - 40 * Math.sin(t)}" fill="none" stroke="${A}" stroke-width="2"/>` + tx(bx + 48, by + 16, `&theta; = ${v.theta}&deg;`, A, "start", 12) + tx(bx + L * Math.cos(t) - 12, by - L * Math.sin(t) - 4, `v${sb("0")}`, A, "end", 13) + `<circle cx="${ax}" cy="${ay}" r="4" fill="${O}"/>` + tx(ax - 6, ay - 16, "apex (v" + sb("y") + " = 0)", O, "start", 12) + `<circle cx="${ex}" cy="${gy}" r="4.5" fill="${G}"/>` + tx(ex, gy + 18, "landing", G, "middle", 12) + `<line x1="320" y1="${by}" x2="320" y2="${gy}" stroke="${S}" stroke-width="1.5"/><line x1="314" y1="${by}" x2="326" y2="${by}" stroke="${S}" stroke-width="1.5"/><line x1="314" y1="${gy}" x2="326" y2="${gy}" stroke="${S}" stroke-width="1.5"/>` + tx(332, (by + gy) / 2 + 4, `y${sb("0")} = ${v.y0Cm} cm`, "#475569", "start", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  projCannonElevated: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 360 170" class="w-full max-w-md mx-auto h-48 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs select-none">
+        <line x1="10" y1="135" x2="230" y2="135" stroke="${stroke}" stroke-width="2.5"/>
+        <path d="M230 135 L230 75 L340 75 L340 150 L230 150 Z" fill="#e2e8f0" stroke="${stroke}" stroke-width="2"/>
+        <text x="285" y="64" font-size="13" font-weight="800" fill="${accent}" text-anchor="middle">Target (+${v.hTarget} m)</text>
+        <g transform="translate(48, 118) rotate(-44)">
+          <rect x="-14" y="-7" width="48" height="14" rx="3" fill="#1e293b"/>
+        </g>
+        <circle cx="48" cy="122" r="12" fill="#cbd5e1" stroke="#334155" stroke-width="2.5"/>
+        <path d="M75 92 Q155 14 275 75" fill="none" stroke="${accent}" stroke-width="2.5" stroke-dasharray="5,4"/>
+        <circle cx="275" cy="75" r="5" fill="${forceCol}"/>
+        <line x1="275" y1="75" x2="298" y2="94" stroke="${forceCol}" stroke-width="2.5"/>
+        <text x="308" y="108" font-size="13" font-weight="800" fill="${forceCol}">v<tspan baseline-shift="sub" font-size="9">impact</tspan></text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  projPelican: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 360 170" class="w-full max-w-md mx-auto h-48 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs select-none">
+        <path d="M0 142 C40 138 60 146 100 142 C140 138 160 146 200 142 C240 138 260 146 300 142 L360 142" fill="none" stroke="${accent}" stroke-width="2.5"/>
+        <line x1="65" y1="32" x2="320" y2="32" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,4"/>
+        <circle cx="75" cy="32" r="4.5" fill="${accent}"/>
+        <text x="75" y="20" font-size="12" font-weight="800" fill="#475569" text-anchor="middle">Release</text>
+        <path d="M75 32 Q175 32 275 142" fill="none" stroke="${accent}" stroke-width="2.5" stroke-dasharray="5,4"/>
+        <circle cx="275" cy="142" r="4.5" fill="${forceCol}"/>
+        <line x1="75" y1="32" x2="75" y2="142" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3,3"/>
+        <text x="66" y="92" font-size="13" font-weight="800" fill="${textCol}" text-anchor="end">h = ${v.hDrop} m</text>
+        <text x="175" y="160" font-size="13" font-weight="800" fill="${accent}" text-anchor="middle">Δx = ${v.distX} m</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  projSoccer: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 360 160" class="w-full max-w-md mx-auto h-44 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs select-none">
+        <line x1="15" y1="130" x2="345" y2="130" stroke="${stroke}" stroke-width="2.5"/>
+        <circle cx="65" cy="122" r="6" fill="#ffffff" stroke="#0f172a" stroke-width="2"/>
+        <path d="M65 122 Q180 26 295 122" fill="none" stroke="${accent}" stroke-width="2.5" stroke-dasharray="5,4"/>
+        <circle cx="180" cy="74" r="4" fill="${accent}"/>
+        <line x1="180" y1="74" x2="180" y2="130" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3,3"/>
+        <text x="180" y="64" font-size="13" font-weight="800" fill="${accent}" text-anchor="middle">h<tspan baseline-shift="sub" font-size="9">max</tspan></text>
+        <line x1="65" y1="122" x2="108" y2="90" stroke="${forceCol}" stroke-width="2.5"/>
+        <text x="82" y="84" font-size="13" font-weight="800" fill="${forceCol}">v<tspan baseline-shift="sub" font-size="9">0</tspan> = ${v.v0} m/s</text>
+        <text x="108" y="118" font-size="13" font-weight="800" fill="${textCol}">&theta; = ${v.theta}&deg;</text>
+        <text x="180" y="150" font-size="13" font-weight="800" fill="#475569" text-anchor="middle">Horizontal Range R</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  projCliffDiver: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const gy = 205, top = 75, H = gy - top, k = H / v.hCliff, cx = 140, rx = cx + v.distRocks * k;
+    const rocks = `M ${cx} ${gy} ` + [0.17, 0.34, 0.52, 0.7, 0.86, 1].map(function (f, i) { return `L ${(cx + (rx - cx) * f).toFixed(1)} ${i % 2 === 0 ? gy - 14 : gy}`; }).join(" ") + ` Z`;
+    const runner = `<circle cx="112" cy="${top - 48}" r="8" fill="${B}" stroke="${T}" stroke-width="2.5"/><line x1="112" y1="${top - 40}" x2="116" y2="${top - 18}" stroke="${T}" stroke-width="3"/><line x1="116" y1="${top - 18}" x2="104" y2="${top}" stroke="${T}" stroke-width="3"/><line x1="116" y1="${top - 18}" x2="130" y2="${top - 4}" stroke="${T}" stroke-width="3"/><line x1="114" y1="${top - 34}" x2="130" y2="${top - 42}" stroke="${T}" stroke-width="3"/><line x1="114" y1="${top - 34}" x2="100" y2="${top - 26}" stroke="${T}" stroke-width="3"/>`;
+    return svg(255, `<rect x="${cx}" y="${gy}" width="${300 - cx + 120}" height="14" fill="#bae6fd" opacity="0.8"/><rect x="15" y="${top}" width="${cx - 15}" height="${H + 14}" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><path d="${rocks}" fill="#cbd5e1" stroke="${S}" stroke-width="2"/>` + runner + ar(cx + 4, top - 22, cx + 70, top - 22, A) + tx(cx + 38, top - 30, "v" + sb("x,min") + " = ?", A, "middle", 13) + `<path d="M ${cx} ${top} Q ${(cx + rx) / 2} ${top} ${rx} ${gy}" fill="none" stroke="${G}" stroke-width="2.5" stroke-dasharray="6 5"/><circle cx="${rx}" cy="${gy}" r="4.5" fill="${G}"/>` + tx(rx + 10, gy - 22, "lands just past the rocks", G, "start", 12) + `<line x1="100" y1="${top}" x2="100" y2="${gy}" stroke="${S}" stroke-width="1.5"/><line x1="94" y1="${top}" x2="106" y2="${top}" stroke="${S}" stroke-width="1.5"/><line x1="94" y1="${gy}" x2="106" y2="${gy}" stroke="${S}" stroke-width="1.5"/>` + tx(86, (top + gy) / 2 + 4, `h = ${v.hCliff} m`, "#475569", "end", 13) + `<line x1="${cx}" y1="${gy + 24}" x2="${rx}" y2="${gy + 24}" stroke="${R}" stroke-width="1.5"/><line x1="${cx}" y1="${gy + 18}" x2="${cx}" y2="${gy + 30}" stroke="${R}" stroke-width="1.5"/><line x1="${rx}" y1="${gy + 18}" x2="${rx}" y2="${gy + 30}" stroke="${R}" stroke-width="1.5"/>` + tx((cx + rx) / 2, gy + 38, `rocks extend ${v.distRocks} m`, R, "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  projAirplane: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 360 170" class="w-full max-w-md mx-auto h-48 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs select-none">
+        <line x1="0" y1="140" x2="360" y2="140" stroke="${accent}" stroke-width="2.2"/>
+        <path d="M235 140 C250 123 305 123 325 140 Z" fill="#fcd34d" stroke="#d97706" stroke-width="2"/>
+        <text x="280" y="156" font-size="12.5" font-weight="800" fill="#b45309" text-anchor="middle">Target Island</text>
+        <line x1="65" y1="34" x2="320" y2="34" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,4"/>
+        <circle cx="75" cy="34" r="4" fill="${accent}"/>
+        <text x="180" y="20" font-size="13" font-weight="800" fill="${accent}" text-anchor="middle">v<tspan baseline-shift="sub" font-size="9">0</tspan> = ${v.v0} m/s</text>
+        <path d="M75 34 Q178 34 280 137" fill="none" stroke="${accent}" stroke-width="2.5" stroke-dasharray="5,4"/>
+        <circle cx="280" cy="137" r="4.5" fill="${forceCol}"/>
+        <line x1="75" y1="34" x2="75" y2="140" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="3,3"/>
+        <text x="66" y="90" font-size="13" font-weight="800" fill="${textCol}" text-anchor="end">h = ${v.hKm} km</text>
+        <text x="172" y="156" font-size="13" font-weight="800" fill="${accent}" text-anchor="middle">Lead Distance Δx</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  stackedBlocks: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 400 252" class="w-full max-w-md mx-auto h-60 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <!-- Ground -->
+        <line x1="20" y1="215" x2="280" y2="215" stroke="${stroke}" stroke-width="3"/>
+        ${[26,44,62,80,98,116,134,152,170,188,206,224,242,260].map(x => `<line x1="${x}" y1="215" x2="${x - 9}" y2="226" stroke="#94a3b8" stroke-width="1.6"/>`).join('')}
+        <text x="150" y="246" text-anchor="middle" fill="#64748b" font-size="12" font-weight="700">Ground</text>
+
+        <!-- Block 3 (bottom) -->
+        <rect x="50" y="153" width="200" height="62" rx="5" fill="${boxFill}" stroke="#059669" stroke-width="2.5"/>
+        <text x="150" y="184" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">3</tspan> = ${v.m3} kg</text>
+        <text x="264" y="188" fill="#047857" font-size="12" font-weight="800">Block 3 (bottom)</text>
+
+        <!-- Block 2 (middle) -->
+        <rect x="65" y="91" width="170" height="62" rx="5" fill="${boxFill}" stroke="#7c3aed" stroke-width="2.5"/>
+        <text x="150" y="122" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">2</tspan> = ${v.m2} kg</text>
+        <text x="264" y="126" fill="#6d28d9" font-size="12" font-weight="800">Block 2 (middle)</text>
+
+        <!-- Block 1 (top) -->
+        <rect x="80" y="29" width="140" height="62" rx="5" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="150" y="60" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">1</tspan> = ${v.m1} kg</text>
+        <text x="264" y="64" fill="#1d4ed8" font-size="12" font-weight="800">Block 1 (top)</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  hangingBuckets: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 400 270" class="w-full max-w-md mx-auto h-60 bg-slate-50 rounded-2xl border border-slate-200 p-3">
+        <!-- Ceiling support -->
+        <line x1="100" y1="22" x2="200" y2="22" stroke="${stroke}" stroke-width="3"/>
+        ${[106,120,134,148,162,176,190].map(x => `<line x1="${x}" y1="22" x2="${x + 9}" y2="11" stroke="#94a3b8" stroke-width="1.6"/>`).join('')}
+
+        <!-- Top rope -->
+        <line x1="150" y1="22" x2="150" y2="68" stroke="#7c3aed" stroke-width="3" stroke-dasharray="1 0"/>
+        <text x="222" y="50" fill="#6d28d9" font-size="12" font-weight="800">Top rope</text>
+        <line x1="156" y1="46" x2="216" y2="46" stroke="#a78bfa" stroke-width="1.2"/>
+
+        <!-- Top bucket -->
+        <path d="M100 84 Q150 50 200 84" fill="none" stroke="#94a3b8" stroke-width="2"/>
+        <path d="M90 84 L210 84 L194 134 L106 134 Z" fill="${boxFill}" stroke="${accent}" stroke-width="2.5" stroke-linejoin="round"/>
+        <text x="150" y="110" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="13" font-weight="800">m<tspan baseline-shift="sub" font-size="10">1</tspan> = ${v.m1} kg</text>
+
+        <!-- Bottom rope -->
+        <line x1="150" y1="134" x2="150" y2="180" stroke="#059669" stroke-width="3"/>
+        <text x="222" y="162" fill="#047857" font-size="12" font-weight="800">Bottom rope</text>
+        <line x1="156" y1="158" x2="216" y2="158" stroke="#6ee7b7" stroke-width="1.2"/>
+
+        <!-- Bottom bucket -->
+        <path d="M100 196 Q150 162 200 196" fill="none" stroke="#94a3b8" stroke-width="2"/>
+        <path d="M90 196 L210 196 L194 246 L106 246 Z" fill="${boxFill}" stroke="#059669" stroke-width="2.5" stroke-linejoin="round"/>
+        <text x="150" y="222" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="13" font-weight="800">m<tspan baseline-shift="sub" font-size="10">2</tspan> = ${v.m2} kg</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  boxPullUp: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", forceCol = "#dc2626", textCol = "#0f172a", boxFill = "#f8fafc";
+    const arrow = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const t = (v.theta || 19) * Math.PI / 180, L = 130, ox = 250, oy = 125;
+    return `<svg viewBox="0 0 440 200" class="w-full max-w-md mx-auto h-52 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <line x1="20" y1="160" x2="420" y2="160" stroke="${stroke}" stroke-width="3"/>
+        <rect x="150" y="90" width="100" height="70" rx="5" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="200" y="125" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="14" font-weight="800">${v.W} N</text>
+        <line x1="${ox}" y1="${oy}" x2="${ox + L + 10}" y2="${oy}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="5 4"/>
+        ${arrow(ox, oy, ox + L * Math.cos(t), oy - L * Math.sin(t), forceCol)}
+        <path d="M ${ox + 60} ${oy} A 60 60 0 0 0 ${ox + 60 * Math.cos(t)} ${oy - 60 * Math.sin(t)}" fill="none" stroke="${accent}" stroke-width="2"/>
+        <text x="${ox + 72}" y="${oy + 18}" fill="${accent}" font-size="12.5" font-weight="800">&theta; = ${v.theta}&deg;</text>
+        <text x="${ox + L * Math.cos(t) - 10}" y="${oy - L * Math.sin(t) - 8}" fill="${forceCol}" font-size="13" font-weight="800">F = ${v.F} N</text>
+        <text x="30" y="148" fill="#475569" font-size="11.5" font-weight="700">&mu;<tspan baseline-shift="sub" font-size="8">k</tspan> = ${v.mu}</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  cratePushDown: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", forceCol = "#dc2626", textCol = "#0f172a", boxFill = "#f8fafc";
+    const arrow = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const t = (v.theta || 22) * Math.PI / 180, L = 120, hx = 170, hy = 105;
+    return `<svg viewBox="0 0 440 200" class="w-full max-w-md mx-auto h-52 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <line x1="20" y1="165" x2="420" y2="165" stroke="${stroke}" stroke-width="3"/>
+        <rect x="170" y="85" width="110" height="80" rx="5" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="225" y="125" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="14" font-weight="800">${v.m} kg</text>
+        <line x1="${hx - L * Math.cos(t)}" y1="${hy - L * Math.sin(t)}" x2="${hx - L * Math.cos(t) + 95}" y2="${hy - L * Math.sin(t)}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="5 4"/>
+        ${arrow(hx - L * Math.cos(t), hy - L * Math.sin(t), hx, hy, forceCol)}
+        <path d="M ${hx - L * Math.cos(t) + 60} ${hy - L * Math.sin(t)} A 60 60 0 0 1 ${hx - L * Math.cos(t) + 60 * Math.cos(t)} ${hy - L * Math.sin(t) + 60 * Math.sin(t)}" fill="none" stroke="${accent}" stroke-width="2"/>
+        <text x="${hx - L * Math.cos(t) + 66}" y="${hy - L * Math.sin(t) - 6}" fill="${accent}" font-size="12.5" font-weight="800">&theta; = ${v.theta}&deg;</text>
+        <text x="${hx - L * Math.cos(t) - 10}" y="${hy - L * Math.sin(t) - 8}" fill="${forceCol}" font-size="13" font-weight="800">F (push)</text>
+        <text x="300" y="125" fill="#475569" font-size="12" font-weight="700">&mu; = ${v.mu}</text>
+        <text x="300" y="145" fill="#475569" font-size="12" font-weight="700">a = ${v.a} m/s&sup2;</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  wallBlockH: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", forceCol = "#dc2626", textCol = "#0f172a", boxFill = "#f8fafc";
+    const arrow = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const t = (v.theta || 32) * Math.PI / 180, L = 110, px = 270, py = 95;
+    return `<svg viewBox="0 0 440 230" class="w-full max-w-md mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <rect x="300" y="10" width="26" height="210" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        <rect x="215" y="55" width="85" height="80" rx="5" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="257" y="95" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="14" font-weight="800">${v.m} kg</text>
+        <line x1="${215 - L * Math.cos(t)}" y1="${py + L * Math.sin(t)}" x2="${215 - L * Math.cos(t) + 100}" y2="${py + L * Math.sin(t)}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="5 4"/>
+        ${arrow(215 - L * Math.cos(t), py + L * Math.sin(t), 215, py, forceCol)}
+        <path d="M ${215 - L * Math.cos(t) + 60} ${py + L * Math.sin(t)} A 60 60 0 0 0 ${215 - L * Math.cos(t) + 60 * Math.cos(t)} ${py + L * Math.sin(t) - 60 * Math.sin(t)}" fill="none" stroke="${accent}" stroke-width="2"/>
+        <text x="${215 - L * Math.cos(t) + 66}" y="${py + L * Math.sin(t) + 18}" fill="${accent}" font-size="12.5" font-weight="800">&theta; = ${v.theta}&deg;</text>
+        <text x="${215 - L * Math.cos(t) - 30}" y="${py + L * Math.sin(t) + 18}" fill="${forceCol}" font-size="13" font-weight="800">F</text>
+        <text x="20" y="30" fill="#475569" font-size="11.5" font-weight="700">&mu;<tspan baseline-shift="sub" font-size="8">s</tspan> = ${v.mus},  &mu;<tspan baseline-shift="sub" font-size="8">k</tspan> = ${v.muk}</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  wallBlockV: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", forceCol = "#dc2626", textCol = "#0f172a", boxFill = "#f8fafc";
+    const arrow = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const t = (v.theta || 36) * Math.PI / 180, L = 105, cx = 215, cy = 95;
+    return `<svg viewBox="0 0 440 230" class="w-full max-w-md mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <rect x="300" y="10" width="26" height="210" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        <rect x="215" y="55" width="85" height="80" rx="5" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="257" y="95" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="14" font-weight="800">${v.m} kg</text>
+        <line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy + L + 15}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="5 4"/>
+        ${arrow(cx - L * Math.sin(t), cy + L * Math.cos(t), cx, cy, forceCol)}
+        <path d="M ${cx} ${cy + 50} A 50 50 0 0 0 ${cx - 50 * Math.sin(t)} ${cy + 50 * Math.cos(t)}" fill="none" stroke="${accent}" stroke-width="2"/>
+        <text x="${cx - 110}" y="${cy + 30}" fill="${accent}" font-size="12.5" font-weight="800">&theta; = ${v.theta}&deg;</text>
+        <text x="${cx - L * Math.sin(t) - 22}" y="${cy + L * Math.cos(t) + 14}" fill="${forceCol}" font-size="13" font-weight="800">F</text>
+        <text x="20" y="30" fill="#475569" font-size="11.5" font-weight="700">&mu;<tspan baseline-shift="sub" font-size="8">s</tspan> = ${v.mus},  &mu;<tspan baseline-shift="sub" font-size="8">k</tspan> = ${v.muk}</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  inclineAtwoodKnown: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", textCol = "#0f172a", boxFill = "#f8fafc", G = "#059669", O = "#d97706";
+    const th = v.theta || 26, t = th * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t), xr = 290;
+    const run = Math.min(250, 105 / Math.tan(t)), H = run * Math.tan(t), x0 = xr - run, vy = 100, gy = vy + H;
+    const ux = c, uy = -sn, nx = -sn, ny = -c;
+    const Cx = xr + 7 * nx + 24 * ux, Cy = vy + 7 * ny + 24 * uy;
+    const Tx = Cx + 13 * nx, Ty = Cy + 13 * ny;
+    const s = 0.34, px = x0 + run * s, py = gy - H * s;
+    const ax = px + 32 * c - 20 * sn, ay = py - 32 * sn - 20 * c;
+    const bx = Cx + 13, bTop = Cy + 50;
+    const mx = (ax + Tx) / 2, my = (ay + Ty) / 2;
+    return `<svg viewBox="0 0 440 225" class="w-full max-w-md mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <polygon points="${x0},${gy} ${xr},${gy} ${xr},${vy}" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        <line x1="${xr}" y1="${vy}" x2="${Cx}" y2="${Cy}" stroke="${stroke}" stroke-width="3"/>
+        <circle cx="${Cx}" cy="${Cy}" r="13" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/><circle cx="${Cx}" cy="${Cy}" r="3.5" fill="${stroke}"/>
+        <path d="M ${x0 + 55} ${gy} A 55 55 0 0 0 ${x0 + 55 * c} ${gy - 55 * sn}" fill="none" stroke="${accent}" stroke-width="2.2"/>
+        <text x="${x0 + 62}" y="${th < 16 ? gy + 17 : gy - 6}" text-anchor="start" fill="${accent}" font-size="12.5" font-weight="800">&theta; = ${th}&deg;</text>
+        <g transform="translate(${px}, ${py}) rotate(${-th})">
+          <rect x="-32" y="-36" width="64" height="36" rx="5" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+          <text x="0" y="-18" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="12" font-weight="800">m<tspan baseline-shift="sub" font-size="9">2</tspan> = ${v.m2} kg</text>
+        </g>
+        <line x1="${ax}" y1="${ay}" x2="${Tx}" y2="${Ty}" stroke="${O}" stroke-width="3"/>
+        <path d="M ${Tx} ${Ty} A 13 13 0 0 1 ${bx} ${Cy}" fill="none" stroke="${O}" stroke-width="3"/>
+        <line x1="${bx}" y1="${Cy}" x2="${bx}" y2="${bTop}" stroke="${O}" stroke-width="3"/>
+        <rect x="${bx - 30}" y="${bTop}" width="60" height="44" rx="5" fill="${boxFill}" stroke="${G}" stroke-width="2.5"/>
+        <text x="${bx}" y="${bTop + 22}" text-anchor="middle" dominant-baseline="central" fill="${G}" font-size="10.5" font-weight="800">m<tspan baseline-shift="sub" font-size="8">1</tspan> = ${v.m1} kg</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  sphereTwoCables: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", textCol = "#0f172a", boxFill = "#f8fafc";
+    const t = (v.theta || 41) * Math.PI / 180, L = 170, sx = 190, sy = 170, r = 24;
+    const ex = sx + L * Math.cos(t), ey = sy - L * Math.sin(t);
+    return `<svg viewBox="0 0 440 230" class="w-full max-w-md mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <rect x="15" y="20" width="22" height="190" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        <rect x="${ex}" y="10" width="22" height="${ey - 10 + 40}" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        <line x1="37" y1="${sy}" x2="${sx - r}" y2="${sy}" stroke="#d97706" stroke-width="3.5"/>
+        <line x1="${sx + r * Math.cos(t)}" y1="${sy - r * Math.sin(t)}" x2="${ex}" y2="${ey}" stroke="#d97706" stroke-width="3.5"/>
+        <line x1="${sx}" y1="${sy}" x2="${ex}" y2="${sy}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <circle cx="${sx}" cy="${sy}" r="${r}" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="${sx}" y="${sy}" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="12" font-weight="800">${v.W} N</text>
+        <path d="M ${sx + 90} ${sy} A 90 90 0 0 0 ${sx + 90 * Math.cos(t)} ${sy - 90 * Math.sin(t)}" fill="none" stroke="${accent}" stroke-width="2"/>
+        <text x="${sx + 100}" y="${sy - 10}" fill="${accent}" font-size="12.5" font-weight="800">&theta; = ${v.theta}&deg;</text>
+        <text x="75" y="${sy - 8}" fill="#b45309" font-size="13" font-weight="800">T<tspan baseline-shift="sub" font-size="9">1</tspan></text>
+        <text x="${sx + 40}" y="${sy - 68}" fill="#b45309" font-size="13" font-weight="800">T<tspan baseline-shift="sub" font-size="9">2</tspan></text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  carMirror: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", forceCol = "#dc2626", textCol = "#0f172a", boxFill = "#f8fafc";
+    const t = (v.theta || 14) * Math.PI / 180, L = 80, mx = 255, my = 70;
+    const bx = mx - L * Math.sin(t), by = my + L * Math.cos(t);
+    return `<svg viewBox="0 0 440 200" class="w-full max-w-md mx-auto h-52 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <line x1="20" y1="175" x2="420" y2="175" stroke="${stroke}" stroke-width="3"/>
+        <path d="M 370 165 L 370 125 L 300 120 L 260 60 L 150 60 L 120 120 L 80 128 L 80 165 Z" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        <path d="M 255 66 L 285 118 L 198 118 L 198 66 Z" fill="#f1f5f9" stroke="${stroke}" stroke-width="1.5"/>
+        <circle cx="140" cy="158" r="17" fill="#475569" stroke="${stroke}" stroke-width="2"/>
+        <circle cx="315" cy="158" r="17" fill="#475569" stroke="${stroke}" stroke-width="2"/>
+        <line x1="${mx}" y1="${my}" x2="${mx}" y2="${my + L + 14}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <line x1="${mx}" y1="${my}" x2="${bx}" y2="${by}" stroke="#d97706" stroke-width="2.5"/>
+        <circle cx="${bx}" cy="${by}" r="10" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="${bx - 16}" y="${by + 6}" text-anchor="end" fill="${textCol}" font-size="12" font-weight="800">${v.m} kg</text>
+        <path d="M ${mx} ${my + 40} A 40 40 0 0 0 ${mx - 40 * Math.sin(t)} ${my + 40 * Math.cos(t)}" fill="none" stroke="${accent}" stroke-width="2"/>
+        <text x="${mx + 14}" y="${my + 70}" fill="${accent}" font-size="12.5" font-weight="800">&theta; = ${v.theta}&deg;</text>
+        <line x1="335" y1="40" x2="395" y2="40" stroke="${forceCol}" stroke-width="3"/><polygon points="405,40 394,34 394,46" fill="${forceCol}"/>
+        <text x="365" y="30" text-anchor="middle" fill="${forceCol}" font-size="12.5" font-weight="800">a</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  tableAndHanging: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", textCol = "#0f172a", boxFill = "#f8fafc";
+    return `<svg viewBox="0 0 440 220" class="w-full max-w-md mx-auto h-52 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <rect x="30" y="100" width="290" height="14" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        <rect x="60" y="114" width="14" height="95" fill="#e2e8f0" stroke="${stroke}" stroke-width="2"/>
+        <circle cx="338" cy="92" r="16" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <circle cx="338" cy="92" r="4" fill="${stroke}"/>
+        <rect x="120" y="55" width="90" height="45" rx="5" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="165" y="77" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="13" font-weight="800">m<tspan baseline-shift="sub" font-size="9">1</tspan> = ${v.m1} kg</text>
+        <line x1="210" y1="76" x2="338" y2="76" stroke="#d97706" stroke-width="3"/>
+        <line x1="354" y1="92" x2="354" y2="140" stroke="#d97706" stroke-width="3"/>
+        <rect x="316" y="140" width="76" height="46" rx="5" fill="${boxFill}" stroke="#059669" stroke-width="2.5"/>
+        <text x="354" y="163" text-anchor="middle" dominant-baseline="central" fill="#059669" font-size="13" font-weight="800">m<tspan baseline-shift="sub" font-size="9">2</tspan> = ${v.m2} kg</text>
+        <text x="130" y="140" fill="#475569" font-size="12" font-weight="700">smooth (frictionless) table</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  lawnMower: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", forceCol = "#dc2626", textCol = "#0f172a", boxFill = "#f8fafc";
+    const arrow = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const t = (v.theta || 45) * Math.PI / 180, L = 115, hx = 190, hy = 120;
+    return `<svg viewBox="0 0 440 200" class="w-full max-w-md mx-auto h-52 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <line x1="20" y1="170" x2="420" y2="170" stroke="${stroke}" stroke-width="3"/>
+        <rect x="185" y="115" width="110" height="38" rx="8" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="240" y="134" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="13" font-weight="800">${v.m} kg</text>
+        <circle cx="205" cy="158" r="12" fill="#475569" stroke="${stroke}" stroke-width="2"/>
+        <circle cx="277" cy="158" r="12" fill="#475569" stroke="${stroke}" stroke-width="2"/>
+        <line x1="${hx - L * Math.cos(t)}" y1="${hy - L * Math.sin(t)}" x2="${hx}" y2="${hy}" stroke="#92400e" stroke-width="4"/>
+        <line x1="${hx - L * Math.cos(t) - 14}" y1="${hy - L * Math.sin(t) - 6}" x2="${hx - L * Math.cos(t) + 12}" y2="${hy - L * Math.sin(t) + 10}" stroke="#92400e" stroke-width="5"/>
+        ${arrow(hx - 70 * Math.cos(t), hy - 70 * Math.sin(t) - 22, hx - 20 * Math.cos(t), hy - 20 * Math.sin(t) - 22, forceCol)}
+        <line x1="${hx - 70 * Math.cos(t)}" y1="${hy - 70 * Math.sin(t) - 22}" x2="${hx - 70 * Math.cos(t) + 100}" y2="${hy - 70 * Math.sin(t) - 22}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <path d="M ${hx - 70 * Math.cos(t) + 45} ${hy - 70 * Math.sin(t) - 22} A 45 45 0 0 1 ${hx - 70 * Math.cos(t) + 45 * Math.cos(t)} ${hy - 70 * Math.sin(t) - 22 + 45 * Math.sin(t)}" fill="none" stroke="${accent}" stroke-width="2"/>
+        <text x="${hx - 70 * Math.cos(t) + 50}" y="${hy - 70 * Math.sin(t) - 28}" fill="${accent}" font-size="12.5" font-weight="800">&theta; = ${v.theta}&deg;</text>
+        <text x="${hx - 70 * Math.cos(t) + 108}" y="${hy - 70 * Math.sin(t) - 18}" fill="${forceCol}" font-size="13" font-weight="800">F = ${v.F} N</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  sprinter: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", forceCol = "#dc2626", textCol = "#0f172a";
+    const arrow = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const t = (v.theta || 23) * Math.PI / 180, L = 120, fx = 110, fy = 170;
+    return `<svg viewBox="0 0 440 200" class="w-full max-w-md mx-auto h-52 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <line x1="20" y1="175" x2="420" y2="175" stroke="${stroke}" stroke-width="3"/>
+        <polygon points="95,175 125,175 125,162" fill="#94a3b8" stroke="${stroke}" stroke-width="1.5"/>
+        <circle cx="205" cy="68" r="13" fill="#f8fafc" stroke="${textCol}" stroke-width="2.5"/>
+        <line x1="198" y1="80" x2="160" y2="125" stroke="${textCol}" stroke-width="5" stroke-linecap="round"/>
+        <line x1="160" y1="125" x2="118" y2="168" stroke="${textCol}" stroke-width="5" stroke-linecap="round"/>
+        <line x1="160" y1="125" x2="180" y2="150" stroke="${textCol}" stroke-width="5" stroke-linecap="round"/>
+        <line x1="180" y1="150" x2="168" y2="172" stroke="${textCol}" stroke-width="5" stroke-linecap="round"/>
+        <line x1="195" y1="90" x2="225" y2="115" stroke="${textCol}" stroke-width="4" stroke-linecap="round"/>
+        <line x1="${fx}" y1="${fy}" x2="${fx + L + 20}" y2="${fy}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="5 4"/>
+        ${arrow(fx, fy, fx + L * Math.cos(t), fy - L * Math.sin(t), forceCol)}
+        <path d="M ${fx + 70} ${fy} A 70 70 0 0 0 ${fx + 70 * Math.cos(t)} ${fy - 70 * Math.sin(t)}" fill="none" stroke="${accent}" stroke-width="2"/>
+        <text x="${fx + 78}" y="${fy - 14}" fill="${accent}" font-size="12.5" font-weight="800">&theta; = ${v.theta}&deg;</text>
+        <text x="${fx + L * Math.cos(t) + 20}" y="${fy - L * Math.sin(t) + 30}" fill="${forceCol}" font-size="13" font-weight="800">F = ${v.F} N</text>
+        <text x="300" y="60" fill="#475569" font-size="12" font-weight="700">m = ${v.m} kg</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  waterSkier: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", forceCol = "#dc2626", textCol = "#0f172a";
+    const t = (v.theta || 11) * Math.PI / 180, L = 200, hx = 170, hy = 105;
+    return `<svg viewBox="0 0 440 200" class="w-full max-w-md mx-auto h-52 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <rect x="10" y="165" width="420" height="30" fill="#bae6fd" stroke="none"/>
+        <path d="M 10 165 q 20 -8 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 40 0 t 20 0" fill="none" stroke="#0ea5e9" stroke-width="2.5"/>
+        <line x1="120" y1="168" x2="215" y2="168" stroke="#92400e" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="150" cy="60" r="12" fill="#f8fafc" stroke="${textCol}" stroke-width="2.5"/>
+        <line x1="150" y1="72" x2="158" y2="115" stroke="${textCol}" stroke-width="5" stroke-linecap="round"/>
+        <line x1="158" y1="115" x2="140" y2="165" stroke="${textCol}" stroke-width="5" stroke-linecap="round"/>
+        <line x1="158" y1="115" x2="178" y2="165" stroke="${textCol}" stroke-width="5" stroke-linecap="round"/>
+        <line x1="154" y1="88" x2="${hx}" y2="${hy}" stroke="${textCol}" stroke-width="4" stroke-linecap="round"/>
+        <line x1="${hx}" y1="${hy}" x2="${hx + L}" y2="${hy}" stroke="${stroke}" stroke-width="2.5" stroke-dasharray="7 5"/>
+        <line x1="${hx}" y1="${hy}" x2="${hx + L * Math.cos(t)}" y2="${hy - L * Math.sin(t)}" stroke="#d97706" stroke-width="3.5"/>
+        <polygon points="${hx + L * Math.cos(t) + 12},${hy - (L + 12) * Math.sin(t)} ${hx + L * Math.cos(t) - 2},${hy - L * Math.sin(t) - 7} ${hx + L * Math.cos(t) - 2},${hy - L * Math.sin(t) + 7}" fill="#d97706"/>
+        <path d="M ${hx + 80} ${hy} A 80 80 0 0 0 ${hx + 80 * Math.cos(t)} ${hy - 80 * Math.sin(t)}" fill="none" stroke="${accent}" stroke-width="2"/>
+        <text x="${hx + 92}" y="${hy + 18}" fill="${accent}" font-size="12" font-weight="800">&theta; = ${v.theta}&deg; (part b)</text>
+        <text x="${hx + 60}" y="${hy - 28}" fill="${forceCol}" font-size="13" font-weight="800">T = ${v.T} N</text>
+        <text x="${hx + 150}" y="${hy + 38}" fill="#475569" font-size="11" font-weight="700">horizontal (part a)</text>
+        <text x="20" y="30" fill="#475569" font-size="12" font-weight="700">m = ${v.m} kg,  &mu;<tspan baseline-shift="sub" font-size="8">k</tspan> = ${v.mu}</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  twoMenRopesRockRightKnown: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b";
+    const accent = "#2563eb";
+    const forceCol = "#dc2626";
+    const textCol = "#0f172a";
+    const boxFill = "#f8fafc";
+
+    return `<svg viewBox="0 0 460 195" class="w-full max-w-md mx-auto h-48 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <!-- Left & Right Platforms -->
+        <line x1="15" y1="55" x2="115" y2="55" stroke="${stroke}" stroke-width="3"/>
+        <line x1="345" y1="45" x2="445" y2="45" stroke="${stroke}" stroke-width="3"/>
+
+        <!-- Left Person -->
+        <circle cx="65" cy="22" r="8" fill="${boxFill}" stroke="${textCol}" stroke-width="2.5"/>
+        <line x1="65" y1="30" x2="65" y2="45" stroke="${textCol}" stroke-width="2.8"/>
+        <line x1="65" y1="45" x2="56" y2="55" stroke="${textCol}" stroke-width="2.8"/>
+        <line x1="65" y1="45" x2="74" y2="55" stroke="${textCol}" stroke-width="2.8"/>
+
+        <!-- Right Person -->
+        <circle cx="395" cy="14" r="8" fill="${boxFill}" stroke="${textCol}" stroke-width="2.5"/>
+        <line x1="395" y1="22" x2="395" y2="36" stroke="${textCol}" stroke-width="2.8"/>
+        <line x1="395" y1="36" x2="386" y2="45" stroke="${textCol}" stroke-width="2.8"/>
+        <line x1="395" y1="36" x2="404" y2="45" stroke="${textCol}" stroke-width="2.8"/>
+
+        <!-- Ropes to Rock -->
+        <line x1="72" y1="38" x2="230" y2="112" stroke="#d97706" stroke-width="3.5"/>
+        <line x1="388" y1="30" x2="230" y2="112" stroke="#d97706" stroke-width="3.5"/>
+
+        <!-- Horizontal Reference Line at Rock Knot -->
+        <line x1="125" y1="112" x2="335" y2="112" stroke="#94a3b8" stroke-dasharray="4 4" stroke-width="1.5"/>
+
+        <!-- Left Rope Labels -->
+        <rect x="92" y="64" width="88" height="22" rx="4" fill="#ffffff" stroke="#fde68a" stroke-width="1.2"/>
+        <text x="136" y="79" text-anchor="middle" fill="#b45309" font-size="12" font-weight="800">T<tspan baseline-shift="sub" font-size="9">1</tspan>, &theta;<tspan baseline-shift="sub" font-size="9">1</tspan> = ?</text>
+
+        <!-- Right Rope Labels -->
+        <rect x="280" y="60" width="88" height="22" rx="4" fill="#ffffff" stroke="#93c5fd" stroke-width="1.2"/>
+        <text x="321" y="75" text-anchor="middle" fill="${accent}" font-size="12" font-weight="800">${v.T2} N @ ${v.theta2}&deg;</text>
+
+        <!-- Suspended Rock -->
+        <circle cx="230" cy="146" r="28" fill="#cbd5e1" stroke="${stroke}" stroke-width="2.5"/>
+        <line x1="230" y1="112" x2="230" y2="118" stroke="#d97706" stroke-width="3.5"/>
+        <text x="230" y="146" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="13" font-weight="800">${v.m} kg</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  boxSlidingStop: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", forceCol = "#dc2626", textCol = "#0f172a", boxFill = "#f8fafc";
+    return `<svg viewBox="0 0 440 170" class="w-full max-w-md mx-auto h-44 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <line x1="20" y1="130" x2="420" y2="130" stroke="${stroke}" stroke-width="3"/>
+        <rect x="160" y="75" width="80" height="55" rx="5" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="200" y="102" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="13" font-weight="800">box</text>
+        <line x1="250" y1="60" x2="330" y2="60" stroke="${accent}" stroke-width="3"/><polygon points="342,60 330,54 330,66" fill="${accent}"/>
+        <text x="290" y="48" text-anchor="middle" fill="${accent}" font-size="12.5" font-weight="800">v<tspan baseline-shift="sub" font-size="9">0</tspan> = ${v.v0} m/s</text>
+        <line x1="150" y1="118" x2="80" y2="118" stroke="${forceCol}" stroke-width="3"/><polygon points="68,118 80,112 80,124" fill="${forceCol}"/>
+        <text x="110" y="108" text-anchor="middle" fill="${forceCol}" font-size="12.5" font-weight="800">f<tspan baseline-shift="sub" font-size="9">k</tspan></text>
+        <text x="300" y="115" fill="#475569" font-size="12" font-weight="700">&mu;<tspan baseline-shift="sub" font-size="8">k</tspan> = ${v.mu}</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  craneTrolley: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", forceCol = "#dc2626", textCol = "#0f172a", boxFill = "#f8fafc";
+    const t = (v.theta || 6) * Math.PI / 180, L = 95, px = 300, py = 82;
+    const bx = px - L * Math.sin(t), by = py + L * Math.cos(t);
+    return `<svg viewBox="0 0 440 240" class="w-full max-w-md mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <line x1="20" y1="225" x2="420" y2="225" stroke="${stroke}" stroke-width="3"/>
+        <polygon points="75,225 100,28 125,225" fill="#fef3c7" stroke="#d97706" stroke-width="2.5"/>
+        <line x1="78" y1="180" x2="122" y2="180" stroke="#d97706" stroke-width="2.5"/>
+        <rect x="40" y="70" width="330" height="10" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        <line x1="100" y1="32" x2="40" y2="72" stroke="${stroke}" stroke-width="2"/><line x1="100" y1="32" x2="360" y2="72" stroke="${stroke}" stroke-width="2"/>
+        <rect x="${px - 14}" y="${py - 12}" width="28" height="14" rx="3" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="${px + 24}" y="${py - 4}" text-anchor="middle" fill="${accent}" font-size="12.5" font-weight="800">P</text>
+        <line x1="${px}" y1="${py}" x2="${px}" y2="${py + L + 15}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <line x1="${px}" y1="${py}" x2="${bx}" y2="${by}" stroke="#d97706" stroke-width="2.5"/>
+        <rect x="${bx - 28}" y="${by}" width="56" height="32" rx="4" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <text x="${bx}" y="${by + 17}" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="12" font-weight="800">${v.m} kg</text>
+        <path d="M ${px} ${py + 50} A 50 50 0 0 0 ${px - 50 * Math.sin(t)} ${py + 50 * Math.cos(t)}" fill="none" stroke="${accent}" stroke-width="2"/>
+        <text x="${px + 8}" y="${py + 58}" fill="${accent}" font-size="12.5" font-weight="800">&theta; = ${v.theta}&deg;</text>
+        <line x1="320" y1="30" x2="390" y2="30" stroke="${forceCol}" stroke-width="3"/><polygon points="402,30 390,24 390,36" fill="${forceCol}"/>
+        <text x="355" y="20" text-anchor="middle" fill="${forceCol}" font-size="12.5" font-weight="800">a</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  highWire: function (v) {
+    var __orig = function (v) {
+    const stroke = "#64748b", accent = "#2563eb", textCol = "#0f172a";
+    const t = (v.theta || 12) * Math.PI / 180, half = 170, cx = 220, cy = 130;
+    const ex = cx + half, ey = cy - half * Math.tan(t);
+    return `<svg viewBox="0 0 440 210" class="w-full max-w-md mx-auto h-52 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
+        <rect x="10" y="${ey}" width="40" height="${200 - ey}" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        <rect x="390" y="${ey}" width="40" height="${200 - ey}" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
+        <line x1="50" y1="${ey}" x2="${cx}" y2="${cy}" stroke="#d97706" stroke-width="3.5"/>
+        <line x1="${cx}" y1="${cy}" x2="390" y2="${ey}" stroke="#d97706" stroke-width="3.5"/>
+        <line x1="${cx}" y1="${cy}" x2="390" y2="${cy}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <circle cx="${cx}" cy="${cy - 52}" r="9" fill="#f8fafc" stroke="${textCol}" stroke-width="2.5"/>
+        <line x1="${cx}" y1="${cy - 43}" x2="${cx}" y2="${cy - 17}" stroke="${textCol}" stroke-width="3"/>
+        <line x1="${cx}" y1="${cy - 17}" x2="${cx - 8}" y2="${cy - 1}" stroke="${textCol}" stroke-width="3"/>
+        <line x1="${cx}" y1="${cy - 17}" x2="${cx + 8}" y2="${cy - 1}" stroke="${textCol}" stroke-width="3"/>
+        <line x1="${cx - 22}" y1="${cy - 36}" x2="${cx + 22}" y2="${cy - 36}" stroke="${textCol}" stroke-width="3"/>
+        <path d="M ${cx + 100} ${cy} A 100 100 0 0 0 ${cx + 100 * Math.cos(t)} ${cy - 100 * Math.sin(t)}" fill="none" stroke="${accent}" stroke-width="2"/>
+        <text x="${cx + 108}" y="${cy + 20}" fill="${accent}" font-size="12.5" font-weight="800">&theta; = ${v.theta}&deg;</text>
+        <text x="${cx + 40}" y="${cy - 52}" fill="#475569" font-size="12" font-weight="700">m = ${v.m} kg</text>
+      </svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  dragBlockChair: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, gnd(150) + box(170, 92, 90, 58, `${v.m} kg`) + ar(270, 121, 350, 121, R) + tx(310, 110, `F`, R) + ar(160, 136, 90, 136, O) + tx(125, 128, `f`, O) + tx(220, 176, `${v.Fs} N to start it moving, ${v.Fk} N to keep it moving at constant velocity`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  dragBlockCrate: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, gnd(150) + box(170, 92, 90, 58, `${v.m} kg`) + ar(270, 121, 350, 121, R) + tx(310, 110, `F (push)`, R) + ar(160, 136, 90, 136, O) + tx(125, 128, `f${sb("k")}`, O) + tx(220, 176, `&mu;${sb("s")} = ${v.muS}, &mu;${sb("k")} = ${v.muK}, push of ${v.Fa} N or ${v.Fb} N`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  dragBlockMoon: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, gnd(150) + box(170, 92, 90, 58, `${v.m} kg`) + ar(270, 121, 350, 121, R) + tx(310, 110, `F`, R) + ar(160, 136, 90, 136, O) + tx(125, 128, `f`, O) + tx(220, 176, `On the Moon: g = ${v.gMoon} m/s&sup2;, &mu;${sb("s")} = ${v.muS}, &mu;${sb("k")} = ${v.muK}`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  dragBlockFridge: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, gnd(150) + box(170, 92, 90, 58, `${v.m} kg`) + ar(270, 121, 350, 121, R) + tx(310, 110, `F (push)`, R) + ar(160, 136, 90, 136, O) + tx(125, 128, `f`, O) + tx(220, 176, `&mu;${sb("s")} = ${v.muS}, &mu;${sb("k")} = ${v.muK}`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  dragBlockTable: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, gnd(150) + box(170, 92, 90, 58, `${v.W} N`) + ar(270, 121, 350, 121, R) + tx(310, 110, `F`, R) + ar(160, 136, 90, 136, O) + tx(125, 128, `f`, O) + tx(220, 176, `&mu;${sb("s")} = ${v.muS}, &mu;${sb("k")} = ${v.muK}`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  dragBlockBeam: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, gnd(150) + box(170, 92, 90, 58, `${v.m} kg`) + ar(270, 121, 350, 121, R) + tx(310, 110, `T (rope)`, R) + ar(160, 136, 90, 136, O) + tx(125, 128, `f`, O) + tx(220, 176, `a = ${v.a} m/s&sup2;, &mu;${sb("s")} = ${v.muS}, &mu;${sb("k")} = ${v.muK}`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  dragBlockForces: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, gnd(150) + box(170, 92, 90, 58, `m = ?`) + ar(270, 121, 350, 121, R) + tx(310, 110, `${v.F1} N`, R) + ar(160, 136, 90, 136, O) + tx(125, 128, `${v.F2} N`, O) + tx(220, 176, `a = ${v.a} m/s&sup2;`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  slideMan: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, gnd(150) + man(95, 150) + tx(95, 170, "", T) + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ${v.v0} m/s`, A) + (`stops` ? tx(360, 50, `stops`, A) : "") + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + (`d = ${v.d} m` ? dim(130, 385, 184, `d = ${v.d} m`) : "") + tx(220, 219, `${v.m} kg player`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  slideSkater: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, gnd(150) + man(95, 150) + tx(95, 170, "", T) + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ${v.v0} m/s`, A) + (`stops` ? tx(360, 50, `stops`, A) : "") + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + (`d = ${v.d} m` ? dim(130, 385, 184, `d = ${v.d} m`) : "") + tx(220, 219, `ice skater`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  slideSkaterNoDist: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, gnd(150) + man(95, 150) + tx(95, 170, "", T) + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ${v.v0} m/s`, A) + (`stops` ? tx(360, 50, `stops`, A) : "") + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + (`` ? dim(130, 385, 184, ``) : "") + tx(220, 219, `&mu;${sb("s")} = ${v.muS}, &mu;${sb("k")} = ${v.muK}`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  slideCarSkid: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, gnd(150) + car(40, 150) + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ?`, A) + (`stops` ? tx(360, 50, `stops`, A) : "") + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + (`skid marks: ${v.d} m` ? dim(130, 385, 184, `skid marks: ${v.d} m`) : "") + tx(220, 219, `&mu;${sb("k")} = ${v.mu}`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  slidePuck: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, gnd(150) + box(70, 128, 44, 22, "") + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ${v.v0} m/s`, A) + (`stops` ? tx(360, 50, `stops`, A) : "") + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + (`d = ${v.d} m` ? dim(130, 385, 184, `d = ${v.d} m`) : "") + tx(220, 219, ``, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  slideCarBrake: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, gnd(150) + car(40, 150) + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ${v.v0} m/s`, A) + (`v = ${v.vf} m/s` ? tx(360, 50, `v = ${v.vf} m/s`, A) : "") + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + (`d = ${v.d} m` ? dim(130, 385, 184, `d = ${v.d} m`) : "") + tx(220, 219, `${v.m} kg car, braking`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  slideCarStop: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, gnd(150) + car(40, 150) + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ${v.v0} m/s`, A) + (`stops` ? tx(360, 50, `stops`, A) : "") + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + (`d = ${v.d} m` ? dim(130, 385, 184, `d = ${v.d} m`) : "") + tx(220, 219, `${v.m} kg car`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  slideTrain: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, gnd(150) + box(20, 110, 60, 40, "") + box(86, 110, 60, 40, "") + box(152, 110, 60, 40, "") + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ${v.v0Kmh} km/h`, A) + (`stops` ? tx(360, 50, `stops`, A) : "") + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + (`d = ${v.d} m` ? dim(130, 385, 184, `d = ${v.d} m`) : "") + tx(220, 219, ``, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  elevCable: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(205, `<rect x="140" y="12" width="160" height="165" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/><rect x="155" y="75" width="130" height="95" rx="4" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><line x1="220" y1="12" x2="220" y2="75" stroke="${O}" stroke-width="3"/>` + tx(220, 115, `${v.WkN} kN`, T, "middle", 13) + ar(360, 130, 360, 70, R) + tx(360, 60, `a = ${v.a} m/s&sup2;`, R) + (`T = ?` ? tx(250, 45, `T = ?`, "#b45309", "start") : "") + tx(220, 198, ``, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  elevPersonDown: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(205, `<rect x="140" y="12" width="160" height="165" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/><rect x="155" y="75" width="130" height="95" rx="4" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><line x1="220" y1="12" x2="220" y2="75" stroke="${O}" stroke-width="3"/>` + man(220, 150) + `<rect x="195" y="150" width="50" height="8" fill="#cbd5e1" stroke="${S}" stroke-width="2"/>` + ar(360, 70, 360, 130, R) + tx(360, 148, `a = ${v.a} m/s&sup2;`, R) + (`` ? tx(250, 45, ``, "#b45309", "start") : "") + tx(220, 198, `scale reads ${v.m} kg when the elevator is at rest`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  elevBoxUnknown: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(205, `<rect x="140" y="12" width="160" height="165" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/><rect x="155" y="75" width="130" height="95" rx="4" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><line x1="220" y1="12" x2="220" y2="75" stroke="${O}" stroke-width="3"/>` + box(195, 105, 50, 45, "") + `<rect x="190" y="150" width="60" height="8" fill="#cbd5e1" stroke="${S}" stroke-width="2"/>` + ar(360, 130, 360, 70, R) + tx(360, 60, `a = ?`, R) + (`` ? tx(250, 45, ``, "#b45309", "start") : "") + tx(220, 198, `scale reads ${v.pct}% of the box’s usual weight`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  elevPersonUp: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(205, `<rect x="140" y="12" width="160" height="165" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/><rect x="155" y="75" width="130" height="95" rx="4" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><line x1="220" y1="12" x2="220" y2="75" stroke="${O}" stroke-width="3"/>` + man(220, 150) + `<rect x="195" y="150" width="50" height="8" fill="#cbd5e1" stroke="${S}" stroke-width="2"/>` + ar(360, 130, 360, 70, R) + tx(360, 60, `a`, R) + (`` ? tx(250, 45, ``, "#b45309", "start") : "") + tx(220, 198, `scale reads ${v.W} N at rest; speed 0 to ${v.v} m/s in ${v.t} s`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  bucketRope: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(205, `<line x1="140" y1="12" x2="300" y2="12" stroke="${S}" stroke-width="4"/><line x1="220" y1="12" x2="220" y2="85" stroke="${O}" stroke-width="3"/><path d="M 185 85 L 255 85 L 245 150 L 195 150 Z" fill="${B}" stroke="${A}" stroke-width="2.5"/>` + tx(220, 124, `${v.m} kg`, T) + tx(238, 55, "T", "#b45309", "start") + ar(120, 140, 120, 80, R) + tx(120, 70, `a = ${v.aUp} m/s&sup2;`, R) + tx(120, 163, "(part a: up)", "#475569", "middle", 11) + ar(330, 85, 330, 145, R) + tx(330, 75, `a = ${v.aDown} m/s&sup2;`, R) + tx(330, 163, "(part b: down)", "#475569", "middle", 11));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  caveRope: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(215, `<rect x="40" y="62" width="70" height="143" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><rect x="330" y="62" width="70" height="143" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><line x1="110" y1="205" x2="330" y2="205" stroke="${S}" stroke-width="3"/>` + man(75, 62) + `<line x1="85" y1="30" x2="220" y2="30" stroke="${O}" stroke-width="3"/><line x1="220" y1="30" x2="220" y2="148" stroke="${O}" stroke-width="3"/>` + man(220, 205) + ar(250, 150, 250, 90, R) + tx(262, 120, "a", R, "start") + tx(236, 80, `T${sb("max")} = ${v.Tmax} N`, "#b45309", "start") + `<line x1="365" y1="62" x2="365" y2="205" stroke="${S}" stroke-width="1.5"/>` + tx(322, 190, `depth ${v.d} m`, "#475569", "end", 12) + tx(220, 215-4, "", T));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  compass3: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(215, tx(200, 12, "N", "#94a3b8") + tx(200, 204, "S", "#94a3b8") + tx(14, 104, "W", "#94a3b8") + tx(426, 104, "E", "#94a3b8") + `<line x1="30" y1="100" x2="410" y2="100" stroke="#e2e8f0" stroke-width="1.5"/><line x1="200" y1="22" x2="200" y2="188" stroke="#e2e8f0" stroke-width="1.5"/><circle cx="200" cy="100" r="17" fill="${B}" stroke="${T}" stroke-width="2.5"/>` + (() => { const L = 55 * (v.Fw) / (Math.max(v.Fw, v.Fs, v.Fe)); const th = 180 * Math.PI / 180; return ar(200, 100, 200 + L * Math.cos(th), 100 - L * Math.sin(th), R) + tx(200 + (L + 24) * Math.cos(th), 100 - (L + 20) * Math.sin(th) + 4, `${v.Fw} N`, R); })() + (() => { const L = 55 * (v.Fs) / (Math.max(v.Fw, v.Fs, v.Fe)); const th = 270 * Math.PI / 180; return ar(200, 100, 200 + L * Math.cos(th), 100 - L * Math.sin(th), R) + tx(200 + (L + 24) * Math.cos(th), 100 - (L + 20) * Math.sin(th) + 4, `${v.Fs} N`, R); })() + (() => { const L = 55 * (v.Fe) / (Math.max(v.Fw, v.Fs, v.Fe)); const th = 0 * Math.PI / 180; return ar(200, 100, 200 + L * Math.cos(th), 100 - L * Math.sin(th), R) + tx(200 + (L + 24) * Math.cos(th), 100 - (L + 20) * Math.sin(th) + 4, `${v.Fe} N`, R); })() + tx(20, 24, `${v.m} kg`, "#475569", "start", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  compass2: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(215, tx(200, 12, "N", "#94a3b8") + tx(200, 204, "S", "#94a3b8") + tx(14, 104, "W", "#94a3b8") + tx(426, 104, "E", "#94a3b8") + `<line x1="30" y1="100" x2="410" y2="100" stroke="#e2e8f0" stroke-width="1.5"/><line x1="200" y1="22" x2="200" y2="188" stroke="#e2e8f0" stroke-width="1.5"/><circle cx="200" cy="100" r="17" fill="${B}" stroke="${T}" stroke-width="2.5"/>` + (() => { const L = 55 * (v.Fw) / (Math.max(v.Fw, v.Fn)); const th = 180 * Math.PI / 180; return ar(200, 100, 200 + L * Math.cos(th), 100 - L * Math.sin(th), R) + tx(200 + (L + 24) * Math.cos(th), 100 - (L + 20) * Math.sin(th) + 4, `${v.Fw} N`, R); })() + (() => { const L = 55 * (v.Fn) / (Math.max(v.Fw, v.Fn)); const th = 90 * Math.PI / 180; return ar(200, 100, 200 + L * Math.cos(th), 100 - L * Math.sin(th), R) + tx(200 + (L + 24) * Math.cos(th), 100 - (L + 20) * Math.sin(th) + 4, `${v.Fn} N`, R); })() + tx(20, 24, `${v.m} kg`, "#475569", "start", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  compassEquil: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(215, tx(200, 12, "N", "#94a3b8") + tx(200, 204, "S", "#94a3b8") + tx(14, 104, "W", "#94a3b8") + tx(426, 104, "E", "#94a3b8") + `<line x1="30" y1="100" x2="410" y2="100" stroke="#e2e8f0" stroke-width="1.5"/><line x1="200" y1="22" x2="200" y2="188" stroke="#e2e8f0" stroke-width="1.5"/><circle cx="200" cy="100" r="17" fill="${B}" stroke="${T}" stroke-width="2.5"/>` + (() => { const L = 55 * (v.A) / (Math.max(v.A, v.B)); const th = (180 + v.thetaA) * Math.PI / 180; return ar(200, 100, 200 + L * Math.cos(th), 100 - L * Math.sin(th), R) + tx(200 + (L + 24) * Math.cos(th), 100 - (L + 20) * Math.sin(th) + 4, `A = ${v.A} N`, R); })() + (() => { const L = 55 * (v.B) / (Math.max(v.A, v.B)); const th = 90 * Math.PI / 180; return ar(200, 100, 200 + L * Math.cos(th), 100 - L * Math.sin(th), R) + tx(200 + (L + 24) * Math.cos(th), 100 - (L + 20) * Math.sin(th) + 4, `B = ${v.B} N`, R); })() + tx(20, 24, ``, "#475569", "start", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  dropRockMars: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, `<rect x="15" y="190" width="410" height="14" fill="#fecaca" stroke="${S}" stroke-width="2"/>` + tx(215, 215, "Mars", "#b91c1c", "middle", 12) + `<circle cx="150" cy="30" r="12" fill="#cbd5e1" stroke="${S}" stroke-width="2.5"/>` + `<line x1="150" y1="44" x2="150" y2="170" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 50, 150, 150, A) + tx(172, 110, "g = ?", A, "start") + `<line x1="260" y1="30" x2="260" y2="190" stroke="${S}" stroke-width="1.5"/><line x1="254" y1="30" x2="266" y2="30" stroke="${S}" stroke-width="1.5"/><line x1="254" y1="190" x2="266" y2="190" stroke="${S}" stroke-width="1.5"/>` + tx(274, 115, `h = ${v.h} m`, "#475569", "start") + tx(274, 135, `t = ${v.t} s`, "#475569", "start") + tx(90, 33, `${v.m} kg`, T, "end"));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  dropRockPlanet: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, `<rect x="15" y="190" width="410" height="14" fill="#fecaca" stroke="${S}" stroke-width="2"/>` + tx(215, 215, "new planet", "#b91c1c", "middle", 12) + `<circle cx="150" cy="30" r="12" fill="#cbd5e1" stroke="${S}" stroke-width="2.5"/>` + `<line x1="150" y1="44" x2="150" y2="170" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 50, 150, 150, A) + tx(172, 110, "g = ?", A, "start") + `<line x1="260" y1="30" x2="260" y2="190" stroke="${S}" stroke-width="1.5"/><line x1="254" y1="30" x2="266" y2="30" stroke="${S}" stroke-width="1.5"/><line x1="254" y1="190" x2="266" y2="190" stroke="${S}" stroke-width="1.5"/>` + tx(274, 115, `h = ${v.h} m`, "#475569", "start") + tx(274, 135, `t = ${v.t} s`, "#475569", "start") + tx(90, 33, `${v.m} kg`, T, "end"));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  airDragBall: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(205, `<circle cx="200" cy="85" r="22" fill="#d9f99d" stroke="#65a30d" stroke-width="2.5"/>` + `<path d="M 180 80 Q 200 70 220 80" fill="none" stroke="#fff" stroke-width="2"/>` + ar(200, 112, 200, 185, A) + tx(214, 165, "mg", A, "start") + ar(200, 58, 200, 16, R) + tx(214, 36, "F" + sb("air") + " = ?", R, "start") + ar(280, 60, 280, 130, "#475569") + tx(292, 100, `a = ${v.a} m/s&sup2;`, "#475569", "start") + tx(120, 92, `${v.m} kg ball`, T, "middle"));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  airDragSkydiver: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(205, man(200, 110, T) + `<path d="M 160 40 Q 200 -5 240 40" fill="none" stroke="none"/>` + ar(200, 112, 200, 190, A) + tx(214, 172, "W", A, "start") + ar(236, 62, 236, 22, R) + tx(250, 40, "F" + sb("air") + " = ?", R, "start") + ar(310, 60, 310, 130, "#475569") + tx(322, 100, `a = ${v.a} m/s&sup2;`, "#475569", "start"));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  airDragSkydiverFrac: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(205, man(200, 110, T) + ar(200, 112, 200, 190, A) + tx(214, 172, "W = mg", A, "start") + ar(236, 62, 236, 22, R) + tx(250, 40, "F" + sb("air") + " = W / " + v.den, R, "start") + tx(130, 90, `${v.m} kg`, T, "end") + tx(290, 100, "part b: parachute open,", "#475569", "start", 11) + tx(290, 114, "constant speed", "#475569", "start", 11));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  towerDrop: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, gnd(205) + `<g transform="rotate(-6 120 205)"><rect x="95" y="25" width="50" height="180" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><line x1="95" y1="70" x2="145" y2="70" stroke="${S}"/><line x1="95" y1="115" x2="145" y2="115" stroke="${S}"/><line x1="95" y1="160" x2="145" y2="160" stroke="${S}"/></g>` + `<rect x="170" y="30" width="22" height="16" rx="3" fill="#fbbf24" stroke="#92400e" stroke-width="2"/>` + tx(205, 42, `${v.m} kg`, T, "start", 11) + ar(181, 55, 181, 150, A) + tx(198, 110, "falls " + v.h + " m", "#475569", "start") + tx(198, 128, "lands at " + v.vf + " m/s", "#475569", "start") + `<rect x="170" y="190" width="22" height="16" rx="3" fill="#fbbf24" stroke="#92400e" stroke-width="2"/>`);
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  firePole: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(220, gnd(205) + `<line x1="200" y1="10" x2="200" y2="205" stroke="#94a3b8" stroke-width="7"/>` + `<circle cx="214" cy="94" r="8" fill="${B}" stroke="${T}" stroke-width="2.5"/><line x1="212" y1="102" x2="212" y2="140" stroke="${T}" stroke-width="3"/><line x1="212" y1="112" x2="203" y2="122" stroke="${T}" stroke-width="3"/><line x1="212" y1="140" x2="222" y2="170" stroke="${T}" stroke-width="3"/><line x1="212" y1="140" x2="205" y2="172" stroke="${T}" stroke-width="3"/>` + ar(240, 100, 240, 175, A) + tx(252, 140, "W", A, "start") + ar(180, 150, 180, 100, O) + tx(168, 130, "f", O, "end") + `<line x1="340" y1="10" x2="340" y2="205" stroke="${S}" stroke-width="1.5"/><line x1="334" y1="10" x2="346" y2="10" stroke="${S}"/><line x1="334" y1="205" x2="346" y2="205" stroke="${S}"/>` + tx(332, 110, `${v.h} m`, "#475569", "end") + tx(110, 100, `${v.m} kg`, T, "middle") + tx(110, 118, `lands at ${v.vf} m/s`, "#475569", "middle", 11));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  planetWeight: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, `<rect x="15" y="140" width="410" height="30" fill="#fde68a" stroke="${S}" stroke-width="2"/>` + `<path d="M 170 140 L 180 100 L 215 88 L 250 105 L 260 140 Z" fill="#94a3b8" stroke="${S}" stroke-width="2.5"/>` + tx(215, 126, "rock", T) + ar(300, 95, 300, 135, A) + tx(312, 118, "W = ?", A, "start") + tx(215, 30, `g = ${v.gPlanet} m/s&sup2; on this planet`, "#475569") + tx(215, 52, `rock: ${v.mRock} kg    boulder: weight ${v.wBoulderKN} kN`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  asteroidTug: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, `<path d="M 150 95 Q 140 55 185 45 Q 235 30 265 60 Q 290 95 255 125 Q 215 150 170 135 Q 145 125 150 95 Z" fill="#cbd5e1" stroke="${S}" stroke-width="2.5"/>` + tx(212, 92, "asteroid", T) + tx(212, 108, `${v.mExp9} &times; 10<tspan baseline-shift="super" font-size="9">9</tspan> kg`, T, "middle", 11) + box(300, 78, 36, 24, "tug", G) + ar(298, 90, 268, 90, R) + tx(300, 66, `F = ${v.fN} N`, R, "middle") + tx(212, 175, `speed change needed: ${v.dvCmS} cm/s`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  truckTrailer: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, gnd(150) + `<path d="M 40 150 L 40 100 L 85 100 L 100 78 L 150 78 L 150 150 Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="65" cy="139" r="11" fill="#475569"/><circle cx="130" cy="139" r="11" fill="#475569"/>` + tx(95, 118, `${v.m1} kg`, T, "middle", 11) + `<line x1="150" y1="130" x2="195" y2="130" stroke="${O}" stroke-width="4"/>` + `<rect x="195" y="85" width="150" height="65" rx="4" fill="${B}" stroke="${A}" stroke-width="2.5"/><circle cx="225" cy="139" r="11" fill="#475569"/><circle cx="315" cy="139" r="11" fill="#475569"/>` + tx(270, 122, `${v.m2} kg`, T, "middle", 12) + ar(30, 170, 100, 170, R) + tx(65, 184, `${v.FkN} kN (ground pushes truck)`, R, "start", 11).replace('x="65"', 'x="105"') + ar(360, 70, 420, 70, "#475569") + tx(390, 58, "a", "#475569"));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  canoeDock: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(195, `<rect x="15" y="105" width="75" height="75" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/>` + tx(52, 150, "dock", T) + `<rect x="15" y="150" width="410" height="35" fill="#bae6fd" opacity="0.8"/>` + `<path d="M 130 135 L 360 135 L 330 152 L 160 152 Z" fill="#fde68a" stroke="#92400e" stroke-width="2.5"/>` + man(245, 135) + tx(250, 175, `girl ${v.m1} kg + canoe ${v.m2} kg`, "#475569", "middle", 11) + ar(95, 120, 138, 120, R) + tx(110, 108, "F", R) + ar(370, 90, 420, 90, A) + tx(395, 78, `v = ${v.v} m/s`, A, "middle", 11) + tx(395, 106, `in ${v.t} s`, "#475569", "middle", 11));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  astronautCrate: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, `<circle cx="120" cy="60" r="10" fill="#e2e8f0" stroke="${T}" stroke-width="2.5"/><rect x="108" y="72" width="26" height="42" rx="6" fill="#e2e8f0" stroke="${T}" stroke-width="2.5"/><line x1="134" y1="85" x2="205" y2="92" stroke="${T}" stroke-width="4"/><line x1="112" y1="114" x2="105" y2="145" stroke="${T}" stroke-width="3"/><line x1="130" y1="114" x2="136" y2="145" stroke="${T}" stroke-width="3"/>` + box(205, 70, 56, 46, `${v.mC} kg`) + tx(120, 165, `astronaut ${v.mA} kg`, "#475569", "middle", 11) + ar(100, 95, 50, 95, R) + tx(75, 85, "F", R) + ar(268, 93, 330, 93, R) + tx(300, 83, "F", R) + tx(220, 30, `astronaut accelerates at ${v.aA} m/s&sup2; for ${v.t} s`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  iceTwo: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, `<rect x="15" y="150" width="410" height="14" fill="#e0f2fe" stroke="${S}" stroke-width="2"/>` + man(150, 150) + man(270, 150, G) + tx(150, 178, `boy ${v.mB} kg`, "#475569", "middle", 11) + tx(270, 178, `girl ${v.mG} kg`, "#475569", "middle", 11) + ar(135, 120, 70, 120, R) + tx(100, 108, `a = ${v.aB} m/s&sup2;`, R, "middle", 11) + ar(285, 120, 350, 120, G) + tx(325, 108, "a = ?", G, "middle", 11) + tx(215, 30, `frictionless ice, pushing for ${v.t} s`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  kayak: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, `<rect x="15" y="140" width="410" height="35" fill="#bae6fd" opacity="0.8"/>` + `<path d="M 110 128 L 330 128 L 360 138 L 300 148 L 140 148 L 80 138 Z" fill="#fca5a5" stroke="#7f1d1d" stroke-width="2.5"/>` + man(220, 128) + `<line x1="170" y1="80" x2="270" y2="120" stroke="${S}" stroke-width="3"/>` + tx(220, 172, `person ${v.mPerson} kg + kayak ${v.mKayak} kg`, "#475569", "middle", 11) + ar(375, 110, 425, 110, R) + tx(398, 98, "F", R) + tx(220, 28, `from rest to ${v.vf} m/s in ${v.dCm} cm`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  boatForces: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, `<rect x="15" y="130" width="410" height="45" fill="#bae6fd" opacity="0.8"/>` + `<path d="M 150 100 L 290 100 L 320 120 L 270 140 L 170 140 L 130 120 Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/>` + tx(220, 126, `${v.m} kg`, T, "middle", 12) + ar(140, 112, 60, 112, A) + tx(100, 100, `drive ${v.Fdrive} N`, A) + ar(310, 100, 365, 100, R) + tx(345, 88, `wind ${v.Fwind} N`, R, "middle", 11) + ar(310, 126, 365, 126, O) + tx(350, 148, `water ${v.Fwater} N`, O, "middle", 11) + tx(20, 30, "W (&minus;)", "#475569", "start", 12) + tx(420, 30, "E (+)", "#475569", "end", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  crateInTruck: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(195, gnd(165) + `<path d="M 55 151 L 55 125 L 205 125 L 205 78 L 255 78 L 285 104 L 335 108 L 345 120 L 345 151 Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5" stroke-linejoin="round"/><path d="M 55 125 L 55 105 L 63 105 L 63 125" fill="#cbd5e1" stroke="${S}" stroke-width="2"/><path d="M 215 85 L 250 85 L 270 104 L 215 104 Z" fill="#f1f5f9" stroke="${S}" stroke-width="2"/><path d="M 91 151 A 14 14 0 0 1 119 151 Z M 276 151 A 14 14 0 0 1 304 151 Z" fill="${B}" stroke="${S}" stroke-width="2"/><circle cx="105" cy="151" r="14" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="290" cy="151" r="14" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="105" cy="151" r="5" fill="#cbd5e1"/><circle cx="290" cy="151" r="5" fill="#cbd5e1"/>` + box(95, 85, 52, 40, "crate") + ar(121, 72, 181, 72, R) + tx(151, 60, "a", R) + ar(150, 116, 198, 116, O) + tx(174, 108, "f" + sb("s"), O, "middle", 11) + tx(215, 30, `truck: 0 to ${v.vf} m/s in ${v.t} s`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  ballCushion: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, `<rect x="330" y="35" width="26" height="115" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/>` + tx(343, 170, "cushion", "#475569", "middle", 11) + `<circle cx="250" cy="92" r="16" fill="#d9f99d" stroke="#65a30d" stroke-width="2.5"/>` + ar(190, 75, 240, 75, A) + tx(200, 62, `before: ${Math.abs(v.vi)} m/s`, A, "start", 11) + ar(240, 112, 190, 112, R) + tx(200, 132, `after: ${Math.abs(v.vf)} m/s`, R, "start", 11) + tx(110, 100, `${v.m} kg ball`, T, "middle", 12) + tx(220, 30, `contact time ${v.dtMs} ms`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  rocketTube: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, `<rect x="40" y="70" width="270" height="40" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/>` + `<path d="M 50 80 L 95 80 L 115 90 L 95 100 L 50 100 Z" fill="${B}" stroke="${R}" stroke-width="2.5"/><path d="M 50 80 L 38 72 L 38 108 L 50 100 Z" fill="#fbbf24" stroke="#d97706" stroke-width="2"/>` + tx(75, 94, `${v.m} kg`, T, "middle", 10) + dim(40, 310, 135, `tube length ${v.dCm} cm`) + ar(325, 90, 410, 90, A) + tx(368, 78, `v = ${v.v} m/s`, A, "middle", 11) + tx(180, 55, "starts at rest", "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  tennisServe: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, `<ellipse cx="85" cy="85" rx="22" ry="30" fill="none" stroke="${S}" stroke-width="3"/><line x1="75" y1="113" x2="45" y2="165" stroke="${S}" stroke-width="5"/>` + `<circle cx="125" cy="85" r="10" fill="#d9f99d" stroke="#65a30d" stroke-width="2.5"/>` + `<line x1="135" y1="85" x2="300" y2="85" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + dim(125, 300, 125, `${v.dCm} cm of contact`) + ar(310, 85, 410, 85, A) + tx(360, 73, `v = ${v.vf} m/s`, A, "middle", 11) + tx(215, 40, `${v.mG} g ball, starts at rest`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  rollerCoaster: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const ty = 150;
+    const train = (x, ghost) => {
+      let s = `<g opacity="${ghost ? 0.5 : 1}">`;
+      for (let i = 0; i < 3; i++) {
+        const cx0 = x + i * 48;
+        s += `<rect x="${cx0}" y="${ty - 40}" width="44" height="26" rx="6" fill="#fde68a" stroke="${R}" stroke-width="2.5"/><circle cx="${cx0 + 22}" cy="${ty - 50}" r="7" fill="${B}" stroke="${T}" stroke-width="2"/><line x1="${cx0 + 22}" y1="${ty - 43}" x2="${cx0 + 22}" y2="${ty - 36}" stroke="${T}" stroke-width="2.5"/><circle cx="${cx0 + 10}" cy="${ty - 8}" r="6" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${cx0 + 34}" cy="${ty - 8}" r="6" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+        if (i < 2) s += `<line x1="${cx0 + 44}" y1="${ty - 22}" x2="${cx0 + 48}" y2="${ty - 22}" stroke="${S}" stroke-width="3"/>`;
+      }
+      return s + `</g>`;
+    };
+    let supports = ""; for (let x = 30; x <= 410; x += 38) supports += `<line x1="${x}" y1="${ty + 2}" x2="${x}" y2="190" stroke="${S}" stroke-width="2"/>`;
+    return svg(215, supports + `<line x1="15" y1="${ty}" x2="425" y2="${ty}" stroke="${T}" stroke-width="3.5"/><line x1="15" y1="190" x2="425" y2="190" stroke="${S}" stroke-width="2.5"/>` + train(30, false) + train(270, true) + tx(100, 70, "starts at rest", "#475569", "middle", 12) + tx(340, 60, `v = ${v.vf} m/s`, G, "middle", 13) + tx(340, 76, `after ${v.t} s`, G, "middle", 12) + ar(180, 118, 250, 118, R) + tx(215, 108, "F" + sb("net") + " = ?", R, "middle", 13) + tx(215, 40, "same straight, level track", "#475569", "middle", 11) + tx(220, 207, `${v.m} kg (car + riders)`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  carCrashTree: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(195, gnd(165) + `<rect x="345" y="30" width="30" height="135" fill="#92400e" stroke="#451a03" stroke-width="2.5"/><circle cx="360" cy="25" r="40" fill="#bbf7d0" stroke="#166534" stroke-width="2.5" opacity="0.8"/>` + car(200, 165) + `<circle cx="253" cy="134" r="7" fill="${B}" stroke="${T}" stroke-width="2.5"/><line x1="253" y1="141" x2="253" y2="160" stroke="${T}" stroke-width="3"/>` + ar(262, 150, 218, 150, R) + tx(222, 108, "F" + sb("straps"), R, "middle", 11) + ar(40, 60, 150, 60, A) + tx(95, 48, `${v.vKmh} km/h`, A) + tx(100, 100, `${v.m} kg child`, "#475569", "middle", 12) + tx(100, 118, `stops in ${v.t} s`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  crashDecel: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(195, gnd(165) + `<rect x="345" y="55" width="30" height="110" fill="#cbd5e1" stroke="${S}" stroke-width="2.5"/>` + car(200, 165) + `<circle cx="253" cy="134" r="7" fill="${B}" stroke="${T}" stroke-width="2.5"/><line x1="253" y1="141" x2="253" y2="160" stroke="${T}" stroke-width="3"/>` + ar(40, 60, 150, 60, A) + tx(95, 48, `${v.v0Kmh} km/h`, A) + ar(240, 40, 190, 40, R) + tx(215, 28, `a = ${v.gLimit} g (max survivable)`, R, "middle", 11) + tx(100, 110, `${v.m} kg person`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  sledPulled: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const t = (v.theta || 30) * Math.PI / 180, L = 120, ox = 270, oy = 125;
+    return svg(185, gnd(150) + `<path d="M 150 150 L 280 150" stroke="${O}" stroke-width="0"/><rect x="170" y="118" width="85" height="32" rx="5" fill="${B}" stroke="${A}" stroke-width="2.5"/>` + tx(212, 139, `${v.m} kg`, T, "middle", 12) + `<line x1="255" y1="134" x2="${255 + L + 10}" y2="134" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(255, 134, 255 + L * Math.cos(t), 134 - L * Math.sin(t), R) + `<path d="M ${255 + 60} 134 A 60 60 0 0 0 ${255 + 60 * Math.cos(t)} ${134 - 60 * Math.sin(t)}" fill="none" stroke="${A}" stroke-width="2"/>` + tx(255 + 68, 128, `&theta; = ${v.theta}&deg;`, A, "start") + tx(255 + L * Math.cos(t) - 6, 134 - L * Math.sin(t) - 8, `T = ${v.FT} N`, R, "start") + tx(100, 138, "constant velocity", "#475569", "middle", 11));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  boxPushedBelow: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const t = (v.theta || 25) * Math.PI / 180, L = 115, hx = 170, hy = 105, tx0 = hx - L * Math.cos(t), ty0 = hy - L * Math.sin(t);
+    return svg(185, gnd(155) + box(170, 80, 100, 75, `${v.W} N`) + `<line x1="${tx0}" y1="${ty0}" x2="${tx0 + 95}" y2="${ty0}" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(tx0, ty0, hx, hy, R) + `<path d="M ${tx0 + 60} ${ty0} A 60 60 0 0 1 ${tx0 + 60 * Math.cos(t)} ${ty0 + 60 * Math.sin(t)}" fill="none" stroke="${A}" stroke-width="2"/>` + tx(tx0 + 66, ty0 - 6, `&theta; = ${v.theta}&deg;`, A, "start") + tx(tx0 - 4, ty0 + 16, `F = ${v.F} N`, R, "end") + tx(310, 120, `&mu;${sb("k")} = ${v.muK}`, "#475569", "start"));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  wallBlockUp: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const t = (v.theta || 55) * Math.PI / 180, L = 100, py = 95, hx = 215, tx0 = hx - L * Math.cos(t), ty0 = py + L * Math.sin(t);
+    return svg(230, `<rect x="300" y="10" width="26" height="210" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/>` + box(215, 55, 85, 80, `${v.m} kg`) + `<line x1="${tx0}" y1="${ty0}" x2="${tx0 + 100}" y2="${ty0}" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(tx0, ty0, hx, py, R) + `<path d="M ${tx0 + 55} ${ty0} A 55 55 0 0 0 ${tx0 + 55 * Math.cos(t)} ${ty0 - 55 * Math.sin(t)}" fill="none" stroke="${A}" stroke-width="2"/>` + tx(tx0 + 62, ty0 + 18, `&theta; = ${v.theta}&deg;`, A, "start") + tx(tx0 - 6, ty0 + 4, `F = ${v.F} N`, R, "end") + tx(20, 30, "pushed up the wall at constant velocity", "#475569", "start", 11));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  baseballGlove: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(185, `<circle cx="120" cy="90" r="14" fill="#fff" stroke="${T}" stroke-width="2.5"/><path d="M 108 84 Q 120 90 108 98 M 132 84 Q 120 90 132 98" fill="none" stroke="${R}" stroke-width="1.5"/>` + ar(20, 60, 100, 60, A) + tx(60, 48, `${v.v0} m/s`, A) + `<path d="M 270 55 Q 330 55 330 90 Q 330 125 270 125 Q 290 90 270 55 Z" fill="#d97706" stroke="#92400e" stroke-width="2.5"/>` + dim(170, 270, 150, `glove moves back ${v.dCm} cm`) + ar(262, 90, 205, 90, R) + tx(235, 80, "F", R) + tx(60, 120, `${v.m} kg ball`, T, "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  motCarUnknownV: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const ic = (x) => car(x, 140);
+    return svg(218, gnd(140) + ic(30) + `<g opacity="0.35">` + ic(290) + `</g>` + tx(85, 76, `v${sb("0")} = ${v.v0} m/s`, A) + tx(345, 76, `v = ?`, A) + ar(150, 50, 285, 50, R) + tx(217, 40, `a = ${v.accel} m/s&sup2;`, R) + `<line x1="145" y1="140" x2="145" y2="150" stroke="${S}"/><line x1="400" y1="140" x2="400" y2="150" stroke="${S}"/>` + dim(145, 400, 168, `d = ${v.dist} m`) + tx(220, 212, `constant acceleration`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  motPitch: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const ic = (x) => man(x + 40, 140) + `<circle cx="${x + 70}" cy="104" r="6" fill="#fff" stroke="${R}" stroke-width="2"/>`;
+    return svg(218, gnd(140) + ic(30) + `<g opacity="0.35">` + ic(290) + `</g>` + tx(85, 76, `starts at rest`, A) + tx(345, 76, `v = ${v.v0} m/s`, A) + ar(150, 50, 285, 50, R) + tx(217, 40, `a = ?`, R) + `<line x1="145" y1="140" x2="145" y2="150" stroke="${S}"/><line x1="400" y1="140" x2="400" y2="150" stroke="${S}"/>` + dim(145, 400, 168, `d = ${v.dist} m`) + tx(220, 212, `arm moves the ball forward while accelerating`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  motCatapult: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const ic = (x) => `<path d="M ${x} 128 L ${x + 80} 124 L ${x + 105} 112 L ${x + 112} 124 L ${x + 100} 134 L ${x + 20} 136 Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><path d="M ${x + 40} 126 L ${x + 62} 100 L ${x + 72} 100 L ${x + 62} 126 Z" fill="#cbd5e1" stroke="${S}" stroke-width="2"/>`;
+    return svg(218, gnd(140) + ic(30) + `<g opacity="0.35">` + ic(290) + `</g>` + tx(85, 76, `starts at rest`, A) + tx(345, 76, `v = ${v.vFinal} m/s`, A) + ar(150, 50, 285, 50, R) + tx(217, 40, `a = constant`, R) + `<line x1="145" y1="140" x2="145" y2="150" stroke="${S}"/><line x1="400" y1="140" x2="400" y2="150" stroke="${S}"/>` + dim(145, 400, 168, `runway length = ?`) + tx(220, 212, `takeoff in ${v.tLaunch} s on the flight deck`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  motCarStop: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const ic = (x) => car(x, 140);
+    return svg(218, gnd(140) + ic(30) + `<g opacity="0.35">` + ic(290) + `</g>` + tx(85, 76, `v${sb("0")} = ${v.v0} m/s`, A) + tx(345, 76, `v = 0`, A) + ar(150, 50, 285, 50, R) + tx(217, 40, `a = constant (slowing)`, R) + `<line x1="145" y1="140" x2="145" y2="150" stroke="${S}"/><line x1="400" y1="140" x2="400" y2="150" stroke="${S}"/>` + dim(145, 400, 168, `d = ?`) + tx(220, 212, `stops in ${v.timeSec} s`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  motCarKmh: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const ic = (x) => car(x, 140);
+    return svg(218, gnd(140) + ic(30) + `<g opacity="0.35">` + ic(290) + `</g>` + tx(85, 76, `${v.vInitKmh} km/h`, A) + tx(345, 76, `${v.vFinalKmh} km/h`, A) + ar(150, 50, 285, 50, R) + tx(217, 40, `a = ${v.accel} m/s&sup2;`, R) + `<line x1="145" y1="140" x2="145" y2="150" stroke="${S}"/><line x1="400" y1="140" x2="400" y2="150" stroke="${S}"/>` + dim(145, 400, 168, ``) + tx(220, 212, `time needed = ?`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  motCarTD: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const ic = (x) => car(x, 140);
+    return svg(218, gnd(140) + ic(30) + `<g opacity="0.35">` + ic(290) + `</g>` + tx(85, 76, `v${sb("0")} = ${v.v0} m/s`, A) + tx(345, 76, `v = ?`, A) + ar(150, 50, 285, 50, R) + tx(217, 40, `a = constant`, R) + `<line x1="145" y1="140" x2="145" y2="150" stroke="${S}"/><line x1="400" y1="140" x2="400" y2="150" stroke="${S}"/>` + dim(145, 400, 168, `d = ${v.dist} m`) + tx(220, 212, `accelerates uniformly for ${v.timeSec} s`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  motCarBrakeKmh: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const ic = (x) => car(x, 140);
+    return svg(218, gnd(140) + ic(30) + `<g opacity="0.35">` + ic(290) + `</g>` + tx(85, 76, `${v.speedKmh} km/h`, A) + tx(345, 76, `v = 0`, A) + ar(150, 50, 285, 50, R) + tx(217, 40, `a = ${v.decel} m/s&sup2; (braking)`, R) + `<line x1="145" y1="140" x2="145" y2="150" stroke="${S}"/><line x1="400" y1="140" x2="400" y2="150" stroke="${S}"/>` + dim(145, 400, 168, `d = ?`) + tx(220, 212, `stopping time = ?`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  motCarFromRest: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const ic = (x) => car(x, 140);
+    return svg(218, gnd(140) + ic(30) + `<g opacity="0.35">` + ic(290) + `</g>` + tx(85, 76, `starts at rest`, A) + tx(345, 76, `v = ?`, A) + ar(150, 50, 285, 50, R) + tx(217, 40, `a = ${v.accel} m/s&sup2;`, R) + `<line x1="145" y1="140" x2="145" y2="150" stroke="${S}"/><line x1="400" y1="140" x2="400" y2="150" stroke="${S}"/>` + dim(145, 400, 168, `d = ?`) + tx(220, 212, `for ${v.timeSec} s`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  motTrainBrake: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const ic = (x) => box(x, 98, 52, 42, "") + box(x + 56, 98, 52, 42, "");
+    return svg(218, gnd(140) + ic(30) + `<g opacity="0.35">` + ic(290) + `</g>` + tx(85, 76, `v${sb("0")} = ${v.vInit} m/s`, A) + tx(345, 76, `v = 0`, A) + ar(150, 50, 285, 50, R) + tx(217, 40, `a = ${v.decel} m/s&sup2; (braking)`, R) + `<line x1="145" y1="140" x2="145" y2="150" stroke="${S}"/><line x1="400" y1="140" x2="400" y2="150" stroke="${S}"/>` + dim(145, 400, 168, `d = ?`) + tx(220, 212, `service brakes applied`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  reactionBrake: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(205, gnd(140) + car(30, 140) + `<g opacity="0.35">` + car(210, 140) + `</g>` + `<line x1="400" y1="40" x2="400" y2="140" stroke="${S}" stroke-width="2" stroke-dasharray="5 4"/>` + tx(88, 84, `v = ${v.v0} m/s`, A) + ar(150, 56, 210, 56, A) + tx(180, 46, `reaction time ${v.tRxn} s`, "#475569", "middle", 11) + dim(145, 270, 168, "reaction distance") + ar(285, 56, 395, 56, R) + tx(340, 46, `braking: a = ${v.decel} m/s&sup2;`, R, "middle", 11) + dim(270, 400, 168, "braking distance") + tx(220, 198, "total distance before stopping = ?", "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  crashBarrier: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(205, gnd(140) + `<rect x="350" y="50" width="34" height="90" fill="#cbd5e1" stroke="${S}" stroke-width="2.5"/>` + car(200, 140) + ar(30, 56, 150, 56, A) + tx(90, 46, `v = +${v.v0} m/s`, A) + dim(315, 350, 168, "") + tx(333, 190, `crumple zone: ${v.dist} m`, "#475569", "middle", 12) + tx(110, 130, "stops at the barrier", "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  racketBall: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(205, `<ellipse cx="230" cy="100" rx="22" ry="58" fill="none" stroke="${S}" stroke-width="4"/><line x1="230" y1="158" x2="230" y2="195" stroke="${S}" stroke-width="6"/>` + `<circle cx="180" cy="100" r="11" fill="#d9f99d" stroke="#65a30d" stroke-width="2.5"/>` + ar(40, 78, 160, 78, A) + tx(100, 66, `in: ${v.vIn} m/s`, A) + ar(160, 122, 40, 122, R) + tx(100, 142, `out: ${v.vOut} m/s`, R) + tx(330, 90, `contact time`, "#475569", "middle", 12) + tx(330, 108, `${v.tDur} s`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  dropSkyscraper: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, gnd(210) + `<rect x="120" y="30" width="90" height="180" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/>` + `<g stroke="${S}" stroke-width="1.5"><line x1="120" y1="75" x2="210" y2="75"/><line x1="120" y1="120" x2="210" y2="120"/><line x1="120" y1="165" x2="210" y2="165"/></g>` + tx(165, 24, "observation deck", "#475569", "middle", 11) + `<circle cx="222" cy="36" r="8" fill="#94a3b8" stroke="${S}" stroke-width="2"/>` + ar(222, 52, 222, 160, A) + tx(238, 100, `falls for ${v.timeSec} s`, A, "start", 12) + tx(238, 118, "from rest", "#475569", "start", 12) + `<line x1="85" y1="36" x2="85" y2="210" stroke="${S}" stroke-width="1.5"/><line x1="79" y1="36" x2="91" y2="36" stroke="${S}"/><line x1="79" y1="210" x2="91" y2="210" stroke="${S}"/>` + tx(75, 126, "h = ?", "#475569", "end") + tx(238, 190, "v at ground = ?", "#475569", "start", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  dropCliffSound: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, `<rect x="15" y="170" width="410" height="45" fill="#bae6fd" opacity="0.8"/><rect x="15" y="50" width="140" height="165" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/>` + `<circle cx="185" cy="44" r="8" fill="#cbd5e1" stroke="${S}" stroke-width="2"/>` + tx(172, 24, "dropped from rest", A, "end", 12) + ar(185, 60, 185, 158, A) + `<ellipse cx="185" cy="172" rx="16" ry="4" fill="none" stroke="${S}" stroke-width="2"/>` + ar(222, 162, 222, 50, O) + `<line x1="193" y1="44" x2="240" y2="44" stroke="${S}" stroke-width="1.5" stroke-dasharray="4 4"/>` + tx(234, 112, `sound: ${343} m/s`, "#b45309", "start", 12) + tx(234, 128, "(back up to the start)", "#b45309", "start", 11) + tx(252, 30, `splash heard after ${v.tTotal} s`, "#475569", "start", 12) + `<line x1="10" y1="50" x2="10" y2="170" stroke="${S}" stroke-width="1.5"/>` + tx(28, 120, "h = ?", "#475569", "start", 13));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  dropBalloon: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(225, gnd(210) + `<ellipse cx="200" cy="48" rx="30" ry="36" fill="#fde68a" stroke="#92400e" stroke-width="2.5"/><line x1="185" y1="82" x2="190" y2="96" stroke="${S}" stroke-width="1.5"/><line x1="215" y1="82" x2="210" y2="96" stroke="${S}" stroke-width="1.5"/><rect x="188" y="96" width="24" height="14" fill="#d97706" stroke="#92400e" stroke-width="2"/>` + `<rect x="194" y="120" width="12" height="10" fill="${B}" stroke="${A}" stroke-width="2"/>` + ar(200, 138, 200, 196, A) + tx(216, 170, `v = ${v.vImpact} m/s on impact`, A, "start", 12) + tx(120, 128, "released from rest", "#475569", "end", 12) + tx(250, 112, "distance fallen = ?", "#475569", "start", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  dropHelicopter: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const gy = 205;
+    const heli = `<line x1="100" y1="22" x2="200" y2="22" stroke="${T}" stroke-width="3"/><line x1="150" y1="22" x2="150" y2="30" stroke="${T}" stroke-width="3"/><ellipse cx="150" cy="46" rx="34" ry="17" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><path d="M 128 42 Q 130 32 146 32 L 146 46 L 124 46 Z" fill="#bae6fd" stroke="${S}" stroke-width="1.5"/><line x1="180" y1="42" x2="240" y2="34" stroke="${S}" stroke-width="4" stroke-linecap="round"/><polygon points="232,34 242,20 247,36" fill="#e2e8f0" stroke="${S}" stroke-width="2"/><line x1="122" y1="72" x2="182" y2="72" stroke="${T}" stroke-width="3" stroke-linecap="round"/><line x1="134" y1="60" x2="134" y2="72" stroke="${T}" stroke-width="2.5"/><line x1="168" y1="60" x2="168" y2="72" stroke="${T}" stroke-width="2.5"/>`;
+    return svg(225, gnd(gy) + heli + ar(92, 48, 92, 108, A) + tx(84, 80, `${v.vDescend} m/s`, A, "end", 12) + tx(84, 96, "descending", A, "end", 12) + `<rect x="138" y="92" width="24" height="20" rx="3" fill="#fde68a" stroke="${O}" stroke-width="2.5"/>` + tx(172, 92, "crate released", O, "start", 12) + ar(150, 120, 150, 176, G) + tx(160, 150, "falls with the", G, "start", 12) + tx(160, 166, "helicopter's speed", G, "start", 12) + `<line x1="162" y1="102" x2="330" y2="102" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/><line x1="330" y1="102" x2="330" y2="${gy}" stroke="${S}" stroke-width="1.5"/><line x1="324" y1="102" x2="336" y2="102" stroke="${S}" stroke-width="1.5"/><line x1="324" y1="${gy}" x2="336" y2="${gy}" stroke="${S}" stroke-width="1.5"/>` + tx(342, 158, `${v.hStart} m`, "#475569", "start", 13) + tx(342, 174, "above the ground", "#475569", "start", 11));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  throwFromCliff: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(235, `<rect x="15" y="215" width="410" height="14" fill="#e2e8f0" stroke="${S}" stroke-width="2"/><rect x="15" y="110" width="150" height="105" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/>` + man(130, 110) + ar(168, 62, 168, 14, A) + tx(182, 40, `v${sb("0")} = ${v.v0} m/s`, A, "start", 12) + `<line x1="168" y1="14" x2="260" y2="14" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + tx(270, 18, "maximum height = ?", "#475569", "start", 12) + `<line x1="215" y1="110" x2="215" y2="215" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(225, 120, 225, 205, R) + tx(236, 165, "falls to the canyon floor", "#475569", "start", 12) + `<line x1="10" y1="110" x2="10" y2="215" stroke="${S}" stroke-width="1.5"/>` + tx(24, 168, `${v.hCliff} m`, "#475569", "start", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  jumpAstronaut: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(235, gnd(195) + man(150, 195) + `<circle cx="150" cy="147" r="10" fill="none" stroke="#2563eb" stroke-width="2"/>` + ar(150, 118, 150, 60, A) + tx(168, 88, `v${sb("0")} = ${v.v0} m/s`, A, "start", 12) + `<line x1="150" y1="40" x2="270" y2="40" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/><line x1="250" y1="40" x2="250" y2="195" stroke="${S}" stroke-width="1.5"/><line x1="244" y1="195" x2="256" y2="195" stroke="${S}"/><line x1="244" y1="40" x2="256" y2="40" stroke="${S}"/>` + tx(262, 122, `H = ${v.hMax} m`, "#475569", "start", 12) + tx(220, 226, `jumping on a newly explored exoplanet; g = ?`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  jumpKangaroo: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(235, gnd(195) + `<ellipse cx="150" cy="170" rx="22" ry="14" fill="#fca5a5" stroke="#7f1d1d" stroke-width="2.5"/><ellipse cx="172" cy="150" rx="8" ry="14" fill="#fca5a5" stroke="#7f1d1d" stroke-width="2.5"/><circle cx="178" cy="136" r="7" fill="#fca5a5" stroke="#7f1d1d" stroke-width="2.5"/><path d="M 128 172 Q 105 190 90 192" fill="none" stroke="#7f1d1d" stroke-width="3"/><line x1="145" y1="182" x2="150" y2="195" stroke="#7f1d1d" stroke-width="4"/>` + ar(150, 118, 150, 60, A) + tx(168, 88, `v${sb("0")} = ?`, A, "start", 12) + `<line x1="150" y1="40" x2="270" y2="40" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/><line x1="250" y1="40" x2="250" y2="195" stroke="${S}" stroke-width="1.5"/><line x1="244" y1="195" x2="256" y2="195" stroke="${S}"/><line x1="244" y1="40" x2="256" y2="40" stroke="${S}"/>` + tx(262, 122, `H = ${v.hMax} m`, "#475569", "start", 12) + tx(220, 226, `red kangaroo leaping straight up`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  jumpFlea: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(235, gnd(195) + `<ellipse cx="150" cy="188" rx="6" ry="4" fill="#78350f" stroke="${T}" stroke-width="1.5"/><line x1="146" y1="190" x2="140" y2="195" stroke="${T}" stroke-width="1.5"/><line x1="154" y1="190" x2="162" y2="195" stroke="${T}" stroke-width="1.5"/>` + ar(150, 118, 150, 60, A) + tx(168, 88, `v = ?`, A, "start", 12) + `<line x1="150" y1="40" x2="270" y2="40" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/><line x1="250" y1="40" x2="250" y2="195" stroke="${S}" stroke-width="1.5"/><line x1="244" y1="195" x2="256" y2="195" stroke="${S}"/><line x1="244" y1="40" x2="256" y2="40" stroke="${S}"/>` + tx(262, 122, `H = ${v.hMm} mm`, "#475569", "start", 12) + tx(220, 226, `takeoff: a = ${v.aFlea} m/s&sup2; over a short push`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  jumpBallTotalTime: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(235, gnd(195) + `<circle cx="150" cy="185" r="8" fill="#fff" stroke="${R}" stroke-width="2.5"/>` + ar(150, 118, 150, 60, A) + tx(168, 88, `v${sb("0")} = ?`, A, "start", 12) + `<line x1="150" y1="40" x2="270" y2="40" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/><line x1="250" y1="40" x2="250" y2="195" stroke="${S}" stroke-width="1.5"/><line x1="244" y1="195" x2="256" y2="195" stroke="${S}"/><line x1="244" y1="40" x2="256" y2="40" stroke="${S}"/>` + tx(262, 122, `returns to launch level`, "#475569", "start", 12) + tx(220, 226, `total time in the air: ${v.tTotal} s`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  popUp: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const gy = 200, bl = 130, bx = 148;
+    const ball = `<circle cx="${bx}" cy="112" r="6" fill="#ffffff" stroke="${R}" stroke-width="2"/>`;
+    const person = `<circle cx="96" cy="112" r="9" fill="${B}" stroke="${T}" stroke-width="2.5"/><line x1="96" y1="121" x2="96" y2="158" stroke="${T}" stroke-width="3"/><line x1="96" y1="158" x2="86" y2="${gy}" stroke="${T}" stroke-width="3"/><line x1="96" y1="158" x2="108" y2="${gy}" stroke="${T}" stroke-width="3"/><line x1="96" y1="134" x2="126" y2="134" stroke="${T}" stroke-width="3"/>`;
+    const bat = `<line x1="120" y1="136" x2="${bx + 6}" y2="122" stroke="#b45309" stroke-width="7" stroke-linecap="round"/>`;
+    return svg(215, gnd(gy) + `<line x1="60" y1="${bl}" x2="260" y2="${bl}" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + tx(266, bl + 4, "bat level", "#475569", "start", 12) + person + bat + ball + ar(bx, 100, bx, 36, A) + tx(bx - 8, 70, "pop-up", A, "end", 12) + tx(bx - 8, 86, "(straight up)", A, "end", 12) + `<line x1="110" y1="30" x2="250" y2="30" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + tx(256, 34, "apex = ? above the ground", "#475569", "start", 12) + ar(bx + 40, 60, bx + 40, 192, G) + tx(bx + 52, 150, "falls back down", G, "start", 12) + tx(bx + 52, 166, "and lands on the turf", G, "start", 12) + `<line x1="330" y1="${bl}" x2="330" y2="${gy}" stroke="${S}" stroke-width="1.5"/><line x1="324" y1="${bl}" x2="336" y2="${bl}" stroke="${S}" stroke-width="1.5"/><line x1="324" y1="${gy}" x2="336" y2="${gy}" stroke="${S}" stroke-width="1.5"/>` + tx(342, 160, `${v.dropDist} m`, "#475569", "start", 13) + tx(342, 176, "bat level above", "#475569", "start", 11) + tx(342, 190, "the turf", "#475569", "start", 11) + tx(330, 76, `airborne ${v.tTotal} s`, O, "middle", 13));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  tennisBounce: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(235, gnd(215) + `<circle cx="100" cy="50" r="9" fill="#d9f99d" stroke="#65a30d" stroke-width="2.5"/>` + ar(100, 66, 100, 190, A) + tx(112, 120, "dropped from rest", A, "start", 12) + `<line x1="40" y1="50" x2="40" y2="215" stroke="${S}" stroke-width="1.5"/>` + tx(32, 135, `${v.hDrop} m`, "#475569", "end") + `<circle cx="260" cy="206" r="9" fill="#d9f99d" stroke="#65a30d" stroke-width="2.5"/>` + ar(260, 190, 260, 100, R) + tx(274, 150, "rebounds", R, "start", 12) + `<line x1="260" y1="86" x2="330" y2="86" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + `<line x1="340" y1="86" x2="340" y2="215" stroke="${S}" stroke-width="1.5"/>` + tx(348, 150, `${v.hRebound} m`, "#475569", "start") + tx(220, 232, `contact with floor: ${v.tContact} s`, "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  rocketBurn: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(235, gnd(215) + `<path d="M 192 205 L 192 170 L 200 156 L 208 170 L 208 205 Z" fill="${B}" stroke="${R}" stroke-width="2.5"/><path d="M 192 205 L 200 224 L 208 205 Z" fill="#fbbf24" stroke="#d97706" stroke-width="2"/>` + ar(250, 190, 250, 140, R) + tx(262, 168, `engine: a = ${v.aEngine} m/s&sup2;`, R, "start", 12) + tx(262, 184, `for ${v.tEngine} s`, R, "start", 12) + `<line x1="150" y1="130" x2="300" y2="130" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + tx(305, 134, "fuel runs out", "#475569", "start", 11) + ar(200, 120, 200, 50, A) + tx(212, 90, "free fall (unpowered)", A, "start", 12) + `<line x1="150" y1="30" x2="300" y2="30" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + tx(305, 34, "max altitude = ?", "#475569", "start", 11));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  projTableTime: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(255, gnd(210) + `<rect x="30" y="100" width="120" height="12" fill="#cbd5e1" stroke="${S}" stroke-width="2.5"/><rect x="50" y="112" width="12" height="98" fill="#cbd5e1" stroke="${S}" stroke-width="2"/><rect x="118" y="112" width="12" height="98" fill="#cbd5e1" stroke="${S}" stroke-width="2"/>` + `<circle cx="140" cy="92" r="8" fill="#fff" stroke="${R}" stroke-width="2.5"/>` + ar(80, 78, 130, 78, A) + tx(95, 66, `v${sb("x")} = ${v.v0} m/s`, A, "middle", 12) + `<path d="M 150 92 Q 260 92 330 204" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/><circle cx="330" cy="200" r="8" fill="#fff" stroke="${R}" stroke-width="2.5"/>` + `<line x1="168" y1="100" x2="168" y2="210" stroke="${S}" stroke-width="1.5"/><line x1="162" y1="100" x2="174" y2="100" stroke="${S}"/><line x1="162" y1="210" x2="174" y2="210" stroke="${S}"/>` + tx(176, 160, `h = ${v.hCm} cm`, "#475569", "start", 12) + dim(150, 330, 230, `range = ?`) + tx(300, 140, `time of flight = ?`, "#475569", "start", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  projTableHeight: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(255, gnd(210) + `<rect x="30" y="100" width="120" height="12" fill="#cbd5e1" stroke="${S}" stroke-width="2.5"/><rect x="50" y="112" width="12" height="98" fill="#cbd5e1" stroke="${S}" stroke-width="2"/><rect x="118" y="112" width="12" height="98" fill="#cbd5e1" stroke="${S}" stroke-width="2"/>` + `<circle cx="140" cy="92" r="8" fill="#fff" stroke="${R}" stroke-width="2.5"/>` + ar(80, 78, 130, 78, A) + tx(95, 66, `v${sb("x")} = ${v.v0} m/s`, A, "middle", 12) + `<path d="M 150 92 Q 260 92 330 204" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/><circle cx="330" cy="200" r="8" fill="#fff" stroke="${R}" stroke-width="2.5"/>` + `<line x1="168" y1="100" x2="168" y2="210" stroke="${S}" stroke-width="1.5"/><line x1="162" y1="100" x2="174" y2="100" stroke="${S}"/><line x1="162" y1="210" x2="174" y2="210" stroke="${S}"/>` + tx(176, 160, `h = ?`, "#475569", "start", 12) + dim(150, 330, 230, `x = ${v.distX} m`) + tx(300, 140, ``, "#475569", "start", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  projTableSpeed: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(255, gnd(210) + `<rect x="30" y="100" width="120" height="12" fill="#cbd5e1" stroke="${S}" stroke-width="2.5"/><rect x="50" y="112" width="12" height="98" fill="#cbd5e1" stroke="${S}" stroke-width="2"/><rect x="118" y="112" width="12" height="98" fill="#cbd5e1" stroke="${S}" stroke-width="2"/>` + `<circle cx="140" cy="92" r="8" fill="#fff" stroke="${R}" stroke-width="2.5"/>` + ar(80, 78, 130, 78, A) + tx(95, 66, `v${sb("0")} = ${v.v0} m/s`, A, "middle", 12) + `<path d="M 150 92 Q 260 92 330 204" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/><circle cx="330" cy="200" r="8" fill="#fff" stroke="${R}" stroke-width="2.5"/>` + `<line x1="168" y1="100" x2="168" y2="210" stroke="${S}" stroke-width="1.5"/><line x1="162" y1="100" x2="174" y2="100" stroke="${S}"/><line x1="162" y1="210" x2="174" y2="210" stroke="${S}"/>` + tx(176, 160, `h = ?`, "#475569", "start", 12) + dim(150, 330, 230, ``) + tx(300, 140, `speed after ${v.tFall} s = ?`, "#475569", "start", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  projBridge: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(250, `<rect x="15" y="190" width="410" height="35" fill="#bae6fd" opacity="0.8"/><rect x="15" y="60" width="160" height="12" fill="#cbd5e1" stroke="${S}" stroke-width="2.5"/><rect x="40" y="72" width="14" height="118" fill="#cbd5e1" stroke="${S}" stroke-width="2"/><rect x="130" y="72" width="14" height="118" fill="#cbd5e1" stroke="${S}" stroke-width="2"/>` + man(150, 60) + `<circle cx="172" cy="40" r="6" fill="#94a3b8" stroke="${S}" stroke-width="2"/>` + ar(70, 35, 140, 35, A) + tx(100, 25, `v${sb("0")} = ${v.v0} m/s`, A, "middle", 12) + `<path d="M 176 40 Q 280 40 340 186" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/><circle cx="340" cy="190" r="6" fill="#94a3b8" stroke="${S}" stroke-width="2"/>` + `<line x1="10" y1="60" x2="10" y2="190" stroke="${S}" stroke-width="1.5"/>` + tx(22, 130, "h = ?", "#475569", "start", 12) + dim(176, 340, 212, "x = ?") + tx(185, 140, `falls ${v.tFall} s`, "#475569", "start", 12) + tx(185, 158, "final speed = ?", "#475569", "start", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  projCliffDouble: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(235, `<rect x="15" y="215" width="410" height="14" fill="#e2e8f0" stroke="${S}" stroke-width="2"/><rect x="15" y="60" width="140" height="155" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/>` + `<circle cx="168" cy="52" r="7" fill="#94a3b8" stroke="${S}" stroke-width="2"/>` + ar(110, 40, 160, 40, A) + tx(110, 28, `v${sb("0")} = ${v.v0} m/s`, A, "middle", 12) + `<path d="M 175 52 Q 290 52 350 196" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/><circle cx="350" cy="192" r="7" fill="#94a3b8" stroke="${S}" stroke-width="2"/>` + ar(350, 192, 380, 192, A) + tx(392, 180, "v = 2v" + sb("0"), A, "middle", 12) + tx(85, 120, "time until the", "#475569", "middle", 12) + tx(85, 138, "speed doubles", "#475569", "middle", 12) + tx(85, 156, "= ?", "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  projMortar: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const t = (v.theta || 29) * Math.PI / 180, L = 95, ox = 135, oy = 90, cx = ox + 110, cy = oy - 110 * Math.tan(t);
+    return svg(255, `<rect x="15" y="215" width="410" height="14" fill="#e2e8f0" stroke="${S}" stroke-width="2"/><rect x="15" y="90" width="120" height="125" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/>` + `<line x1="${ox}" y1="${oy}" x2="${ox + L + 20}" y2="${oy}" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(ox, oy, ox + L * Math.cos(t), oy - L * Math.sin(t), A) + `<path d="M ${ox + 55} ${oy} A 55 55 0 0 0 ${ox + 55 * Math.cos(t)} ${oy - 55 * Math.sin(t)}" fill="none" stroke="${A}" stroke-width="2"/>` + tx(ox + 62, oy + 18, `&theta; = ${v.theta}&deg;`, A, "start", 12) + tx(ox + L * Math.cos(t) + 6, oy - L * Math.sin(t) - 6, `v${sb("0")} = ${v.v0} m/s`, A, "start", 12) + `<path d="M ${ox} ${oy} Q ${cx} ${cy} 390 213" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/>` + `<line x1="10" y1="90" x2="10" y2="215" stroke="${S}" stroke-width="1.5"/>` + tx(22, 160, `${v.hCliff} m`, "#475569", "start", 12) + dim(135, 390, 236, "range = ?"));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  curveCar: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(235, `<circle cx="220" cy="118" r="80" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/>` + `<line x1="220" y1="118" x2="300" y2="118" stroke="${A}" stroke-width="2.5"/><circle cx="220" cy="118" r="4" fill="${S}"/>` + tx(262, 110, "r = ?", A, "middle", 12) + `<rect x="288" y="96" width="24" height="44" rx="6" fill="#e2e8f0" stroke="${T}" stroke-width="2.5"/>` + ar(300, 92, 300, 40, R) + tx(316, 60, `v = ${v.v} m/s`, R, "start", 12) + tx(220, 224, `fastest speed without skidding;  &mu;${sb("s")} = ${v.muS}, &mu;${sb("k")} = ${v.muK}`, "#475569", "middle", 11) + tx(130, 20, "top view: flat circular road", "#475569", "middle", 11));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  orbitSat: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(235, `<circle cx="150" cy="118" r="62" fill="#fde68a" stroke="#92400e" stroke-width="2.5"/>` + tx(130, 135, "planet", T, "middle", 13) + `<circle cx="150" cy="118" r="100" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/>` + `<rect x="242" y="108" width="16" height="20" rx="3" fill="${B}" stroke="${A}" stroke-width="2.5"/>` + `<line x1="150" y1="118" x2="212" y2="118" stroke="${S}" stroke-width="1.5"/>` + tx(182, 110, "R", "#475569", "middle", 11) + `<line x1="212" y1="148" x2="250" y2="148" stroke="${O}" stroke-width="2.5"/>` + tx(262, 162, `h = ${v.hKm} km`, "#b45309", "start", 11) + ar(250, 100, 250, 50, R) + tx(262, 66, "v = ?", R, "start", 12) + tx(285, 120, `M = ${v.MpExp26} &times; 10<tspan baseline-shift="super" font-size="9">26</tspan> kg`, "#475569", "start", 11) + tx(285, 138, `R = ${v.RpExp7} &times; 10<tspan baseline-shift="super" font-size="9">7</tspan> m`, "#475569", "start", 11));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  curveBoats: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const P = function (r, deg) { const a = deg * Math.PI / 180; return { x: 60 + r * Math.cos(a), y: 200 - r * Math.sin(a), ux: Math.cos(a), uy: -Math.sin(a) }; };
+    const boatShape = function (p, col) { const wx = -p.uy, wy = p.ux; const pt = function (a, b) { return (p.x + a * p.ux + b * wx).toFixed(1) + " " + (p.y + a * p.uy + b * wy).toFixed(1); }; return `<path d="M ${pt(-7, -14)} L ${pt(-7, 14)} L ${pt(7, 14)} L ${pt(7, -14)} Z" fill="${B}" stroke="${col}" stroke-width="2.5"/>`; };
+    const a = P(130, 58), b = P(170, 36);
+    return svg(235, `<circle cx="60" cy="200" r="4" fill="${S}"/><path d="M 60 70 A 130 130 0 0 1 190 200" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/><path d="M 60 30 A 170 170 0 0 1 230 200" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/>` + `<line x1="60" y1="200" x2="${a.x}" y2="${a.y}" stroke="${A}" stroke-width="2"/>` + `<line x1="60" y1="200" x2="${b.x}" y2="${b.y}" stroke="${G}" stroke-width="2"/>` + tx(300, 120, `r${sb("A")} = ${v.rA} m (boat A)`, A, "start", 11) + tx(300, 138, `r${sb("B")} = ${v.rB} m (boat B)`, G, "start", 11) + boatShape(a, A) + boatShape(b, G) + tx(a.x - 26 * a.ux - 4, a.y - 26 * a.uy + 4, "A", A, "middle", 12) + tx(b.x + 26 * b.ux + 4, b.y + 26 * b.uy + 4, "B", G, "middle", 12) + tx(330, 40, "same centripetal", "#475569", "start", 11) + tx(330, 56, "acceleration", "#475569", "start", 11) + tx(330, 72, `v${sb("A")} / v${sb("B")} = ?`, "#475569", "start", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  hillMotorcycle: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    const bike = `<circle cx="190" cy="114" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="190" cy="114" r="4" fill="#ffffff"/><circle cx="250" cy="114" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="250" cy="114" r="4" fill="#ffffff"/>`
+      + `<line x1="190" y1="114" x2="214" y2="100" stroke="${T}" stroke-width="3.5" stroke-linecap="round"/><line x1="240" y1="86" x2="250" y2="114" stroke="${T}" stroke-width="3.5" stroke-linecap="round"/>`
+      + `<path d="M 200 96 Q 204 84 220 84 L 236 88 L 240 96 L 224 104 L 204 104 Z" fill="#fde68a" stroke="${O}" stroke-width="2.5" stroke-linejoin="round"/><rect x="214" y="98" width="22" height="14" rx="3" fill="#cbd5e1" stroke="${S}" stroke-width="2"/>`
+      + `<line x1="192" y1="82" x2="214" y2="82" stroke="${T}" stroke-width="5" stroke-linecap="round"/><line x1="236" y1="82" x2="246" y2="80" stroke="${T}" stroke-width="3" stroke-linecap="round"/><line x1="200" y1="108" x2="176" y2="112" stroke="${S}" stroke-width="3" stroke-linecap="round"/>`
+      + `<circle cx="212" cy="56" r="8" fill="${B}" stroke="${A}" stroke-width="2.5"/><line x1="208" y1="64" x2="203" y2="80" stroke="${A}" stroke-width="3.5" stroke-linecap="round"/><line x1="210" y1="68" x2="242" y2="80" stroke="${A}" stroke-width="3" stroke-linecap="round"/><line x1="203" y1="80" x2="218" y2="98" stroke="${A}" stroke-width="3" stroke-linecap="round"/>`;
+    return svg(235, `<path d="M 40 225 Q 220 20 400 225 Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/>` + bike + ar(220, 44, 220, 6, R) + tx(232, 26, "F" + sb("N") + " = ?", R, "start", 13) + ar(220, 134, 220, 182, A) + tx(232, 168, "mg", A, "start", 13) + ar(70, 70, 130, 70, G) + tx(100, 60, `v = ${v.v} m/s`, G, "middle", 12) + tx(276, 62, `${v.m} kg`, "#475569", "start", 12) + tx(276, 76, "(bike + rider)", "#475569", "start", 11) + tx(228, 212, `r = ${v.r} m (radius of the hill)`, "#475569", "start", 11));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  hotAirBalloon: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(235, `<ellipse cx="220" cy="75" rx="55" ry="62" fill="#fde68a" stroke="#92400e" stroke-width="2.5"/><line x1="190" y1="130" x2="205" y2="165" stroke="${S}" stroke-width="2"/><line x1="250" y1="130" x2="235" y2="165" stroke="${S}" stroke-width="2"/><rect x="200" y="165" width="40" height="30" fill="#d97706" stroke="#92400e" stroke-width="2.5"/>` + tx(220, 185, "basket", T, "middle", 10) + tx(220, 80, `M = ${v.M} kg`, T, "middle", 13) + ar(300, 150, 300, 90, R) + tx(312, 120, `a = ${v.a} m/s&sup2;`, R, "start", 12) + tx(312, 138, "(upward)", R, "start", 11) + tx(110, 120, "floating in", "#475569", "end", 12) + tx(110, 138, "equilibrium first", "#475569", "end", 12) + tx(220, 222, "mass dropped overboard = ?", "#475569", "middle", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  neutronStar: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+    const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+    const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
+    const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
+    const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
+    const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+    return svg(235, `<circle cx="220" cy="330" r="190" fill="#c7d2fe" stroke="#4338ca" stroke-width="2.5"/>` + tx(220, 215, "neutron star", "#312e81", "middle", 13) + `<circle cx="220" cy="62" r="8" fill="#94a3b8" stroke="${S}" stroke-width="2"/>` + ar(220, 76, 220, 134, A) + tx(236, 106, `falls from rest ${v.dCm} cm`, A, "start", 12) + tx(20, 30, `M = ${v.MExp30} &times; 10<tspan baseline-shift="super" font-size="9">30</tspan> kg`, "#475569", "start", 12) + tx(20, 48, `R = ${v.RExp3} &times; 10<tspan baseline-shift="super" font-size="9">3</tspan> m`, "#475569", "start", 12) + tx(20, 82, "g = ?", "#475569", "start", 12) + tx(20, 100, "final speed = ?", "#475569", "start", 12));
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  }
+};
+
+// 4. Draws the diagram a question asks for.
+function getDiagramSVG(type, v) {
+  const draw = DIAGRAM_DRAWERS[type];
+  return draw ? draw(v) : '';
+}
+
+// 5. The questions.
 const PHYSICS_QUESTIONS = [
   // --- UNIT 1: KINEMATICS (CED 1.1 - 1.4) (#1 - #20) ---
   {
@@ -210,7 +4381,7 @@ const PHYSICS_QUESTIONS = [
     randomize: () => generateSplineProblemVars(2),
     renderPrompt: (v) => {
       const vbSign = v.vb > 0 ? `+${v.vb}` : `${v.vb}`;
-      return `An object moves along a straight horizontal track. Its 10-second motion is recorded in the <strong>velocity vs. time</strong> graph shown below. Use the graph to answer each question part:<br/><strong>a.</strong> What is the object&rsquo;s velocity at <em>t</em> = <strong>${v.ta} s</strong>?<br/><strong>b.</strong> At what point(s) in time is the object&rsquo;s velocity <strong>${vbSign} m/s</strong>? (separate multiple times with a comma, e.g. 1.5, 5.0)<br/><strong>c.</strong> What is the average acceleration of the object from <em>t</em> = <strong>${v.tc1} s</strong> to <em>t</em> = <strong>${v.tc2} s</strong>?<br/><strong>d.</strong> What is the acceleration of the object at <em>t</em> = <strong>${v.td} s</strong>?`;
+      return `An object moves along a straight horizontal track. Its 10-second motion is recorded in the <strong>velocity vs. time</strong> graph shown below. Use the graph to answer each question part:<br/><strong>a.</strong> What is the object’s velocity at <em>t</em> = <strong>${v.ta} s</strong>?<br/><strong>b.</strong> At what point(s) in time is the object’s velocity <strong>${vbSign} m/s</strong>? (separate multiple times with a comma, e.g. 1.5, 5.0)<br/><strong>c.</strong> What is the average acceleration of the object from <em>t</em> = <strong>${v.tc1} s</strong> to <em>t</em> = <strong>${v.tc2} s</strong>?<br/><strong>d.</strong> What is the acceleration of the object at <em>t</em> = <strong>${v.td} s</strong>?`;
     },
     parts: [
       {
@@ -283,7 +4454,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-03", docNum: "Kin #3", title: "Astronaut Vertical Jump on Exoplanet",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "jumpAstronaut",
     baseVars: { hMax: 26.0, v0: 5.8 },
     randomize: (b) => ({ hMax: rnd(b.hMax, 0.20, 1), v0: rnd(b.v0, 0.20, 2) }),
     renderPrompt: (v) => `An astronaut on a newly explored exoplanet finds that she can jump vertically to a maximum height of <strong>${v.hMax} meters</strong> when her initial takeoff speed is <strong>${v.v0} m/s</strong>. What is the magnitude of the acceleration due to gravity on the planet?`,
@@ -292,16 +4463,16 @@ const PHYSICS_QUESTIONS = [
           `Known: takeoff speed <em>v</em><sub>0</sub> = ${v.v0} m/s and maximum height <em>h</em><sub>max</sub> = ${v.hMax} m. Unknown: the free-fall acceleration <em>g</em> on the planet. At the top of the jump the speed is momentarily zero (<em>v</em> = 0).`,
           `Use the constant-acceleration equation that has no time in it. Taking up as positive, gravity slows the jumper: <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; &minus; 2<em>g h</em><sub>max</sub>. With <em>v</em> = 0, solve for <em>g</em>: <em>g</em> = <em>v</em><sub>0</sub>&sup2; / (2 <em>h</em><sub>max</sub>).`,
           `Substitute: <em>g</em> = (${v.v0} m/s)&sup2; / (2 &times; ${v.hMax} m) = <strong>${ans.toFixed(3)} m/s²</strong>.`,
-          `For comparison, that is about ${(ans / G_ACCEL).toFixed(2)} times Earth&rsquo;s 9.80 m/s².`
+          `For comparison, that is about ${(ans / G_ACCEL).toFixed(2)} times Earth’s 9.80 m/s².`
         )}
     ]
   },
   {
     id: "KIN-04", docNum: "Kin #4", title: "Automobile Constant Acceleration: Speed and Time",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "motCarUnknownV",
     baseVars: { v0: 5.60, accel: 0.45, dist: 615 },
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 2), accel: rnd(b.accel, 0.20, 2), dist: Math.round(rnd(b.dist, 0.20, 0)) }),
-    renderPrompt: (v) => `An automobile accelerates from an initial velocity of <strong>${v.v0} m/s</strong> at a constant rate of <strong>${v.accel} m/s&sup2;</strong>. It travels a straight-line displacement of <strong>${v.dist} m</strong> while accelerating.<br/><strong>a.</strong> What is the car&rsquo;s final speed at the end of that displacement?<br/><strong>b.</strong> How long did it take to travel <strong>${v.dist} m</strong>?`,
+    renderPrompt: (v) => `An automobile accelerates from an initial velocity of <strong>${v.v0} m/s</strong> at a constant rate of <strong>${v.accel} m/s&sup2;</strong>. It travels a straight-line displacement of <strong>${v.dist} m</strong> while accelerating.<br/><strong>a.</strong> What is the car’s final speed at the end of that displacement?<br/><strong>b.</strong> How long did it take to travel <strong>${v.dist} m</strong>?`,
     parts: [
       { label: "a. Final speed (<em>v</em>)", unit: "m/s", solve: (v) => Math.sqrt(v.v0 * v.v0 + 2 * v.accel * v.dist), steps: (v, ans) => guidedSteps(
           `Known: initial velocity <em>v</em><sub>0</sub> = ${v.v0} m/s, acceleration <em>a</em> = ${v.accel} m/s², and displacement &Delta;<em>x</em> = ${v.dist} m. Unknown: the final speed <em>v</em>. The time is not given, so choose the equation without time.`,
@@ -321,7 +4492,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-05", docNum: "Kin #5", title: "Baseball Pitcher Fastball Acceleration",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "motPitch",
     baseVars: { v0: 42.0, dist: 3.5 },
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 1), dist: rnd(b.dist, 0.20, 2) }),
     renderPrompt: (v) => `A baseball pitcher throws a fastball with a release speed of <strong>${v.v0} m/s</strong>. Estimate the magnitude of the average acceleration of the ball during the throwing motion if the ball accelerates from rest over a distance of <strong>${v.dist} m</strong> from the wind-up to release.`,
@@ -336,10 +4507,10 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-06", docNum: "Kin #6", title: "Two-Stage Model Rocket Flight (4 Parts)",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "rocketBurn",
     baseVars: { aEngine: 38.0, tEngine: 1.40 },
     randomize: (b) => ({ aEngine: rnd(b.aEngine, 0.20, 1), tEngine: rnd(b.tEngine, 0.20, 2) }),
-    renderPrompt: (v) => `A model rocket launches vertically from rest on the ground. Its engine produces a constant upward acceleration of <strong>${v.aEngine} m/s&sup2;</strong> for <strong>${v.tEngine} s</strong>. When fuel runs out, the rocket continues upward in unpowered free-fall under gravity.<br/><strong>a.</strong> What maximum altitude does the rocket reach?<br/><strong>b.</strong> What is the rocket&rsquo;s velocity immediately before striking the ground?<br/><strong>c.</strong> What total distance does the rocket travel from launch to impact?<br/><strong>d.</strong> How long is the rocket in the air in total?`,
+    renderPrompt: (v) => `A model rocket launches vertically from rest on the ground. Its engine produces a constant upward acceleration of <strong>${v.aEngine} m/s&sup2;</strong> for <strong>${v.tEngine} s</strong>. When fuel runs out, the rocket continues upward in unpowered free-fall under gravity.<br/><strong>a.</strong> What maximum altitude does the rocket reach?<br/><strong>b.</strong> What is the rocket’s velocity immediately before striking the ground?<br/><strong>c.</strong> What total distance does the rocket travel from launch to impact?<br/><strong>d.</strong> How long is the rocket in the air in total?`,
     parts: [
       { label: "a. Maximum altitude (<em>h</em><sub>max</sub>)", unit: "m", solve: (v) => (0.5 * v.aEngine * v.tEngine * v.tEngine) + (Math.pow(v.aEngine * v.tEngine, 2) / (2 * G_ACCEL)), steps: (v, ans) => {
           const y1 = 0.5 * v.aEngine * v.tEngine * v.tEngine;
@@ -385,7 +4556,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-07", docNum: "Kin #7", title: "Driver Reaction Time and Total Stopping Distance",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "reactionBrake",
     baseVars: { v0: 22.0, decel: 4.10, tRxn: 0.350 },
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 1), decel: rnd(b.decel, 0.20, 2), tRxn: rnd(b.tRxn, 0.20, 3) }),
     renderPrompt: (v) => `A driver is traveling at <strong>${v.v0} m/s</strong> when an obstacle appears in the roadway. The vehicle decelerates at a maximum rate of <strong>${v.decel} m/s&sup2;</strong>. If human reaction time is <strong>${v.tRxn} s</strong> before braking begins, what total distance does the car travel before stopping?`,
@@ -404,7 +4575,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-08", docNum: "Kin #8", title: "Aircraft Carrier Steam Catapult Launch Length",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "motCatapult",
     baseVars: { vFinal: 42.0, tLaunch: 2.00 },
     randomize: (b) => ({ vFinal: rnd(b.vFinal, 0.20, 1), tLaunch: rnd(b.tLaunch, 0.20, 2) }),
     renderPrompt: (v) => `A supersonic aircraft is launched from rest via a steam catapult on an aircraft carrier flight deck. It achieves a takeoff speed of <strong>${v.vFinal} m/s</strong> in <strong>${v.tLaunch} s</strong>. Assuming constant acceleration, what is the length of the catapult runway?`,
@@ -418,7 +4589,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-09", docNum: "Kin #9", title: "Vehicle Uniform Braking Distance from Time",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "motCarStop",
     baseVars: { v0: 27.0, timeSec: 8.00 },
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 1), timeSec: rnd(b.timeSec, 0.20, 2) }),
     renderPrompt: (v) => `A vehicle slows down uniformly from an initial velocity of <strong>${v.v0} m/s</strong> to a full stop in <strong>${v.timeSec} seconds</strong>. What total distance does it cover during this stopping period?`,
@@ -441,7 +4612,7 @@ const PHYSICS_QUESTIONS = [
       const t3 = t2 + Math.round(rnd(4, 0.20, 0));
       return { vMax, t1, t2, t3 };
     },
-    renderPrompt: (v) => `The velocity-time graph shown illustrates the motion of a vertical test freight elevator. The elevator accelerates uniformly from rest to a peak velocity of <strong>${v.vMax} m/s</strong> at <em>t</em><sub>1</sub> = <strong>${v.t1} s</strong>, cruises at constant velocity until <em>t</em><sub>2</sub> = <strong>${v.t2} s</strong>, then brakes uniformly to rest at <em>t</em><sub>3</sub> = <strong>${v.t3} s</strong>.<br/><strong>a.</strong> What is the magnitude of the elevator&rsquo;s maximum acceleration?<br/><strong>b.</strong> What is the total vertical displacement of the elevator?`,
+    renderPrompt: (v) => `The velocity-time graph shown illustrates the motion of a vertical test freight elevator. The elevator accelerates uniformly from rest to a peak velocity of <strong>${v.vMax} m/s</strong> at <em>t</em><sub>1</sub> = <strong>${v.t1} s</strong>, cruises at constant velocity until <em>t</em><sub>2</sub> = <strong>${v.t2} s</strong>, then brakes uniformly to rest at <em>t</em><sub>3</sub> = <strong>${v.t3} s</strong>.<br/><strong>a.</strong> What is the magnitude of the elevator’s maximum acceleration?<br/><strong>b.</strong> What is the total vertical displacement of the elevator?`,
     parts: [
       { label: "a. Maximum acceleration magnitude (|<em>a</em>|<sub>max</sub>)", unit: "m/s²", solve: (v) => Math.max(v.vMax / v.t1, v.vMax / (v.t3 - v.t2)), steps: (v, ans) => {
           const a1 = v.vMax / v.t1, a3 = v.vMax / (v.t3 - v.t2);
@@ -464,7 +4635,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-11", docNum: "Kin #11", title: "Tennis Ball Rebound Average Acceleration",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "racketBall",
     baseVars: { vIn: 45.0, vOut: 39.0, tDur: 0.062 },
     randomize: (b) => ({ vIn: rnd(b.vIn, 0.20, 1), vOut: rnd(b.vOut, 0.20, 1), tDur: rnd(b.tDur, 0.20, 3) }),
     renderPrompt: (v) => `A tennis ball travels horizontally toward a player at a speed of <strong>${v.vIn} m/s</strong>. The player strikes the ball directly back in the opposite direction, and <strong>${v.tDur} seconds</strong> later the ball departs the strings at <strong>${v.vOut} m/s</strong>. What is the magnitude of the average acceleration experienced by the ball during contact?`,
@@ -479,10 +4650,10 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-12", docNum: "Kin #12", title: "Crash Test Vehicle Crumple Zone Deceleration and g's",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "crashBarrier",
     baseVars: { v0: 26.0, dist: 0.77 },
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 1), dist: rnd(b.dist, 0.20, 2) }),
-    renderPrompt: (v) => `A test vehicle traveling at <strong>+${v.v0} m/s</strong> crashes into a rigid barrier. The crumple zone compresses and the cabin stops in <strong>${v.dist} m</strong>.<br/><strong>a.</strong> What is the magnitude of the average acceleration during impact?<br/><strong>b.</strong> How many <em>g</em>&rsquo;s of acceleration does the vehicle experience?`,
+    renderPrompt: (v) => `A test vehicle traveling at <strong>+${v.v0} m/s</strong> crashes into a rigid barrier. The crumple zone compresses and the cabin stops in <strong>${v.dist} m</strong>.<br/><strong>a.</strong> What is the magnitude of the average acceleration during impact?<br/><strong>b.</strong> How many <em>g</em>’s of acceleration does the vehicle experience?`,
     parts: [
       { label: "a. Average acceleration magnitude (|<em>a</em>|)", unit: "m/s²", solve: (v) => (v.v0 * v.v0) / (2 * v.dist), steps: (v, ans) => guidedSteps(
           `Known: initial velocity <em>v</em><sub>0</sub> = ${v.v0} m/s, final velocity <em>v</em> = 0 (the car stops), and stopping distance &Delta;<em>x</em> = ${v.dist} m. No time is given, so use the equation without time.`,
@@ -492,16 +4663,16 @@ const PHYSICS_QUESTIONS = [
       { label: "b. Acceleration in <em>g</em>'s", unit: "g's", acceptedUnits: ["g's", "No units"], solve: (v) => ((v.v0 * v.v0) / (2 * v.dist)) / G_ACCEL, steps: (v, ans) => {
           const a = (v.v0 * v.v0) / (2 * v.dist);
           return guidedSteps(
-            `A &ldquo;<em>g</em>&rdquo; is one unit of 9.80 m/s². To express an acceleration in <em>g</em>&rsquo;s, divide it by 9.80 m/s².`,
+            `A &ldquo;<em>g</em>&rdquo; is one unit of 9.80 m/s². To express an acceleration in <em>g</em>’s, divide it by 9.80 m/s².`,
             `Use the magnitude from part a: |<em>a</em>| = ${a.toFixed(1)} m/s².`,
-            `Number of <em>g</em>&rsquo;s = ${a.toFixed(1)} / 9.80 = <strong>${ans.toFixed(2)} g&rsquo;s</strong>.`
+            `Number of <em>g</em>’s = ${a.toFixed(1)} / 9.80 = <strong>${ans.toFixed(2)} g’s</strong>.`
           );
         }}
     ]
   },
   {
     id: "KIN-13", docNum: "Kin #13", title: "Highway Passing Time with Unit Conversion (km/h to m/s)",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "motCarKmh",
     baseVars: { vInitKmh: 60, accel: 4.0, vFinalKmh: 90 },
     randomize: (b) => {
       const vInitKmh = Math.round(rnd(b.vInitKmh, 0.20, 0));
@@ -523,10 +4694,10 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-14", docNum: "Kin #14", title: "Final Velocity from Average Velocity and Displacement",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "motCarTD",
     baseVars: { v0: 4.00, timeSec: 15.0, dist: 235 },
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 2), timeSec: rnd(b.timeSec, 0.20, 1), dist: Math.round(rnd(b.dist, 0.20, 0)) }),
-    renderPrompt: (v) => `A car with an initial velocity of <strong>${v.v0} m/s</strong> accelerates uniformly over <strong>${v.timeSec} s</strong>, traveling a displacement of <strong>${v.dist} m</strong>. What is the car&rsquo;s velocity at the end of the <strong>${v.timeSec} s</strong> interval?`,
+    renderPrompt: (v) => `A car with an initial velocity of <strong>${v.v0} m/s</strong> accelerates uniformly over <strong>${v.timeSec} s</strong>, traveling a displacement of <strong>${v.dist} m</strong>. What is the car’s velocity at the end of the <strong>${v.timeSec} s</strong> interval?`,
     parts: [
       { label: "Final velocity (<em>v</em>)", unit: "m/s", solve: (v) => (2 * v.dist / v.timeSec) - v.v0, steps: (v, ans) => guidedSteps(
           `Known: initial velocity <em>v</em><sub>0</sub> = ${v.v0} m/s, time <em>t</em> = ${v.timeSec} s, and displacement &Delta;<em>x</em> = ${v.dist} m. Unknown: the final velocity <em>v</em>. The acceleration is constant, so average velocity = &Delta;<em>x</em> / <em>t</em> = (<em>v</em><sub>0</sub> + <em>v</em>) / 2.`,
@@ -538,7 +4709,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-15", docNum: "Kin #15", title: "Weather Balloon Instrument Package Free-Fall",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "dropBalloon",
     baseVars: { vImpact: -73.5 },
     randomize: (b) => ({ vImpact: -rnd(Math.abs(b.vImpact), 0.20, 1) }),
     renderPrompt: (v) => `A high-altitude weather balloon releases an instrument package from rest. The package strikes the ground below at a velocity of <strong>${v.vImpact} m/s</strong> (downward).<br/><strong>a.</strong> How far did the package fall (positive distance)?<br/><strong>b.</strong> How long was the package falling?`,
@@ -557,7 +4728,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-16", docNum: "Kin #16", title: "Vertical Projectile Launch Speed from Total Flight Time",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "jumpBallTotalTime",
     baseVars: { tTotal: 8.30 },
     randomize: (b) => ({ tTotal: rnd(b.tTotal, 0.20, 2) }),
     renderPrompt: (v) => `A projectile launched vertically upward returns to its launch elevation after <strong>${v.tTotal} seconds</strong> in the air. Neglecting air drag, what was its initial launch speed?`,
@@ -571,7 +4742,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-17", docNum: "Kin #17", title: "Pop-Up Baseball Landing Below Bat Height",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "popUp",
     baseVars: { tTotal: 5.00, dropDist: 1.40 },
     randomize: (b) => ({ tTotal: rnd(b.tTotal, 0.20, 2), dropDist: rnd(b.dropDist, 0.20, 2) }),
     renderPrompt: (v) => `During a baseball game, a batter pops a ball straight up into the air. The ball remains airborne for <strong>${v.tTotal} s</strong> before landing on the turf <strong>${v.dropDist} meters</strong> below the height where it made contact with the bat.<br/><strong>a.</strong> How high above the ground does the ball climb at its apex?<br/><strong>b.</strong> With what speed did the ball leave the bat?`,
@@ -594,7 +4765,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-18", docNum: "Kin #18", title: "Rebounding Tennis Ball Floor Impact Acceleration",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "tennisBounce",
     baseVars: { hDrop: 1.20, hRebound: 1.00, tContact: 0.010 },
     randomize: (b) => ({ hDrop: rnd(b.hDrop, 0.20, 2), hRebound: rnd(b.hRebound, 0.20, 2), tContact: rnd(b.tContact, 0.20, 3) }),
     renderPrompt: (v) => `A tennis ball is dropped from rest at an initial elevation of <strong>${v.hDrop} m</strong>, strikes the floor, and rebounds to a height of <strong>${v.hRebound} m</strong>.<br/><strong>a.</strong> What is its velocity as it strikes the floor?<br/><strong>b.</strong> What is its velocity as it leaves the floor?<br/><strong>c.</strong> If contact with the floor lasts <strong>${v.tContact} s</strong>, find the average acceleration during the bounce.`,
@@ -622,7 +4793,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-19", docNum: "Kin #19", title: "High-Performance Vehicle Braking Time and Distance",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "motCarBrakeKmh",
     baseVars: { decel: 7.70, speedKmh: 89.0 },
     randomize: (b) => ({ decel: rnd(b.decel, 0.20, 2), speedKmh: rnd(b.speedKmh, 0.20, 1) }),
     renderPrompt: (v) => `A high-performance vehicle brakes at <strong>${v.decel} m/s&sup2;</strong>. If its initial cruising speed is <strong>${v.speedKmh} km/h</strong>:<br/><strong>a.</strong> How long does it take to stop?<br/><strong>b.</strong> How far does it travel during braking?`,
@@ -647,10 +4818,10 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-20", docNum: "Kin #20", title: "Jumping Flea Takeoff Speed and Acceleration Duration",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "jumpFlea",
     baseVars: { aFlea: 1500, hMm: 20.0 },
     randomize: (b) => ({ aFlea: Math.round(rnd(b.aFlea, 0.20, 0)), hMm: rnd(b.hMm, 0.20, 1) }),
-    renderPrompt: (v) => `A flea generates an explosive leg acceleration of <strong>${v.aFlea} m/s&sup2;</strong> during takeoff, allowing it to jump vertically to an apex of <strong>${v.hMm} mm</strong>.<br/><strong>a.</strong> What is the flea&rsquo;s speed when leaving the ground?<br/><strong>b.</strong> How long did the takeoff acceleration phase last?`,
+    renderPrompt: (v) => `A flea generates an explosive leg acceleration of <strong>${v.aFlea} m/s&sup2;</strong> during takeoff, allowing it to jump vertically to an apex of <strong>${v.hMm} mm</strong>.<br/><strong>a.</strong> What is the flea’s speed when leaving the ground?<br/><strong>b.</strong> How long did the takeoff acceleration phase last?`,
     parts: [
       { label: "a. Takeoff speed (<em>v</em><sub>takeoff</sub>)", unit: "m/s", solve: (v) => Math.sqrt(2 * G_ACCEL * (v.hMm / 1000)), steps: (v, ans) => guidedSteps(
           `After the flea leaves the ground, only gravity acts on it. At the top of the jump its velocity is zero, and the height is ${v.hMm} mm. Convert to meters first: <em>h</em> = ${v.hMm} mm &divide; 1000 = ${(v.hMm / 1000).toFixed(4)} m.`,
@@ -669,10 +4840,10 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-21", docNum: "Kin #21", title: "Crate Released from Descending Helicopter",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "dropHelicopter",
     baseVars: { vDescend: 5.80, hStart: 153 },
     randomize: (b) => ({ vDescend: rnd(b.vDescend, 0.20, 2), hStart: Math.round(rnd(b.hStart, 0.20, 0)) }),
-    renderPrompt: (v) => `A helicopter is descending vertically at a constant speed of <strong>${v.vDescend} m/s</strong>. When it is <strong>${v.hStart} m</strong> above ground level, a crate is released.<br/><strong>a.</strong> How long does it take for the crate to reach the ground?<br/><strong>b.</strong> What is the crate&rsquo;s velocity immediately before touchdown?`,
+    renderPrompt: (v) => `A helicopter is descending vertically at a constant speed of <strong>${v.vDescend} m/s</strong>. When it is <strong>${v.hStart} m</strong> above ground level, a crate is released.<br/><strong>a.</strong> How long does it take for the crate to reach the ground?<br/><strong>b.</strong> What is the crate’s velocity immediately before touchdown?`,
     parts: [
       { label: "a. Fall time (<em>t</em>)", unit: "s", solve: (v) => (-v.vDescend + Math.sqrt(v.vDescend * v.vDescend + 2 * G_ACCEL * v.hStart)) / G_ACCEL, steps: (v, ans) => guidedSteps(
           `Take up as positive. The crate is released <strong>while moving downward with the helicopter</strong>, so its initial velocity is <em>v</em><sub>0</sub> = &minus;${v.vDescend} m/s (not zero). It falls &Delta;<em>y</em> = &minus;${v.hStart} m with acceleration &minus;<em>g</em>.`,
@@ -689,7 +4860,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-22", docNum: "Kin #22", title: "Stone Dropped off Ocean Cliff with Speed of Sound Splash",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "dropCliffSound",
     baseVars: { tTotal: 4.10 },
     randomize: (b) => ({ tTotal: rnd(b.tTotal, 0.20, 2) }),
     renderPrompt: (v) => `A stone is dropped from rest off an ocean cliff. The audible splash from striking the water is heard <strong>${v.tTotal} seconds</strong> later. Given that the speed of sound in air is <strong>343 m/s</strong>, determine the height of the cliff.`,
@@ -708,7 +4879,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-23", docNum: "Kin #23", title: "Red Kangaroo Vertical Leap Time and Takeoff Speed",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "jumpKangaroo",
     baseVars: { hMax: 1.42 },
     randomize: (b) => ({ hMax: rnd(b.hMax, 0.20, 2) }),
     renderPrompt: (v) => `A red kangaroo leaps vertically upward to a maximum clearance height of <strong>${v.hMax} m</strong>.<br/><strong>a.</strong> How long was the kangaroo in the air before landing back down?<br/><strong>b.</strong> What was its takeoff speed?`,
@@ -727,7 +4898,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-24", docNum: "Kin #24", title: "Vehicle Accelerating from Rest: Distance and Final Velocity",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "motCarFromRest",
     baseVars: { accel: 3.20, timeSec: 6.00 },
     randomize: (b) => ({ accel: rnd(b.accel, 0.20, 2), timeSec: rnd(b.timeSec, 0.20, 2) }),
     renderPrompt: (v) => `A vehicle accelerates from rest with a constant acceleration of <strong>${v.accel} m/s&sup2;</strong> for <strong>${v.timeSec} seconds</strong>.<br/><strong>a.</strong> What distance does it cover during this period?<br/><strong>b.</strong> What is its final velocity?`,
@@ -746,7 +4917,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-25", docNum: "Kin #25", title: "Steel Sphere Dropped from Skyscraper Observation Deck",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "dropSkyscraper",
     baseVars: { timeSec: 4.50 },
     randomize: (b) => ({ timeSec: rnd(b.timeSec, 0.20, 2) }),
     renderPrompt: (v) => `A steel sphere is dropped from rest from the observation deck of a skyscraper and strikes the ground <strong>${v.timeSec} s</strong> later.<br/><strong>a.</strong> How tall is the observation deck?<br/><strong>b.</strong> With what speed does the sphere hit the pavement?`,
@@ -766,7 +4937,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-26", docNum: "Kin #26", title: "Commuter Train Service Braking Distance",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "motTrainBrake",
     baseVars: { vInit: 30.0, decel: 1.50 },
     randomize: (b) => ({ vInit: rnd(b.vInit, 0.20, 1), decel: rnd(b.decel, 0.20, 2) }),
     renderPrompt: (v) => `A commuter train cruising at an initial speed of <strong>${v.vInit} m/s</strong> applies service brakes, producing a constant deceleration of <strong>${v.decel} m/s&sup2;</strong>. How far does the train travel before coming to a stop?`,
@@ -780,7 +4951,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "KIN-27", docNum: "Kin #27", title: "Stone Thrown Upward from Edge of Sheer Cliff",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 1D Kinematics", diagram: "throwFromCliff",
     baseVars: { v0: 18.0, hCliff: 25.0 },
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 1), hCliff: rnd(b.hCliff, 0.20, 1) }),
     renderPrompt: (v) => `A stone is thrown vertically upward with an initial velocity of <strong>${v.v0} m/s</strong> from the edge of a sheer cliff <strong>${v.hCliff} m</strong> high.<br/><strong>a.</strong> What is the maximum height reached by the stone above the base of the cliff?<br/><strong>b.</strong> How long does it take for the stone to hit the canyon floor below?`,
@@ -802,10 +4973,10 @@ const PHYSICS_QUESTIONS = [
   // --- UNIT 1: 2D KINEMATICS AND PROJECTILE MOTION (CED 1.5) ---
   {
     id: "PROJ-01", docNum: "Proj #1", title: "Rock Thrown Horizontally from a Bridge (4 Parts)",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion", diagram: "projBridge",
     baseVars: { v0: 12.0, tFall: 2.28 },
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 1), tFall: rnd(b.tFall, 0.20, 2) }),
-    renderPrompt: (v) => `Paula throws a rock horizontally with a speed of <strong>${v.v0} m/s</strong> from a bridge, and it falls for <strong>${v.tFall} seconds</strong> before reaching the water below.<br/><strong>a.</strong> How high is the bridge from the water below?<br/><strong>b.</strong> How far horizontally does the rock travel before striking the water?<br/><strong>c.</strong> What is the rock&rsquo;s speed as it reaches the water?<br/><strong>d.</strong> What is the rock&rsquo;s direction just before hitting the water?`,
+    renderPrompt: (v) => `Paula throws a rock horizontally with a speed of <strong>${v.v0} m/s</strong> from a bridge, and it falls for <strong>${v.tFall} seconds</strong> before reaching the water below.<br/><strong>a.</strong> How high is the bridge from the water below?<br/><strong>b.</strong> How far horizontally does the rock travel before striking the water?<br/><strong>c.</strong> What is the rock’s speed as it reaches the water?<br/><strong>d.</strong> What is the rock’s direction just before hitting the water?`,
     parts: [
       { label: "a. Bridge height (<em>h</em>)", unit: "m", solve: (v) => 0.5 * G_ACCEL * v.tFall * v.tFall, steps: (v, ans) => guidedSteps(
           `Split the motion into horizontal and vertical parts. The rock is thrown horizontally, so its initial <em>vertical</em> velocity is zero. Known: <em>t</em> = ${v.tFall} s, <em>v</em><sub>0y</sub> = 0, <em>a</em><sub>y</sub> = 9.80 m/s² (down). Unknown: the height <em>h</em>.`,
@@ -831,7 +5002,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "PROJ-02", docNum: "Proj #2", title: "Marble Rolling Off Tabletop Speed",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion", diagram: "projTableSpeed",
     baseVars: { v0: 2.0, tFall: 0.30 },
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 2), tFall: rnd(b.tFall, 0.20, 2) }),
     renderPrompt: (v) => `A marble rolls off the edge of a tabletop with a horizontal speed of <strong>${v.v0} m/s</strong>. What is its speed <strong>${v.tFall} s</strong> later?`,
@@ -874,14 +5045,14 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "PROJ-04", docNum: "Proj #4", title: "Rock Thrown Horizontally from Cliff: Time for Speed to Multiply",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion", diagram: "projCliffDouble",
     baseVars: { v0: 12.6, multWord: "double", multFactor: 2 },
     randomize: (b) => {
       const opts = [{ word: "double", factor: 2 }, { word: "triple", factor: 3 }, { word: "quadruple", factor: 4 }];
       const pick = opts[Math.floor(Math.random() * opts.length)];
       return { v0: rnd(b.v0, 0.20, 1), multWord: pick.word, multFactor: pick.factor };
     },
-    renderPrompt: (v) => `A rock is thrown horizontally off of a cliff with a speed of <strong>${v.v0} m/s</strong>. How long would it take for the rock&rsquo;s speed to <strong>${v.multWord}</strong>?`,
+    renderPrompt: (v) => `A rock is thrown horizontally off of a cliff with a speed of <strong>${v.v0} m/s</strong>. How long would it take for the rock’s speed to <strong>${v.multWord}</strong>?`,
     parts: [
       { label: "Time for speed to multiply (<em>t</em>)", unit: "s", solve: (v) => (v.v0 * Math.sqrt(v.multFactor * v.multFactor - 1)) / G_ACCEL, steps: (v, ans) => guidedSteps(
           `The horizontal velocity stays <em>v</em><sub>0</sub> = ${v.v0} m/s. The vertical velocity grows as <em>v</em><sub>y</sub> = <em>g</em><em>t</em>. The speed is <em>v</em> = &radic;(<em>v</em><sub>0</sub>&sup2; + (<em>g</em><em>t</em>)&sup2;).`,
@@ -901,7 +5072,7 @@ const PHYSICS_QUESTIONS = [
       const hTarget = Number(Math.min(rnd(b.hTarget, 0.15, 1), maxH * 0.75).toFixed(1));
       return { v0, theta, hTarget };
     },
-    renderPrompt: (v) => `A cannonball is fired from ground level with a velocity of <strong>${v.v0} m/s</strong> at an angle of <strong>${v.theta}&deg;</strong> above the horizontal, and it hits its target as it descends at an elevation of <strong>${v.hTarget} meters</strong> higher than the ground below.<br/><strong>a.</strong> How long does it take the cannonball to hit its target?<br/><strong>b.</strong> What is the cannonball&rsquo;s speed when it hits its target?<br/><strong>c.</strong> What is the direction of the cannonball&rsquo;s velocity when it hits its target?`,
+    renderPrompt: (v) => `A cannonball is fired from ground level with a velocity of <strong>${v.v0} m/s</strong> at an angle of <strong>${v.theta}&deg;</strong> above the horizontal, and it hits its target as it descends at an elevation of <strong>${v.hTarget} meters</strong> higher than the ground below.<br/><strong>a.</strong> How long does it take the cannonball to hit its target?<br/><strong>b.</strong> What is the cannonball’s speed when it hits its target?<br/><strong>c.</strong> What is the direction of the cannonball’s velocity when it hits its target?`,
     parts: [
       { label: "a. Flight time to target (<em>t</em>)", unit: "s", solve: (v) => { const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD); return (vy0 + Math.sqrt(vy0 * vy0 - 2 * G_ACCEL * v.hTarget)) / G_ACCEL; }, steps: (v, ans) => {
           const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD);
@@ -933,7 +5104,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "PROJ-06", docNum: "Proj #6", title: "Table Height from Horizontal Roll Speed and Range",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion", diagram: "projTableHeight",
     baseVars: { v0: 5.9, distX: 2.2 },
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 2), distX: rnd(b.distX, 0.20, 2) }),
     renderPrompt: (v) => `A ball rolls off the edge of a table with a horizontal speed of <strong>${v.v0} m/s</strong>, and the ball lands <strong>${v.distX} meters</strong> from the bottom base of the table. How tall is the table?`,
@@ -950,7 +5121,7 @@ const PHYSICS_QUESTIONS = [
     unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion", diagram: "projPelican",
     baseVars: { hDrop: 8.40, distX: 9.10 },
     randomize: (b) => ({ hDrop: rnd(b.hDrop, 0.20, 2), distX: rnd(b.distX, 0.20, 2) }),
-    renderPrompt: (v) => `A pelican flying along a horizontal path drops a fish from a height of <strong>${v.hDrop} meters</strong>. The fish travels <strong>${v.distX} meters</strong> horizontally before it hits the water below. What is the pelican&rsquo;s speed?`,
+    renderPrompt: (v) => `A pelican flying along a horizontal path drops a fish from a height of <strong>${v.hDrop} meters</strong>. The fish travels <strong>${v.distX} meters</strong> horizontally before it hits the water below. What is the pelican’s speed?`,
     parts: [
       { label: "Pelican speed (<em>v</em><sub>0</sub>)", unit: "m/s", solve: (v) => v.distX / Math.sqrt((2 * v.hDrop) / G_ACCEL), steps: (v, ans) => {
           const t = Math.sqrt((2 * v.hDrop) / G_ACCEL);
@@ -973,7 +5144,7 @@ const PHYSICS_QUESTIONS = [
       const tCheck = Number((tFlight * 0.78).toFixed(2));
       return { v0, theta, tCheck };
     },
-    renderPrompt: (v) => `A soccer ball is kicked from ground level with an initial speed of <strong>${v.v0} m/s</strong> at an angle of <strong>${v.theta}&deg;</strong> above the ground.<br/><strong>a.</strong> How high is the soccer ball at its highest point?<br/><strong>b.</strong> For how long is the soccer ball in the air?<br/><strong>c.</strong> What is the soccer ball&rsquo;s horizontal range?<br/><strong>d.</strong> What is the soccer ball&rsquo;s speed after <strong>${v.tCheck} seconds</strong>?`,
+    renderPrompt: (v) => `A soccer ball is kicked from ground level with an initial speed of <strong>${v.v0} m/s</strong> at an angle of <strong>${v.theta}&deg;</strong> above the ground.<br/><strong>a.</strong> How high is the soccer ball at its highest point?<br/><strong>b.</strong> For how long is the soccer ball in the air?<br/><strong>c.</strong> What is the soccer ball’s horizontal range?<br/><strong>d.</strong> What is the soccer ball’s speed after <strong>${v.tCheck} seconds</strong>?`,
     parts: [
       { label: "a. Maximum apex height (<em>h</em><sub>max</sub>)", unit: "m", solve: (v) => Math.pow(v.v0 * Math.sin(v.theta * DEG2RAD), 2) / (2 * G_ACCEL), steps: (v, ans) => {
           const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD);
@@ -1013,7 +5184,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "PROJ-09", docNum: "Proj #9", title: "Marble Rolling Off a Table: Flight Time and Range",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion", diagram: "projTableTime",
     baseVars: { v0: 1.48, hCm: 125 },
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 2), hCm: Math.round(rnd(b.hCm, 0.20, 0)) }),
     renderPrompt: (v) => `A marble moving at <strong>${v.v0} m/s</strong> rolls horizontally off the top edge of a <strong>${v.hCm} cm</strong> high table.<br/><strong>a.</strong> How long was the marble in flight?<br/><strong>b.</strong> How far from the base of the table did it strike the floor?`,
@@ -1038,7 +5209,7 @@ const PHYSICS_QUESTIONS = [
     unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion", diagram: "projCliffDiver",
     baseVars: { hCliff: 13.2, distRocks: 6.4 },
     randomize: (b) => ({ hCliff: rnd(b.hCliff, 0.20, 1), distRocks: rnd(b.distRocks, 0.20, 1) }),
-    renderPrompt: (v) => `A cliff diver runs horizontally off a cliff with an initial height of <strong>${v.hCliff} meters</strong> and wants to clear rocks below. If the rocks extend <strong>${v.distRocks} meters</strong> past the cliff&rsquo;s edge, what minimum initial horizontal speed must he have to safely clear the rocks below?`,
+    renderPrompt: (v) => `A cliff diver runs horizontally off a cliff with an initial height of <strong>${v.hCliff} meters</strong> and wants to clear rocks below. If the rocks extend <strong>${v.distRocks} meters</strong> past the cliff’s edge, what minimum initial horizontal speed must he have to safely clear the rocks below?`,
     parts: [
       { label: "Minimum initial speed (<em>v</em><sub>x,min</sub>)", unit: "m/s", solve: (v) => v.distRocks / Math.sqrt((2 * v.hCliff) / G_ACCEL), steps: (v, ans) => {
           const t = Math.sqrt((2 * v.hCliff) / G_ACCEL);
@@ -1052,10 +5223,10 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "PROJ-11", docNum: "Proj #11", title: "Mortar Shell Fired from a Cliff (5 Parts)",
-    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion",
+    unitTag: "Unit 1: Kinematics", topic: "Unit 1: 2D Kinematics and Projectile Motion", diagram: "projMortar",
     baseVars: { v0: 123, theta: 29.0, hCliff: 50.0 },
     randomize: (b) => ({ v0: Math.round(rnd(b.v0, 0.18, 0)), theta: rnd(b.theta, 0.15, 1), hCliff: rnd(b.hCliff, 0.20, 1) }),
-    renderPrompt: (v) => `A mortar shell is launched with an initial velocity of <strong>${v.v0} m/s</strong> at an angle of <strong>${v.theta}&deg;</strong> above the horizontal from a point on a cliff <strong>${v.hCliff} m</strong> above a level plain below.<br/><strong>a.</strong> How long is the shell in the air before landing?<br/><strong>b.</strong> How far from the base of the cliff does the mortar shell strike the ground?<br/><strong>c.</strong> What is the shell&rsquo;s speed just before it lands?<br/><strong>d.</strong> What is the direction of the shell&rsquo;s velocity just before it lands?<br/><strong>e.</strong> How high is the shell above the level plain at its highest point?`,
+    renderPrompt: (v) => `A mortar shell is launched with an initial velocity of <strong>${v.v0} m/s</strong> at an angle of <strong>${v.theta}&deg;</strong> above the horizontal from a point on a cliff <strong>${v.hCliff} m</strong> above a level plain below.<br/><strong>a.</strong> How long is the shell in the air before landing?<br/><strong>b.</strong> How far from the base of the cliff does the mortar shell strike the ground?<br/><strong>c.</strong> What is the shell’s speed just before it lands?<br/><strong>d.</strong> What is the direction of the shell’s velocity just before it lands?<br/><strong>e.</strong> How high is the shell above the level plain at its highest point?`,
     parts: [
       { label: "a. Airborne flight time (<em>t</em>)", unit: "s", solve: (v) => { const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD); return (vy0 + Math.sqrt(vy0 * vy0 + 2 * G_ACCEL * v.hCliff)) / G_ACCEL; }, steps: (v, ans) => {
           const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD);
@@ -1121,7 +5292,7 @@ const PHYSICS_QUESTIONS = [
   // --- UNIT 2: CIRCULAR MOTION AND GRAVITATION (CED 2.6 & 2.9) ---
   {
     id: "CMG-01", docNum: "Set 1 #1", title: "Maximum Unbanked Curve Speed and Radius",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "curveCar",
     baseVars: { muS: 0.91, muK: 0.76, v: 32.8 },
     randomize: (b) => { const muK = rnd(b.muK, 0.15, 2); return { muS: Number((muK + rnd(0.15, 0.2, 2)).toFixed(2)), muK, v: rnd(b.v, 0.20, 1) }; },
     renderPrompt: (v) => `A car is driving along a flat road with coefficients of static and kinetic friction of <strong>${v.muS}</strong> and <strong>${v.muK}</strong>, respectively. The fastest the car can drive along a circular path without skidding is <strong>${v.v} m/s</strong>. What is the radius of the car's path?`,
@@ -1150,7 +5321,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "CMG-03", docNum: "Set 1 #3", title: "Satellite Orbital Speed Around a Planet",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "orbitSat",
     baseVars: { hKm: 2089, MpExp26: 5.38, RpExp7: 8.33 },
     randomize: (b) => ({ hKm: Math.round(rnd(b.hKm, 0.20, 0)), MpExp26: rnd(b.MpExp26, 0.20, 2), RpExp7: rnd(b.RpExp7, 0.20, 2) }),
     renderPrompt: (v) => `A satellite is placed in a circular orbit <strong>${v.hKm.toLocaleString()} kilometers</strong> above the surface of a planet. The planet has a mass of <strong>${v.MpExp26} &times; 10<sup>26</sup> kg</strong> and a radius of <strong>${v.RpExp7} &times; 10<sup>7</sup> meters</strong>. Find the orbital speed of the satellite.`,
@@ -1165,7 +5336,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "CMG-04", docNum: "Set 1 #4", title: "Ratio of Speedboat Speeds at Equal Centripetal Acceleration",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "curveBoats",
     baseVars: { rA: 173, rB: 259 },
     randomize: (b) => ({ rA: Math.round(rnd(b.rA, 0.20, 0)), rB: Math.round(rnd(b.rB, 0.20, 0)) }),
     renderPrompt: (v) => `Speedboat A negotiates a curve whose radius is <strong>${v.rA} m</strong>; Speedboat B negotiates a curve of radius <strong>${v.rB} m</strong> at identical centripetal acceleration. What is the ratio <em>v</em><sub>A</sub> / <em>v</em><sub>B</sub>?`,
@@ -1178,7 +5349,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "CMG-05", docNum: "Set 1 #5", title: "Normal Force on Motorcycle Cresting a Hill",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "hillMotorcycle",
     baseVars: { v: 19.3, r: 116, m: 291 },
     randomize: (b) => ({ v: rnd(b.v, 0.18, 1), r: Math.round(rnd(b.r, 0.18, 0)), m: Math.round(rnd(b.m, 0.20, 0)) }),
     renderPrompt: (v) => `A motorcycle (total mass <strong>${v.m} kg</strong>) travels at <strong>${v.v} m/s</strong> over a hill of radius <strong>${v.r} m</strong>. Find the normal force.`,
@@ -1206,7 +5377,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "CMG-08", docNum: "Set 1 #8", title: "Neutron Star Surface Gravity and Fall Speed",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "neutronStar",
     baseVars: { MExp30: 3.47, RExp3: 6.30, dCm: 8.30 },
     randomize: (b) => ({ MExp30: rnd(b.MExp30, 0.20, 2), RExp3: rnd(b.RExp3, 0.20, 2), dCm: rnd(b.dCm, 0.20, 2) }),
     renderPrompt: (v) => `A neutron star has mass <strong>${v.MExp30} &times; 10<sup>30</sup> kg</strong> and radius <strong>${v.RExp3} &times; 10<sup>3</sup> m</strong>.<br/><strong>a.</strong> What is the gravitational field strength <em>g</em> on the star?<br/><strong>b.</strong> How fast would an object be moving after falling from rest a distance of <strong>${v.dCm} cm</strong>?`,
@@ -1228,7 +5399,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-12", docNum: "Set 2 #12", title: "Rock Dropped on Mars: Gravity and Weight",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "dropRockMars",
     baseVars: { m: 2.00, h: 1.00, t: 0.736 },
     randomize: (b) => { const m = rnd(b.m, 0.2, 2); const h = rnd(b.h, 0.2, 2); return { m, h, t: Number(Math.sqrt((2 * h) / 3.69).toFixed(3)) }; },
     renderPrompt: (v) => `A <strong>${v.m} kg</strong> rock falls <strong>${v.h} m</strong> on Mars in <strong>${v.t} s</strong>.<br/><strong>a.</strong> Mars gravity <em>g</em>?<br/><strong>b.</strong> Rock weight on Mars?`,
@@ -1252,7 +5423,7 @@ const PHYSICS_QUESTIONS = [
   // --- UNIT 2: FORCE AND TRANSLATIONAL DYNAMICS - FRICTION (CED 2.7) ---
   {
     id: "DYN-02", docNum: "Set 2 #2", title: "Static and Kinetic Friction of a Chair",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "dragBlockChair",
     baseVars: { m: 25, Fs: 165, Fk: 127 },
     randomize: (b) => { const m = rnd(b.m, 0.2, 1); const Fk = Math.round(rnd(b.Fk, 0.2, 0)); return { m, Fs: Math.round(Fk + rnd(b.Fs - b.Fk, 0.2, 0)), Fk }; },
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> chair requires an applied force of <strong>${v.Fs} N</strong> to start moving, and <strong>${v.Fk} N</strong> of force to maintain a constant velocity.<br/><strong>a.</strong> Find &mu;<sub>s</sub>.<br/><strong>b.</strong> Find &mu;<sub>k</sub>.`,
@@ -1271,7 +5442,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-03", docNum: "Set 2 #3", title: "Baseball Player Sliding into Home Plate",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "slideMan",
     baseVars: { m: 65.0, v0: 4.10, d: 1.90 },
     randomize: (b) => ({ m: rnd(b.m, 0.2, 1), v0: rnd(b.v0, 0.2, 2), d: rnd(b.d, 0.2, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> baseball player runs towards home plate at <strong>${v.v0} m/s</strong>. He slides into home plate and comes to rest after <strong>${v.d} meters</strong>.<br/><strong>a.</strong> What is the magnitude of his acceleration?<br/><strong>b.</strong> What is the coefficient of kinetic friction between the player and the ground?`,
@@ -1293,7 +5464,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-07", docNum: "Set 2 #7", title: "Sled Pulled at an Angle at Constant Velocity",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "sledPulled",
     baseVars: { m: 3, theta: 30, FT: 4 },
     randomize: (b) => ({ m: rnd(b.m, 0.2, 2), theta: rnd(b.theta, 0.15, 1), FT: rnd(b.FT, 0.2, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> sled is pulled at a constant velocity with tension force of <strong>${v.FT} N</strong> angled <strong>${v.theta}&deg;</strong> above horizontal. What is &mu;<sub>k</sub>?`,
@@ -1310,7 +5481,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-09", docNum: "Set 2 #9", title: "Ice Skater Coasting to a Halt",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "slideSkater",
     baseVars: { v0: 10.0, d: 100.0 },
     randomize: (b) => ({ v0: rnd(b.v0, 0.2, 1), d: rnd(b.d, 0.2, 1) }),
     renderPrompt: (v) => `An ice skater moving at <strong>${v.v0} m/s</strong> coasts to rest over <strong>${v.d} m</strong>. What is &mu;<sub>k</sub>?`,
@@ -1322,7 +5493,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-24", docNum: "Set 2 #24", title: "Dragging an Accelerating Steel Beam with Friction",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "dragBlockBeam",
     baseVars: { m: 76, a: 4, muS: 0.74, muK: 0.57 },
     randomize: (b) => { const muK = rnd(b.muK, 0.15, 2); return { m: rnd(b.m, 0.2, 1), a: rnd(b.a, 0.2, 2), muS: Number((muK + 0.17).toFixed(2)), muK }; },
     renderPrompt: (v) => `A rope accelerates a <strong>${v.m}-kg</strong> metal beam horizontally at <strong>${v.a} m/s&sup2;</strong> with &mu;<sub>s</sub> = <strong>${v.muS}</strong>, &mu;<sub>k</sub> = <strong>${v.muK}</strong>. What is the magnitude of the tension in the rope?`,
@@ -1334,10 +5505,10 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-26", docNum: "Set 2 #26", title: "Initial Car Speed from Police Skid Marks",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "slideCarSkid",
     baseVars: { d: 90, mu: 0.5 },
     randomize: (b) => ({ d: rnd(b.d, 0.2, 1), mu: rnd(b.mu, 0.2, 2) }),
-    renderPrompt: (v) => `Police measure a car&rsquo;s skid marks to be <strong>${v.d} m</strong> long, and the road&rsquo;s coefficient of kinetic friction to be <strong>${v.mu}</strong>. What was the initial speed of the car?`,
+    renderPrompt: (v) => `Police measure a car’s skid marks to be <strong>${v.d} m</strong> long, and the road’s coefficient of kinetic friction to be <strong>${v.mu}</strong>. What was the initial speed of the car?`,
     parts: [{ label: "Initial speed (<em>v</em><sub>0</sub>)", unit: "m/s", solve: (v) => Math.sqrt(2 * v.mu * G_ACCEL * v.d), steps: (v, ans) => guidedSteps(
           `While skidding, the only horizontal force is kinetic friction, so <em>f</em><sub>k</sub> = &mu;<em>m</em><em>g</em> and the deceleration is <em>a</em> = &mu;<em>g</em> = ${v.mu} &times; 9.80 = ${(v.mu * G_ACCEL).toFixed(2)} m/s². The mass cancels, so it isn't needed.`,
           `The car skids to a stop (final speed 0) over <em>d</em> = ${v.d} m. Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; &minus; 2<em>a</em><em>d</em> = 0, so <em>v</em><sub>0</sub> = &radic;(2<em>a</em><em>d</em>) = &radic;(2&mu;<em>g</em><em>d</em>).`,
@@ -1346,7 +5517,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-27", docNum: "Set 2 #27", title: "Wooden Crate Static Threshold vs. Kinetic Acceleration",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "dragBlockCrate",
     baseVars: { m: 28, muS: 0.5, muK: 0.3, Fa: 105, Fb: 145, t: 3 },
     randomize: (b) => { const m = rnd(b.m, 0.15, 1); const fsMax = 0.50 * m * G_ACCEL; return { m, muS: 0.5, muK: 0.3, Fa: Math.round(fsMax * 0.77), Fb: Math.round(fsMax * 1.08), t: rnd(b.t, 0.15, 1) }; },
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> crate has &mu;<sub>s</sub> = <strong>${v.muS}</strong>, &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> What is the speed of the crate after <strong>${v.t} s</strong> with a <strong>${v.Fa} N</strong> push?<br/><strong>b.</strong> What is the speed of the crate after <strong>${v.t} s</strong> with a <strong>${v.Fb} N</strong> push?`,
@@ -1371,7 +5542,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-28", docNum: "Set 2 #28", title: "Hockey Puck Sliding on Frozen Pond",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "slidePuck",
     baseVars: { v0: 20, d: 120 },
     randomize: (b) => ({ v0: rnd(b.v0, 0.2, 1), d: rnd(b.d, 0.2, 1) }),
     renderPrompt: (v) => `A puck sliding at <strong>${v.v0} m/s</strong> travels <strong>${v.d} m</strong> as it slides to rest. Find &mu;<sub>k</sub>.`,
@@ -1382,20 +5553,8 @@ const PHYSICS_QUESTIONS = [
         )}]
   },
   {
-    id: "DYN-29", docNum: "Set 2 #29", title: "Stopping Distance of a Pushed Box",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
-    baseVars: { muK: 0.20, v0: 4.0 },
-    randomize: (b) => ({ muK: rnd(b.muK, 0.2, 2), v0: rnd(b.v0, 0.2, 1) }),
-    renderPrompt: (v) => `A box is pushed to <strong>${v.v0} m/s</strong> across a floor where &mu;<sub>k</sub> = <strong>${v.muK}</strong>. How far does it slide?`,
-    parts: [{ label: "Sliding distance (<em>d</em>)", unit: "m", solve: (v) => (v.v0 * v.v0) / (2 * v.muK * G_ACCEL), steps: (v, ans) => guidedSteps(
-          `After the push ends, kinetic friction is the only horizontal force, so the box decelerates at <em>a</em> = &mu;<sub>k</sub><em>g</em> = ${v.muK} &times; 9.80 = ${(v.muK * G_ACCEL).toFixed(2)} m/s². (The mass cancels out.)`,
-          `The box slides until it stops: <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; &minus; 2<em>a</em><em>d</em> = 0, so <em>d</em> = <em>v</em><sub>0</sub>&sup2; / (2<em>a</em>) = <em>v</em><sub>0</sub>&sup2; / (2&mu;<sub>k</sub><em>g</em>).`,
-          `Substitute: <em>d</em> = ${v.v0}&sup2; / (2 &times; ${v.muK} &times; 9.80) = <strong>${ans.toFixed(2)} m</strong>.`
-        )}]
-  },
-  {
     id: "DYN-35", docNum: "Set 2 #35", title: "Static and Kinetic Friction on the Moon",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "dragBlockMoon",
     baseVars: { gMoon: 1.62, m: 423, muS: 0.74, muK: 0.57 },
     randomize: (b) => { const muK = rnd(b.muK, 0.15, 2); return { gMoon: 1.62, m: Math.round(rnd(b.m, 0.2, 0)), muS: Number((muK + 0.17).toFixed(2)), muK }; },
     renderPrompt: (v) => `On the moon (<em>g</em> = <strong>${v.gMoon} m/s&sup2;</strong>), a <strong>${v.m}-kg</strong> bin has coefficients of static and kinetic friction of <strong>${v.muS}</strong> and <strong>${v.muK}</strong>, respectively.<br/><strong>a.</strong> What force is required to start the bin in motion?<br/><strong>b.</strong> What force is required to slide it with a constant velocity?`,
@@ -1412,7 +5571,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-45", docNum: "Doc 1 #5", title: "Ice Skater Coasting to Rest with Friction",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "slideSkaterNoDist",
     baseVars: { v0: 5.72, muS: 0.19, muK: 0.12 },
     randomize: (b) => { const muK = rnd(b.muK, 0.15, 2); return { v0: rnd(b.v0, 0.15, 2), muS: Number((muK + 0.07).toFixed(2)), muK }; },
     renderPrompt: (v) => `An ice skater moving at <strong>${v.v0} m/s</strong> coasts to rest, and &mu;<sub>s</sub> = <strong>${v.muS}</strong> and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> What is the magnitude of her acceleration?<br/><strong>b.</strong> How much time does it take her to stop?`,
@@ -1434,7 +5593,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-49", docNum: "Doc 2 #1", title: "Refrigerator on Floor (Static vs. Kinetic Push)",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "dragBlockFridge",
     baseVars: { m: 63, muS: 0.83, muK: 0.64, Fpush: 475, aTarget: 2.3 },
     randomize: (b) => { const m = rnd(b.m, 0.15, 1); return { m, muS: 0.83, muK: 0.64, Fpush: Math.round(0.83 * m * G_ACCEL * 0.93), aTarget: rnd(b.aTarget, 0.15, 2) }; },
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> refrigerator has &mu;<sub>s</sub> = <strong>${v.muS}</strong> and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> What would the friction force be on the refrigerator if pushed with <strong>${v.Fpush} N</strong> of force?<br/><strong>b.</strong> What force is needed to start moving the refrigerator?<br/><strong>c.</strong> What force is needed to accelerate the refrigerator at <strong>${v.aTarget} m/s&sup2;</strong>?`,
@@ -1464,7 +5623,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-50", docNum: "Doc 2 #6", title: "Block on Horizontal Table Static and Kinetic Friction",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "dragBlockTable",
     baseVars: { W: 53.2, muS: 0.685, muK: 0.433 },
     randomize: (b) => {
       const muK = rnd(b.muK, 0.15, 3);
@@ -1487,7 +5646,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-62", docNum: "Set 3 #8", title: "Box Pushed Across Floor with Downward-Angled Force",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "boxPushedBelow",
     baseVars: { W: 78.4, F: 62.0, theta: 25.0, muK: 0.20 },
     randomize: (b) => ({ W: rnd(b.W, 0.18, 1), F: rnd(b.F, 0.18, 1), theta: rnd(b.theta, 0.15, 1), muK: rnd(b.muK, 0.15, 2) }),
     renderPrompt: (v) => `A <strong>${v.W}-N</strong> box is pushed across the floor with a force of <strong>${v.F} N</strong> in a direction <strong>${v.theta}&deg;</strong> below the horizontal. If the coefficient of kinetic friction between the box and floor is <strong>${v.muK}</strong>, what is the magnitude of the acceleration of the box?`,
@@ -1513,7 +5672,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-63", docNum: "Set 3 #9", title: "Block of Wood Pushed Up a Wall at Constant Velocity",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "wallBlockUp",
     baseVars: { m: 4.0, F: 63.0, theta: 55.0 },
     randomize: (b) => {
       const m = rnd(b.m, 0.15, 1);
@@ -1540,10 +5699,10 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-64", docNum: "Set 3 #10", title: "Crate in the Back of an Accelerating Pick-Up Truck",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "crateInTruck",
     baseVars: { vf: 14.3, t: 6.2 },
     randomize: (b) => ({ vf: rnd(b.vf, 0.20, 1), t: rnd(b.t, 0.20, 1) }),
-    renderPrompt: (v) => `A crate is in the back of a parked pick-up truck. The truck accelerates from rest to <strong>${v.vf} m/s</strong> in <strong>${v.t} seconds</strong>. What minimum coefficient of static friction must there be between the crate and the truck so that the crate doesn&rsquo;t slide within the truck?`,
+    renderPrompt: (v) => `A crate is in the back of a parked pick-up truck. The truck accelerates from rest to <strong>${v.vf} m/s</strong> in <strong>${v.t} seconds</strong>. What minimum coefficient of static friction must there be between the crate and the truck so that the crate doesn’t slide within the truck?`,
     parts: [
       {
         label: "Minimum coefficient of static friction (&mu;<sub>s,min</sub>)", unit: "No units",
@@ -1581,7 +5740,7 @@ const PHYSICS_QUESTIONS = [
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
     baseVars: { theta: 35, L: 7.4 },
     randomize: (b) => ({ theta: rnd(b.theta, 0.15, 1), L: rnd(b.L, 0.2, 2) }),
-    renderPrompt: (v) => `A block beginning at the top of a <strong>${v.L} m</strong> long ramp that forms a <strong>${v.theta}&deg;</strong> with the horizontal slides without friction to the bottom.<br/><strong>a.</strong> What is the acceleration of the block?<br/><strong>b.</strong> What is the speed of the block at the bottom?<br/><strong>c.</strong> What is the block&rsquo;s travel time?`,
+    renderPrompt: (v) => `A block beginning at the top of a <strong>${v.L} m</strong> long ramp that forms a <strong>${v.theta}&deg;</strong> with the horizontal slides without friction to the bottom.<br/><strong>a.</strong> What is the acceleration of the block?<br/><strong>b.</strong> What is the speed of the block at the bottom?<br/><strong>c.</strong> What is the block’s travel time?`,
     parts: [
       { label: "a. Acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => G_ACCEL * Math.sin(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
           `On a frictionless incline only two forces act: weight and the normal force. The normal force cancels the part of the weight perpendicular to the ramp, so the net force is the weight component along the ramp: <em>m</em><em>g</em> sin &theta;.`,
@@ -1660,7 +5819,7 @@ const PHYSICS_QUESTIONS = [
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
     baseVars: { m: 51, theta: 23, Fwind: 82, muS: 0.25, muK: 0.16, L: 236 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.12, 1), Fwind: rnd(b.Fwind, 0.18, 1), muS: 0.25, muK: rnd(b.muK, 0.15, 2), L: Math.round(rnd(b.L, 0.15, 0)) }),
-    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> skier goes down a <strong>${v.theta}&deg;</strong> slope aided by a wind force of <strong>${v.Fwind} N</strong> parallel to the slope. The skier&rsquo;s motion is opposed by friction and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> Find the magnitude of the skier&rsquo;s acceleration down hill.<br/><strong>b.</strong> If she begins at rest, determine the time it will take her to reach the bottom <strong>${v.L} m</strong> away.`,
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> skier goes down a <strong>${v.theta}&deg;</strong> slope aided by a wind force of <strong>${v.Fwind} N</strong> parallel to the slope. The skier’s motion is opposed by friction and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> Find the magnitude of the skier’s acceleration down hill.<br/><strong>b.</strong> If she begins at rest, determine the time it will take her to reach the bottom <strong>${v.L} m</strong> away.`,
     parts: [
       { label: "a. Magnitude of acceleration down hill (<em>a</em>)", unit: "m/s²", solve: (v) => (v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) + v.Fwind - v.muK * v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)) / v.m, steps: (v, ans) => {
           const th = v.theta * DEG2RAD;
@@ -1703,7 +5862,7 @@ const PHYSICS_QUESTIONS = [
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
     baseVars: { m: 74, theta: 37, muS: 0.16, muK: 0.11 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.12, 1), muS: 0.16, muK: rnd(b.muK, 0.15, 2) }),
-    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> skier descends a <strong>${v.theta}&deg;</strong> hill with &mu;<sub>s</sub> = <strong>${v.muS}</strong> and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> What is the gravity component down hill?<br/><strong>b.</strong> What is the magnitude of the kinetic friction?<br/><strong>c.</strong> What is the skier&rsquo;s acceleration?`,
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> skier descends a <strong>${v.theta}&deg;</strong> hill with &mu;<sub>s</sub> = <strong>${v.muS}</strong> and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> What is the gravity component down hill?<br/><strong>b.</strong> What is the magnitude of the kinetic friction?<br/><strong>c.</strong> What is the skier’s acceleration?`,
     parts: [
       { label: "a. Gravity component down hill (<em>F</em><sub>gx</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
           `Tilt the axes so that <em>x</em> points down the hill. Only the component of the weight along the slope pulls the skier downhill: the weight <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N, and the angle between the weight and the perpendicular to the slope is &theta;, so the downhill component uses sine.`,
@@ -1815,7 +5974,7 @@ const PHYSICS_QUESTIONS = [
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "inclinePull",
     baseVars: { m: 43.0, theta: 26.0, a: 1.30 },
     randomize: (b) => ({ m: rnd(b.m, 0.20, 1), theta: rnd(b.theta, 0.15, 1), a: rnd(b.a, 0.20, 2) }),
-    renderPrompt: (v) => `The man pictured pulls a <strong>${v.m}-kg</strong> crate up a frictionless <strong>${v.theta}&deg;</strong> incline. (There is friction where he&rsquo;s standing, so he doesn&rsquo;t move.) If he accelerates the crate at a rate of <strong>${v.a} m/s&sup2;</strong>, with how much force is he pulling on the rope?`,
+    renderPrompt: (v) => `The man pictured pulls a <strong>${v.m}-kg</strong> crate up a frictionless <strong>${v.theta}&deg;</strong> incline. (There is friction where he’s standing, so he doesn’t move.) If he accelerates the crate at a rate of <strong>${v.a} m/s&sup2;</strong>, with how much force is he pulling on the rope?`,
     parts: [
       { label: "Pulling force on rope (<em>F</em><sub>T</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) + v.m * v.a, steps: (v, ans) => {
           const w = v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD);
@@ -1831,7 +5990,7 @@ const PHYSICS_QUESTIONS = [
   // --- UNIT 2: FORCE AND TRANSLATIONAL DYNAMICS - MULTI-BODY SYSTEMS & PULLEYS (CED 2.1 & 2.5) ---
   {
     id: "DYN-06", docNum: "Set 2 #6", title: "Truck Towing a Horse Trailer",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Multi-Body Systems and Pulleys",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Multi-Body Systems and Pulleys", diagram: "truckTrailer",
     baseVars: { m1: 3300, m2: 4500, FkN: 8.58 },
     randomize: (b) => ({ m1: Math.round(rnd(b.m1, 0.2, 0)), m2: Math.round(rnd(b.m2, 0.2, 0)), FkN: rnd(b.FkN, 0.2, 2) }),
     renderPrompt: (v) => `A <strong>${v.m1.toLocaleString()}-kg</strong> truck tows a <strong>${v.m2.toLocaleString()}-kg</strong> trailer with the ground pushing the truck with a force of <strong>${v.FkN} kN</strong>.<br/><strong>a.</strong> Determine the acceleration of the truck.<br/><strong>b.</strong> What net force is exerted on the trailer?<br/><strong>c.</strong> What force does the trailer pull on the truck with?`,
@@ -1938,7 +6097,7 @@ const PHYSICS_QUESTIONS = [
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Multi-Body Systems and Pulleys", diagram: "halfAtwood",
     baseVars: { m2: 9, m1: 16 },
     randomize: (b) => ({ m2: rnd(b.m2, 0.2, 1), m1: rnd(b.m1, 0.2, 1) }),
-    renderPrompt: (v) => `Mass 2 (<strong>${v.m2} kg</strong>) is on a frictionless table, and it&rsquo;s connected to hanging mass 1 (<strong>${v.m1} kg</strong>).<br/><strong>a.</strong> What is the acceleration of the masses?<br/><strong>b.</strong> What is the tension in the string connecting them?`,
+    renderPrompt: (v) => `Mass 2 (<strong>${v.m2} kg</strong>) is on a frictionless table, and it’s connected to hanging mass 1 (<strong>${v.m1} kg</strong>).<br/><strong>a.</strong> What is the acceleration of the masses?<br/><strong>b.</strong> What is the tension in the string connecting them?`,
     parts: [
       { label: "a. Acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => (v.m1 * G_ACCEL) / (v.m1 + v.m2), steps: (v, ans) => guidedSteps(
           `The two masses are connected by a string, so they have the same acceleration size <em>a</em>. On the frictionless table, the only horizontal force on mass 2 is the tension: <em>F</em><sub>T</sub> = <em>m</em><sub>2</sub><em>a</em>. For the hanging mass 1 (down positive): <em>m</em><sub>1</sub><em>g</em> &minus; <em>F</em><sub>T</sub> = <em>m</em><sub>1</sub><em>a</em>.`,
@@ -1997,7 +6156,7 @@ const PHYSICS_QUESTIONS = [
   // --- UNIT 2: FORCE AND TRANSLATIONAL DYNAMICS - ELEVATORS & APPARENT WEIGHT ---
   {
     id: "DYN-05", docNum: "Set 2 #5", title: "Elevator Cable Tension Accelerating Upward",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Elevators and Apparent Weight",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Elevators and Apparent Weight", diagram: "elevCable",
     baseVars: { WkN: 10, a: 3 },
     randomize: (b) => ({ WkN: rnd(b.WkN, 0.2, 1), a: rnd(b.a, 0.2, 2) }),
     renderPrompt: (v) => `An elevator weighing <strong>${v.WkN} kN</strong> accelerates upward at <strong>${v.a} m/s&sup2;</strong>. Find the tension in the cable supporting the elevator.`,
@@ -2012,7 +6171,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-20", docNum: "Set 2 #20", title: "Bathroom Scale Reading in Downward Elevator",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Elevators and Apparent Weight",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Elevators and Apparent Weight", diagram: "elevPersonDown",
     baseVars: { m: 61, a: 2 },
     randomize: (b) => ({ m: rnd(b.m, 0.2, 1), a: rnd(b.a, 0.2, 1) }),
     renderPrompt: (v) => `Florence stands on a scale in an elevator at rest, and the scale reads <strong>${v.m} kg</strong>. What does the scale read when the elevator accelerates downward at <strong>${v.a} m/s&sup2;</strong>?`,
@@ -2027,10 +6186,10 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-25", docNum: "Set 2 #25", title: "Elevator Acceleration from Percentage Scale Reading",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Elevators and Apparent Weight",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Elevators and Apparent Weight", diagram: "elevBoxUnknown",
     baseVars: { pct: 113 },
     randomize: () => ({ pct: Math.round(rnd(115, 0.08, 0)) }),
-    renderPrompt: (v) => `A box is on a scale in an elevator, and the scale reads <strong>${v.pct}%</strong> of the box&rsquo;s usual weight. Find the magnitude and direction of the elevator&rsquo;s acceleration.`,
+    renderPrompt: (v) => `A box is on a scale in an elevator, and the scale reads <strong>${v.pct}%</strong> of the box’s usual weight. Find the magnitude and direction of the elevator’s acceleration.`,
     parts: [{ label: "Acceleration magnitude (<em>a</em>)", unit: "m/s²", directionOptions: ["Upward", "Downward"], expectedDirection: "Upward", solve: (v) => ((v.pct / 100) - 1) * G_ACCEL, steps: (v, ans) => guidedSteps(
           `The scale reads the normal force: <em>F</em><sub>N</sub> = ${v.pct}% of the weight = ${(v.pct / 100).toFixed(2)}<em>m</em><em>g</em>. Because this is <em>more</em> than the weight, the net force must point upward.`,
           `Take up as positive. Newton's second law: <em>F</em><sub>N</sub> &minus; <em>m</em><em>g</em> = <em>m</em><em>a</em>, so ${(v.pct / 100).toFixed(2)}<em>m</em><em>g</em> &minus; <em>m</em><em>g</em> = <em>m</em><em>a</em>. The mass cancels: <em>a</em> = (${(v.pct / 100).toFixed(2)} &minus; 1)<em>g</em>.`,
@@ -2039,7 +6198,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-38", docNum: "Set 2 #38", title: "Elevator Scale Reading During Upward Acceleration",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Elevators and Apparent Weight",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Elevators and Apparent Weight", diagram: "elevPersonUp",
     baseVars: { W: 706, v: 1.2, t: 0.80 },
     randomize: (b) => ({ W: Math.round(rnd(b.W, 0.2, 0)), v: rnd(b.v, 0.2, 2), t: rnd(b.t, 0.2, 2) }),
     renderPrompt: (v) => `A scale reads <strong>${v.W} N</strong> at rest. If the elevator reaches upward speed <strong>${v.v} m/s</strong> in <strong>${v.t} s</strong>, what does the scale read?`,
@@ -2054,7 +6213,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-42", docNum: "Doc 1 #2", title: "Boy Pulled Vertically from Cave with Rope Limit",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Elevators and Apparent Weight",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Elevators and Apparent Weight", diagram: "caveRope",
     baseVars: { W: 519.4, d: 29.6, Tmax: 588 },
     randomize: (b) => { const W = rnd(b.W, 0.15, 1); return { W, d: rnd(b.d, 0.15, 1), Tmax: Number((W + rnd(70, 0.20, 1)).toFixed(1)) }; },
     renderPrompt: (v) => `A boy who weighs <strong>${v.W} N</strong> is pulled up vertically from a <strong>${v.d}-m</strong> cave. The maximum tension the rope can withstand is <strong>${v.Tmax} N</strong>. Find the shortest time the boy can exit the cave.`,
@@ -2071,10 +6230,10 @@ const PHYSICS_QUESTIONS = [
   // --- UNIT 2: FORCE AND TRANSLATIONAL DYNAMICS - 2D FORCES & VECTORS ---
   {
     id: "DYN-04", docNum: "Set 2 #4", title: "2D Cardinal Forces and Acceleration Vector",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors",
-    baseVars: { Fw: 11.0, Fs: 16.0, Fe: 21.0, m: 2.0 },
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "compass3",
+    baseVars: { Fw: 11.1, Fs: 18.3, Fe: 19.8, m: 1.4 },
     randomize: (b) => { const Fw = rnd(b.Fw, 0.2, 1); return { Fw, Fs: rnd(b.Fs, 0.2, 1), Fe: Number((Fw + rnd(b.Fe - b.Fw, 0.2, 1)).toFixed(1)), m: rnd(b.m, 0.2, 1) }; },
-    renderPrompt: (v) => `Forces of <strong>${v.Fw} N west</strong>, <strong>${v.Fs} N south</strong>, and <strong>${v.Fe} N east</strong> act on a <strong>${v.m}-kg</strong> mass. Find acceleration magnitude and direction.`,
+    renderPrompt: (v) => `Forces of <strong>${v.Fw} N west</strong>, <strong>${v.Fs} N south</strong>, and <strong>${v.Fe} N east</strong> act on a <strong>${v.m}-kg</strong> mass. Find the magnitude and direction of the acceleration.`,
     parts: [
       { label: "Magnitude of acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => Math.hypot(v.Fe - v.Fw, v.Fs) / v.m, steps: (v, ans) => {
           const fx = v.Fe - v.Fw;
@@ -2096,10 +6255,10 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-19", docNum: "Set 2 #19", title: "Orthogonal Forces Net Force and Acceleration",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "compass2",
     baseVars: { Fw: 8.5, Fn: 13.2, m: 6.8 },
     randomize: (b) => ({ Fw: rnd(b.Fw, 0.2, 2), Fn: rnd(b.Fn, 0.2, 1), m: rnd(b.m, 0.2, 2) }),
-    renderPrompt: (v) => `Forces of <strong>${v.Fw} N west</strong> and <strong>${v.Fn} N north</strong> act on a <strong>${v.m}-kg</strong> mass.<br/><strong>a.</strong> What is the net force on the mass?<br/><strong>b.</strong> What is the magnitude of the mass&rsquo;s acceleration?<br/><strong>c.</strong> What is the direction of the mass&rsquo;s acceleration?`,
+    renderPrompt: (v) => `Forces of <strong>${v.Fw} N west</strong> and <strong>${v.Fn} N north</strong> act on a <strong>${v.m}-kg</strong> mass.<br/><strong>a.</strong> What is the net force on the mass?<br/><strong>b.</strong> What is the magnitude of the mass’s acceleration?<br/><strong>c.</strong> What is the direction of the mass’s acceleration?`,
     parts: [
       { label: "a. Net force (<em>F</em><sub>net</sub>)", unit: "N", solve: (v) => Math.hypot(v.Fw, v.Fn), steps: (v, ans) => guidedSteps(
           `The two forces are perpendicular (west and north), so they form the legs of a right triangle and the net force is the hypotenuse.`,
@@ -2120,7 +6279,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-21", docNum: "Set 2 #21", title: "Equilibrant of Two 2D Force Vectors",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "compassEquil",
     baseVars: { A: 5.20, thetaA: 20.0, B: 8.10 },
     randomize: (b) => ({ A: rnd(b.A, 0.15, 2), thetaA: rnd(b.thetaA, 0.15, 1), B: rnd(b.B, 0.15, 2) }),
     renderPrompt: (v) => `Force A = <strong>${v.A} N @ ${v.thetaA}&deg; south of west</strong> and Force B = <strong>${v.B} N north</strong>. Find the equilibrant force.`,
@@ -2147,18 +6306,6 @@ const PHYSICS_QUESTIONS = [
     ]
   },
   {
-    id: "DYN-23", docNum: "Set 2 #23", title: "Tension in Two Symmetric Support Ropes",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "symmetricRopes",
-    baseVars: { W: 88.0, theta: 12.0 },
-    randomize: (b) => ({ W: rnd(b.W, 0.2, 1), theta: rnd(b.theta, 0.2, 1) }),
-    renderPrompt: (v) => `Two symmetric ropes each making <strong>${v.theta}&deg;</strong> with horizontal support a <strong>${v.W}-N</strong> mass. Find tension in each rope.`,
-    parts: [{ label: "Tension in each rope (<em>F</em><sub>T</sub>)", unit: "N", solve: (v) => v.W / (2 * Math.sin(v.theta * DEG2RAD)), steps: (v, ans) => guidedSteps(
-          `The mass hangs at rest, so the forces balance. Each rope has tension <em>F</em><sub>T</sub> at ${v.theta}&deg; above the horizontal. By symmetry, the two horizontal components cancel each other.`,
-          `Vertically, the two upward components of the tension carry the weight: 2<em>F</em><sub>T</sub> sin &theta; = <em>W</em> = ${v.W} N.`,
-          `Solve: <em>F</em><sub>T</sub> = <em>W</em> / (2 sin &theta;) = ${v.W} / (2 sin ${v.theta}&deg;) = <strong>${ans.toFixed(1)} N</strong>. This is much larger than the weight because the ropes are nearly horizontal, so only a small part of each tension points up.`
-        )}]
-  },
-  {
     id: "DYN-32", docNum: "Set 2 #32", title: "Angle Between Two Symmetric Support Ropes",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "symmetricRopes",
     baseVars: { m: 65.0, FT: 1085 },
@@ -2174,53 +6321,8 @@ const PHYSICS_QUESTIONS = [
         }}]
   },
   {
-    id: "DYN-66", docNum: "Set 3 #12", title: "Two Men Holding a Suspended Rock at Rest with Asymmetric Ropes",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "twoMenRopesRock",
-    baseVars: { m: 60.0, theta1: 21.0, T1: 532 },
-    randomize: (b) => {
-      const m = rnd(b.m, 0.15, 1);
-      const theta1 = rnd(b.theta1, 0.15, 1);
-      const T1 = Math.round(rnd(b.T1, 0.12, 0));
-      return { m, theta1, T1 };
-    },
-    renderPrompt: (v) => `The men pictured hold the <strong>${v.m}-kg</strong> rock at rest. The left rope forms a <strong>${v.theta1}&deg;</strong> angle with the horizontal and applies a <strong>${v.T1}-N</strong> tension force. Find the size of the tension in the rope held by the man on the right, and the angle his rope makes with the horizontal.`,
-    parts: [
-      {
-        label: "a. Tension in the right rope (<em>T</em><sub>2</sub>)", unit: "N",
-        solve: (v) => {
-          const T2x = v.T1 * Math.cos(v.theta1 * DEG2RAD);
-          const T2y = v.m * G_ACCEL - v.T1 * Math.sin(v.theta1 * DEG2RAD);
-          return Math.hypot(T2x, T2y);
-        },
-        steps: (v, ans) => {
-          const T2x = v.T1 * Math.cos(v.theta1 * DEG2RAD), T2y = v.m * G_ACCEL - v.T1 * Math.sin(v.theta1 * DEG2RAD);
-          return guidedSteps(
-            `The rock is at rest, so the net force is zero in both directions. The left rope pulls up and to the left with <em>T</em><sub>1</sub> = ${v.T1} N at ${v.theta1}&deg;, the right rope pulls up and to the right with <em>T</em><sub>2</sub>, and the weight <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N pulls down.`,
-            `Horizontal: the right rope must cancel the left rope's horizontal pull, so <em>T</em><sub>2x</sub> = <em>T</em><sub>1</sub> cos &theta;<sub>1</sub> = ${v.T1} cos ${v.theta1}&deg; = ${T2x.toFixed(1)} N.`,
-            `Vertical: <em>T</em><sub>1y</sub> + <em>T</em><sub>2y</sub> = <em>m</em><em>g</em>, so <em>T</em><sub>2y</sub> = <em>m</em><em>g</em> &minus; <em>T</em><sub>1</sub> sin &theta;<sub>1</sub> = ${(v.m * G_ACCEL).toFixed(1)} &minus; ${(v.T1 * Math.sin(v.theta1 * DEG2RAD)).toFixed(1)} = ${T2y.toFixed(1)} N.`,
-            `Combine: <em>T</em><sub>2</sub> = &radic;(<em>T</em><sub>2x</sub>&sup2; + <em>T</em><sub>2y</sub>&sup2;) = &radic;(${T2x.toFixed(1)}&sup2; + ${T2y.toFixed(1)}&sup2;) = <strong>${ans.toFixed(1)} N</strong>.`
-          );
-        }},
-      {
-        label: "b. Angle of the right rope with the horizontal (&theta;<sub>2</sub>)", unit: "°",
-        solve: (v) => {
-          const T2x = v.T1 * Math.cos(v.theta1 * DEG2RAD);
-          const T2y = v.m * G_ACCEL - v.T1 * Math.sin(v.theta1 * DEG2RAD);
-          return Math.atan2(T2y, T2x) * RAD2DEG;
-        },
-        steps: (v, ans) => {
-          const T2x = v.T1 * Math.cos(v.theta1 * DEG2RAD), T2y = v.m * G_ACCEL - v.T1 * Math.sin(v.theta1 * DEG2RAD);
-          return guidedSteps(
-            `From part a, the right rope's components are <em>T</em><sub>2x</sub> = ${T2x.toFixed(1)} N (horizontal) and <em>T</em><sub>2y</sub> = ${T2y.toFixed(1)} N (vertical).`,
-            `The angle with the horizontal comes from tan &theta;<sub>2</sub> = <em>T</em><sub>2y</sub> / <em>T</em><sub>2x</sub> = ${T2y.toFixed(1)} / ${T2x.toFixed(1)} = ${(T2y / T2x).toFixed(3)}.`,
-            `&theta;<sub>2</sub> = arctan(${(T2y / T2x).toFixed(3)}) = <strong>${ans.toFixed(1)}&deg;</strong> above the horizontal.`
-          );
-        }}
-    ]
-  },
-  {
     id: "DYN-67", docNum: "Set 3 #13", title: "Mass Hanging from Car Rear-View Mirror During Acceleration",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "carMirror",
     baseVars: { m: 1.8, theta: 23.0 },
     randomize: (b) => ({ m: rnd(b.m, 0.20, 2), theta: rnd(b.theta, 0.18, 1) }),
     renderPrompt: (v) => `You are the passenger in a car, and at one point you notice that a <strong>${v.m}-kg</strong> mass attached to the rear-view mirror hangs at rest (relative to the car) on a string that forms an angle of <strong>${v.theta}&deg;</strong> with the vertical. Determine the acceleration of the car.`,
@@ -2240,7 +6342,7 @@ const PHYSICS_QUESTIONS = [
   // --- UNIT 2: FORCE AND TRANSLATIONAL DYNAMICS - NEWTON'S 3RD LAW (CED 2.3) ---
   {
     id: "DYN-01", docNum: "Set 2 #1", title: "Girl in a Canoe Pushing Off a Dock",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Newton's 3rd Law and Impulse",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Newton's 3rd Law and Impulse", diagram: "canoeDock",
     baseVars: { m1: 52, m2: 27, v: 0.30, t: 0.75 },
     randomize: (b) => ({ m1: Math.round(rnd(b.m1, 0.2, 0)), m2: Math.round(rnd(b.m2, 0.2, 0)), v: rnd(b.v, 0.2, 2), t: rnd(b.t, 0.2, 2) }),
     renderPrompt: (v) => `A <strong>${v.m1}-kg</strong> girl in a <strong>${v.m2}-kg</strong> canoe pushes from a dock to <strong>${v.v} m/s</strong> in <strong>${v.t} s</strong>. Find average force on the canoe.`,
@@ -2255,10 +6357,10 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-17", docNum: "Set 2 #17", title: "Astronaut Pushing a Crate in Deep Space",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Newton's 3rd Law and Impulse",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Newton's 3rd Law and Impulse", diagram: "astronautCrate",
     baseVars: { mA: 128, mC: 52, aA: 1.3, t: 1.8 },
     randomize: (b) => ({ mA: Math.round(rnd(b.mA, 0.2, 0)), mC: rnd(b.mC, 0.2, 1), aA: rnd(b.aA, 0.2, 2), t: rnd(b.t, 0.2, 2) }),
-    renderPrompt: (v) => `A <strong>${v.mA}-kg</strong> astronaut pushes a <strong>${v.mC}-kg</strong> crate, and he accelerates at <strong>${v.aA} m/s&sup2;</strong> for <strong>${v.t} s</strong>.<br/><strong>a.</strong> What is the force on the crate?<br/><strong>b.</strong> What is the force on the astronaut?<br/><strong>c.</strong> What is the crate&rsquo;s acceleration?<br/><strong>d.</strong> What is the astronaut&rsquo;s speed as he floats away?<br/><strong>e.</strong> What is the crate&rsquo;s speed as it floats away?`,
+    renderPrompt: (v) => `A <strong>${v.mA}-kg</strong> astronaut pushes a <strong>${v.mC}-kg</strong> crate, and he accelerates at <strong>${v.aA} m/s&sup2;</strong> for <strong>${v.t} s</strong>.<br/><strong>a.</strong> What is the force on the crate?<br/><strong>b.</strong> What is the force on the astronaut?<br/><strong>c.</strong> What is the crate’s acceleration?<br/><strong>d.</strong> What is the astronaut’s speed as he floats away?<br/><strong>e.</strong> What is the crate’s speed as it floats away?`,
     parts: [
       { label: "a. Force on crate (<em>F</em>)", unit: "N", solve: (v) => v.mA * v.aA, steps: (v, ans) => guidedSteps(
           `The astronaut accelerates at ${v.aA} m/s², so the net force on him is <em>F</em> = <em>m</em><sub>A</sub><em>a</em><sub>A</sub> = (${v.mA})(${v.aA}) = ${ans.toFixed(1)} N. In deep space the crate pushes back on him, and that is the only force.`,
@@ -2295,7 +6397,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-39", docNum: "Set 2 #39", title: "Boy and Girl Pushing Off on Frictionless Ice",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Newton's 3rd Law and Impulse",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Newton's 3rd Law and Impulse", diagram: "iceTwo",
     baseVars: { mB: 64, mG: 49, aB: 3.2, t: 2.1 },
     randomize: (b) => ({ mB: Math.round(rnd(b.mB, 0.2, 0)), mG: Math.round(rnd(b.mG, 0.2, 0)), aB: rnd(b.aB, 0.2, 1), t: rnd(b.t, 0.2, 1) }),
     renderPrompt: (v) => `A <strong>${v.mB}-kg</strong> boy and <strong>${v.mG}-kg</strong> girl initially at rest on frictionless ice push off of each other. The boy accelerates at <strong>${v.aB} m/s&sup2;</strong> for <strong>${v.t} s</strong>. Find the girl's speed.`,
@@ -2310,10 +6412,10 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-46", docNum: "Doc 1 #6", title: "Billiard Ball Rebound off Pool Table Cushion",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Newton's 3rd Law and Impulse",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Newton's 3rd Law and Impulse", diagram: "ballCushion",
     baseVars: { vi: 2.4, vf: 2.07, dtMs: 2.86, m: 0.38 },
     randomize: (b) => ({ vi: rnd(b.vi, 0.15, 2), vf: rnd(b.vf, 0.15, 2), dtMs: rnd(b.dtMs, 0.15, 2), m: rnd(b.m, 0.15, 3) }),
-    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> ball hits a cushion at <strong>&minus;${v.vi} m/s</strong> and rebounds at <strong>+${v.vf} m/s</strong> in <strong>${v.dtMs} ms</strong>.<br/><strong>a.</strong> What is the ball&rsquo;s average acceleration?<br/><strong>b.</strong> What is the average net force on the ball?`,
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> ball hits a cushion at <strong>&minus;${v.vi} m/s</strong> and rebounds at <strong>+${v.vf} m/s</strong> in <strong>${v.dtMs} ms</strong>.<br/><strong>a.</strong> What is the ball’s average acceleration?<br/><strong>b.</strong> What is the average net force on the ball?`,
     parts: [
       { label: "a. Average acceleration (<em>a</em><sub>avg</sub>)", unit: "m/s²", acceptNegative: true, solve: (v) => (v.vi + v.vf) / (v.dtMs * 1e-3), steps: (v, ans) => guidedSteps(
           `Choose the direction of the rebound as positive. The ball's velocity changes from <em>v</em><sub>i</sub> = &minus;${v.vi} m/s to <em>v</em><sub>f</sub> = +${v.vf} m/s. Convert the time: ${v.dtMs} ms = ${v.dtMs} &times; 10<sup>&minus;3</sup> s.`,
@@ -2334,7 +6436,7 @@ const PHYSICS_QUESTIONS = [
   // --- UNIT 2: FORCE AND TRANSLATIONAL DYNAMICS - GENERAL DYNAMICS & NEWTON'S 2ND LAW (CED 2.2, 2.4, 2.5) ---
   {
     id: "CMG-06", docNum: "Set 1 #6", title: "Hot-Air Balloon Ballast Mass Dropped",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "hotAirBalloon",
     baseVars: { M: 372, a: 0.21 },
     randomize: (b) => ({ M: Math.round(rnd(b.M, 0.20, 0)), a: rnd(b.a, 0.20, 3) }),
     renderPrompt: (v) => `A hot-air balloon with a mass of <strong>${v.M} kg</strong> is floating in equilibrium. How much mass must be dropped overboard so it accelerates upward at <strong>${v.a} m/s&sup2;</strong>?`,
@@ -2346,7 +6448,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-08", docNum: "Set 2 #8", title: "Antitank Rocket Accelerated in Launch Tube",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "rocketTube",
     baseVars: { m: 2.7, v: 50, dCm: 90 },
     randomize: (b) => ({ m: rnd(b.m, 0.2, 2), v: rnd(b.v, 0.2, 1), dCm: rnd(b.dCm, 0.2, 1) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> rocket beginning at rest reaches <strong>${v.v} m/s</strong> while accelerating through a <strong>${v.dCm}-cm</strong> tube. Find the net force on the rocket.`,
@@ -2361,7 +6463,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-10", docNum: "Set 2 #10", title: "Air Resistance on a Dropped Tennis Ball",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "airDragBall",
     baseVars: { m: 0.23, a: 9.6 },
     randomize: (b) => ({ m: rnd(b.m, 0.2, 2), a: rnd(9.20, 0.04, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> tennis ball is released from rest, and it falls downward at <strong>${v.a} m/s&sup2;</strong>. Find the air resistance force on the tennis ball.`,
@@ -2373,7 +6475,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-14", docNum: "Set 2 #14", title: "Braking Force to Meet Speed Limit Sign",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "slideCarBrake",
     baseVars: { m: 1950, v0: 24.6, vf: 11.2, d: 55.0 },
     randomize: (b) => { const vf = rnd(b.vf, 0.15, 1); return { m: Math.round(rnd(b.m, 0.2, 0)), v0: Number((vf + rnd(b.v0 - b.vf, 0.2, 1)).toFixed(1)), vf, d: rnd(b.d, 0.2, 1) }; },
     renderPrompt: (v) => `A <strong>${v.m.toLocaleString()}-kg</strong> car slows from <strong>${v.v0} m/s</strong> to <strong>${v.vf} m/s</strong> over <strong>${v.d} m</strong>. What braking force is required?`,
@@ -2388,7 +6490,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-15", docNum: "Set 2 #15", title: "Baseball Striking Catcher's Mitt",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "baseballGlove",
     baseVars: { m: 0.14, v0: 45, dCm: 11 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 3), v0: rnd(b.v0, 0.2, 1), dCm: rnd(b.dCm, 0.2, 1) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> baseball moving at <strong>${v.v0} m/s</strong> pushes a baseball glove back <strong>${v.dCm} cm</strong> as it comes to rest. Find the magnitude of the average net force acting on the ball.`,
@@ -2403,7 +6505,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-36", docNum: "Set 2 #36", title: "Finding Mass from Net Force and Acceleration",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "dragBlockForces",
     baseVars: { F1: 18.3, F2: 6.70, a: 2.32 },
     randomize: (b) => { const F2 = rnd(b.F2, 0.2, 2); return { F1: Number((F2 + rnd(b.F1 - b.F2, 0.2, 1)).toFixed(1)), F2, a: rnd(b.a, 0.2, 2) }; },
     renderPrompt: (v) => `A mass has forward force <strong>+${v.F1} N</strong> and resistance <strong>&minus;${v.F2} N</strong>, accelerating at <strong>${v.a} m/s&sup2;</strong>. Find its mass.`,
@@ -2415,7 +6517,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-37", docNum: "Set 2 #37", title: "Air Resistance on an Accelerating Skydiver",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "airDragSkydiver",
     baseVars: { W: 793.8, a: 8.40 },
     randomize: (b) => ({ W: rnd(b.W, 0.2, 1), a: rnd(b.a, 0.1, 2) }),
     renderPrompt: (v) => `A skydiver weighing <strong>${v.W} N</strong> accelerates downward at <strong>${v.a} m/s&sup2;</strong>. Find the air resistance force.`,
@@ -2430,7 +6532,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-41", docNum: "Doc 1 #1", title: "Car Braking to Rest: Acceleration and Net Force",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "slideCarStop",
     baseVars: { m: 1489, v0: 22.7, d: 68.3 },
     randomize: (b) => ({ m: Math.round(rnd(b.m, 0.18, 0)), v0: rnd(b.v0, 0.18, 1), d: rnd(b.d, 0.18, 1) }),
     renderPrompt: (v) => `A <strong>${v.m.toLocaleString()}-kg</strong> car is traveling at a velocity of <strong>${v.v0} m/s</strong>. The car slows down and comes to rest over a distance of <strong>${v.d} meters</strong>.<br/><strong>a.</strong> What is the acceleration of the car?<br/><strong>b.</strong> What is the net force required to bring the car to a rest?`,
@@ -2452,7 +6554,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-44", docNum: "Doc 1 #4", title: "Served Tennis Ball Net Force",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "tennisServe",
     baseVars: { mG: 56.8, vf: 41.0, dCm: 46.2 },
     randomize: (b) => ({ mG: rnd(b.mG, 0.15, 1), vf: rnd(b.vf, 0.18, 1), dCm: rnd(b.dCm, 0.18, 1) }),
     renderPrompt: (v) => `When a <strong>${v.mG}-gram</strong> tennis ball is served, it accelerates from rest to a speed of <strong>${v.vf} m/s</strong>. The impact with the racket gives the ball a constant acceleration over a distance of <strong>${v.dCm} cm</strong>. What is the magnitude of the net force acting on the ball?`,
@@ -2469,7 +6571,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-48", docNum: "Doc 1 #8", title: "Fireman Sliding Down Fire Station Pole",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "firePole",
     baseVars: { m: 91.7, h: 4.92, vf: 1.48 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), h: rnd(b.h, 0.15, 2), vf: rnd(b.vf, 0.15, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> fireman slides down a pole <strong>${v.h} m</strong>, beginning from rest, and he lands with a speed of <strong>${v.vf} m/s</strong>. Find the friction force acting on the fireman.`,
@@ -2484,7 +6586,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-52", docNum: "Doc 2 #8", title: "Motorboat Acceleration with Wind and Water Resistance",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "boatForces",
     baseVars: { m: 3592, Fdrive: 2853, Fwind: 765, Fwater: 1345 },
     randomize: (b) => {
       const Fwind = Math.round(rnd(b.Fwind, 0.15, 0));
@@ -2492,7 +6594,7 @@ const PHYSICS_QUESTIONS = [
       const Fdrive = Fwind + Fwater + Math.round(rnd(743, 0.25, 0));
       return { m: Math.round(rnd(b.m, 0.15, 0)), Fdrive, Fwind, Fwater };
     },
-    renderPrompt: (v) => `A boat has a mass of <strong>${v.m.toLocaleString()} kg</strong>. Its engines generate a drive force of <strong>${v.Fdrive.toLocaleString()} N due west</strong>, while the wind exerts a force of <strong>${v.Fwind} N due east</strong> and the water exerts a resistive force of <strong>${v.Fwater.toLocaleString()} N due east</strong>. Take west to be the negative direction. What is the boat&rsquo;s acceleration, with the correct sign?`,
+    renderPrompt: (v) => `A boat has a mass of <strong>${v.m.toLocaleString()} kg</strong>. Its engines generate a drive force of <strong>${v.Fdrive.toLocaleString()} N due west</strong>, while the wind exerts a force of <strong>${v.Fwind} N due east</strong> and the water exerts a resistive force of <strong>${v.Fwater.toLocaleString()} N due east</strong>. Take west to be the negative direction. What is the boat’s acceleration, with the correct sign?`,
     parts: [
       { label: "Boat acceleration (<em>a</em>)", unit: "m/s²", acceptNegative: true, solve: (v) => (-v.Fdrive + v.Fwind + v.Fwater) / v.m, steps: (v, ans) => {
           const Fnet = -v.Fdrive + v.Fwind + v.Fwater;
@@ -2506,7 +6608,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-54", docNum: "Doc 2 #10", title: "Amusement Park Roller Coaster Net Force",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "rollerCoaster",
     baseVars: { m: 6513, vf: 34.6, t: 9.25 },
     randomize: (b) => ({ m: Math.round(rnd(b.m, 0.15, 0)), vf: rnd(b.vf, 0.15, 1), t: rnd(b.t, 0.15, 2) }),
     renderPrompt: (v) => `An amusement park roller coaster accelerates its riders from rest to <strong>${v.vf} m/s</strong> in a time of <strong>${v.t} seconds</strong>. The mass of the car and all of its riders is <strong>${v.m.toLocaleString()} kg</strong>. Find the magnitude of the net force exerted on the car and the riders.`,
@@ -2523,7 +6625,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-58", docNum: "Set 3 #4", title: "Skydiver Acceleration and Parachute Terminal Descent",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "airDragSkydiverFrac",
     baseVars: { m: 62, den: 4 },
     randomize: (b) => ({ m: rnd(b.m, 0.20, 1), den: randInt(2, 5) }),
     renderPrompt: (v) => `<strong>a.</strong> What is the acceleration of a <strong>${v.m}-kg</strong> skydiver, when the force of air resistance acting on her is ${({2:"one-half",3:"one-third",4:"one-fourth",5:"one-fifth"})[v.den]} of her weight?<br/><strong>b.</strong> After opening the parachute, she descends to the ground at a constant speed. What is the force of air resistance now?`,
@@ -2542,7 +6644,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-59", docNum: "Set 3 #5", title: "Purse Dropped from the Leaning Tower of Pisa",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "towerDrop",
     baseVars: { m: 1.6, h: 53, vf: 26 },
     randomize: (b) => {
       const m = rnd(b.m, 0.20, 2);
@@ -2565,7 +6667,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-60", docNum: "Set 3 #6", title: "Child-Restraint Chair Force During Car Collision",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "carCrashTree",
     baseVars: { m: 18, vKmh: 52, t: 0.23 },
     randomize: (b) => ({ m: Math.round(rnd(b.m, 0.20, 0)), vKmh: Math.round(rnd(b.vKmh, 0.20, 0)), t: rnd(b.t, 0.20, 2) }),
     renderPrompt: (v) => `An <strong>${v.m}-kg</strong> child is riding in a child-restraint chair, securely fastened to the seat of a car. Assume the car has a speed of <strong>${v.vKmh} km/hr</strong> when it hits a tree and is brought to rest in <strong>${v.t} s</strong>. Assuming constant deceleration during the collision, estimate the net horizontal force that the straps of the restraint chair exert on the child to hold her in the chair.`,
@@ -2582,10 +6684,10 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-61", docNum: "Set 3 #7", title: "Rock Dropped on a New Planet: Gravity and Weight",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "dropRockPlanet",
     baseVars: { m: 2.00, h: 1.00, t: 0.64 },
     randomize: (b) => ({ m: rnd(b.m, 0.20, 2), h: rnd(b.h, 0.20, 2), t: rnd(b.t, 0.18, 2) }),
-    renderPrompt: (v) => `An astronaut drops a <strong>${v.m.toFixed(2)} kg</strong> rock from a height of <strong>${v.h.toFixed(2)} meter</strong> above the surface of a new planet. It takes the rock <strong>${v.t} seconds</strong> to hit the ground.<br/><strong>a.</strong> What is the acceleration due to gravity on the planet?<br/><strong>b.</strong> What is the rock&rsquo;s weight on the planet?`,
+    renderPrompt: (v) => `An astronaut drops a <strong>${v.m.toFixed(2)} kg</strong> rock from a height of <strong>${v.h.toFixed(2)} meter</strong> above the surface of a new planet. It takes the rock <strong>${v.t} seconds</strong> to hit the ground.<br/><strong>a.</strong> What is the acceleration due to gravity on the planet?<br/><strong>b.</strong> What is the rock’s weight on the planet?`,
     parts: [
       { label: "a. Acceleration due to gravity (<em>g</em><sub>planet</sub>)", unit: "m/s²", acceptedUnits: ["m/s²", "N/kg"], solve: (v) => (2 * v.h) / (v.t * v.t), steps: (v, ans) => guidedSteps(
           `The rock is dropped, so it starts from rest and falls <em>h</em> = ${v.h.toFixed(2)} m in <em>t</em> = ${v.t} s with a constant acceleration, which is the planet's gravity <em>g</em><sub>planet</sub>.`,
@@ -2606,7 +6708,7 @@ const PHYSICS_QUESTIONS = [
   // --- NEW: "Gemini Physics Library Questions" Google Doc (Doc 3) ---
   {
     id: "DYN-77", docNum: "Doc 3 #1", title: "Weight and Mass on Another Planet",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "planetWeight",
     baseVars: { mRock: 6.3, gPlanet: 14.4, wBoulderKN: 2.3 },
     randomize: (b) => ({
       mRock: rnd(b.mRock, 0.20, 1),
@@ -2638,7 +6740,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-78", docNum: "Doc 3 #2", title: "Superman Stopping a Train",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "slideTrain",
     baseVars: { d: 135, mExp5: 3.8, v0Kmh: 90 }, // NOTE: the Google Doc does not give the train's speed; 90 km/h (25 m/s) is assumed
     randomize: (b) => ({
       d: Math.round(rnd(b.d, 0.20, 0)),
@@ -2667,7 +6769,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-79", docNum: "Doc 3 #3", title: "Automobile Crash Survivability",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "crashDecel",
     baseVars: { gLimit: 30, m: 58, v0Kmh: 86 },
     randomize: (b) => ({
       gLimit: Math.round(rnd(b.gLimit, 0.15, 0)),
@@ -2760,7 +6862,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-81", docNum: "Doc 3 #5", title: "Tension in an Accelerated Bucket",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Elevators and Apparent Weight",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Elevators and Apparent Weight", diagram: "bucketRope",
     baseVars: { m: 14.6, aUp: 0.92, aDown: 1.06 },
     randomize: (b) => ({
       m: rnd(b.m, 0.20, 1),
@@ -2791,7 +6893,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-82", docNum: "Doc 3 #6", title: "Asteroid Deflection by Space Tug",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "asteroidTug",
     baseVars: { mExp9: 1.0, dvCmS: 0.3, fN: 2.8 },
     randomize: (b) => ({
       mExp9: rnd(b.mExp9, 0.20, 1),
@@ -2817,7 +6919,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-83", docNum: "Doc 3 #7", title: "Net Force on a Kayak and Paddler",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "kayak",
     baseVars: { mPerson: 61, mKayak: 13, vf: 0.80, dCm: 52 },
     randomize: (b) => ({
       mPerson: Math.round(rnd(b.mPerson, 0.20, 0)),
@@ -2894,5 +6996,487 @@ const PHYSICS_QUESTIONS = [
           `Substitute: <em>T</em><sub>bottom</sub> = (${v.m2} kg)(9.80 &minus; ${v.aDown}) = <strong>${ans.toFixed(1)} N</strong>.`
         )}
     ]
+  },
+  {
+    id: "DYN-85", docNum: "Set 4 #1", title: "Man Pulling a Crate Up a Rough Incline (Finding Friction Coefficient)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "inclinePull",
+    baseVars: { m: 35.0, theta: 24.0, F: 210, a: 1.6 },
+    randomize: (b) => {
+      const m = rnd(b.m, 0.10, 1), theta = rnd(b.theta, 0.10, 1), a = rnd(b.a, 0.10, 1);
+      const mu0 = (b.F - b.m * b.a - b.m * G_ACCEL * Math.sin(b.theta * DEG2RAD)) / (b.m * G_ACCEL * Math.cos(b.theta * DEG2RAD));
+      const muT = rnd(mu0, 0.25, 3);
+      const F = Math.round(m * (a + G_ACCEL * Math.sin(theta * DEG2RAD) + muT * G_ACCEL * Math.cos(theta * DEG2RAD)));
+      return { m, theta, F, a };
+    },
+    renderPrompt: (v) => `A man pulls a <strong>${v.m}-kg</strong> crate up a <strong>${v.theta}&deg;</strong> incline with a rope that is parallel to the incline. He pulls with a force of <strong>${v.F} N</strong>, and the crate accelerates up the incline at <strong>${v.a} m/s&sup2;</strong>. Find the coefficient of kinetic friction between the crate and the incline.`,
+    parts: [{
+      label: "Coefficient of kinetic friction (&mu;<sub>k</sub>)", unit: "No units",
+      solve: (v) => (v.F - v.m * v.a - v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD)) / (v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)),
+      steps: (v, ans) => guidedSteps(
+        `Choose axes along and perpendicular to the incline. Along the incline, up the slope: the pull <em>F</em>. Down the slope: the weight component <em>m</em><em>g</em> sin &theta; and kinetic friction <em>f</em><sub>k</sub> (the crate moves up, so friction points down the slope).`,
+        `Perpendicular to the incline there is no acceleration, so <em>F</em><sub>N</sub> = <em>m</em><em>g</em> cos &theta; = (${v.m})(9.80) cos ${v.theta}&deg; = ${(v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)).toFixed(1)} N.`,
+        `Along the incline: <em>F</em> &minus; <em>m</em><em>g</em> sin &theta; &minus; <em>f</em><sub>k</sub> = <em>m</em><em>a</em>. Solve for friction: <em>f</em><sub>k</sub> = ${v.F} &minus; (${v.m})(9.80) sin ${v.theta}&deg; &minus; (${v.m})(${v.a}) = ${(v.F - v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) - v.m * v.a).toFixed(1)} N.`,
+        `Use <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em><sub>N</sub>: &mu;<sub>k</sub> = ${(v.F - v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) - v.m * v.a).toFixed(1)} / ${(v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)).toFixed(1)} = <strong>${ans.toFixed(3)}</strong>.`
+      )
+    }]
+  },
+  {
+    id: "DYN-86", docNum: "Set 4 #3", title: "Box Pulled at an Angle Above the Horizontal on a Rough Floor",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "boxPullUp",
+    baseVars: { W: 105, F: 153, theta: 19.0, mu: 0.22 },
+    randomize: (b) => ({ W: Math.round(rnd(b.W, 0.10, 0)), F: Math.round(rnd(b.F, 0.10, 0)), theta: rnd(b.theta, 0.12, 1), mu: rnd(b.mu, 0.15, 2) }),
+    renderPrompt: (v) => `A box weighing <strong>${v.W} N</strong> is pulled across a horizontal floor by a <strong>${v.F}-N</strong> force directed <strong>${v.theta}&deg;</strong> above the horizontal. The coefficient of kinetic friction between the box and the floor is <strong>${v.mu}</strong>. Find the acceleration of the box.`,
+    parts: [{
+      label: "Acceleration of the box (a)", unit: "m/s²",
+      solve: (v) => {
+        const N = v.W - v.F * Math.sin(v.theta * DEG2RAD);
+        return (v.F * Math.cos(v.theta * DEG2RAD) - v.mu * N) / (v.W / G_ACCEL);
+      },
+      steps: (v, ans) => {
+        const t = v.theta * DEG2RAD, N = v.W - v.F * Math.sin(t), m = v.W / G_ACCEL;
+        return guidedSteps(
+          `Resolve the pull into components: horizontal <em>F</em> cos &theta; = ${(v.F * Math.cos(t)).toFixed(1)} N, vertical <em>F</em> sin &theta; = ${(v.F * Math.sin(t)).toFixed(1)} N (upward). The weight is given directly as ${v.W} N, so the mass is <em>m</em> = <em>W</em>/<em>g</em> = ${v.W}/9.80 = ${m.toFixed(2)} kg.`,
+          `Vertical (no acceleration): <em>F</em><sub>N</sub> + <em>F</em> sin &theta; = <em>W</em>, so <em>F</em><sub>N</sub> = ${v.W} &minus; ${(v.F * Math.sin(t)).toFixed(1)} = ${N.toFixed(1)} N. Because the pull lifts partly on the box, the normal force is less than the weight.`,
+          `Kinetic friction: <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em><sub>N</sub> = (${v.mu})(${N.toFixed(1)}) = ${(v.mu * N).toFixed(1)} N.`,
+          `Horizontal: <em>F</em> cos &theta; &minus; <em>f</em><sub>k</sub> = <em>m</em><em>a</em>, so <em>a</em> = (${(v.F * Math.cos(t)).toFixed(1)} &minus; ${(v.mu * N).toFixed(1)}) / ${m.toFixed(2)} = <strong>${ans.toFixed(2)} m/s²</strong>.`
+        );
+      }
+    }]
+  },
+  {
+    id: "DYN-87", docNum: "Set 4 #4", title: "Block Pressed Against a Wall: Sliding Up and Holding at Rest",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "wallBlockH",
+    baseVars: { m: 4.0, theta: 32.0, mus: 0.50, muk: 0.30 },
+    randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.10, 1), mus: rnd(b.mus, 0.10, 2), muk: rnd(b.muk, 0.10, 2) }),
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> block is pushed against a vertical wall by a force <em>F</em> that makes a <strong>${v.theta}&deg;</strong> angle above the horizontal (so it pushes the block into the wall and upward). The coefficients of friction between the block and the wall are &mu;<sub>s</sub> = <strong>${v.mus}</strong> and &mu;<sub>k</sub> = <strong>${v.muk}</strong>.`,
+    parts: [
+      {
+        label: "a. Force needed to slide the block up the wall at constant velocity (<em>F</em>)", unit: "N",
+        solve: (v) => v.m * G_ACCEL / (Math.sin(v.theta * DEG2RAD) - v.muk * Math.cos(v.theta * DEG2RAD)),
+        steps: (v, ans) => guidedSteps(
+          `Resolve <em>F</em>: the horizontal part <em>F</em> cos &theta; pushes the block into the wall; the vertical part <em>F</em> sin &theta; points up. The wall's normal force pushes back horizontally, and the block is sliding <em>up</em>, so kinetic friction points <em>down</em>. Weight points down.`,
+          `Horizontal (no acceleration): <em>F</em><sub>N</sub> = <em>F</em> cos &theta;. So friction is <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em> cos &theta;.`,
+          `Vertical (constant velocity, so net force is zero): <em>F</em> sin &theta; = <em>m</em><em>g</em> + &mu;<sub>k</sub><em>F</em> cos &theta;. Collect the <em>F</em> terms: <em>F</em>(sin &theta; &minus; &mu;<sub>k</sub> cos &theta;) = <em>m</em><em>g</em>.`,
+          `<em>F</em> = (${v.m})(9.80) / (sin ${v.theta}&deg; &minus; ${v.muk} cos ${v.theta}&deg;) = ${(v.m * G_ACCEL).toFixed(1)} / ${(Math.sin(v.theta * DEG2RAD) - v.muk * Math.cos(v.theta * DEG2RAD)).toFixed(4)} = <strong>${ans.toFixed(1)} N</strong>.`
+        )
+      },
+      {
+        label: "b. Minimum force needed to hold the block at rest on the wall (<em>F</em>)", unit: "N",
+        solve: (v) => v.m * G_ACCEL / (Math.sin(v.theta * DEG2RAD) + v.mus * Math.cos(v.theta * DEG2RAD)),
+        steps: (v, ans) => guidedSteps(
+          `Now the block is at rest and tends to slip <em>down</em>, so static friction points <em>up</em> and helps hold it. The <em>minimum</em> force corresponds to static friction at its maximum value, <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>F</em><sub>N</sub>.`,
+          `Horizontal: <em>F</em><sub>N</sub> = <em>F</em> cos &theta;, so <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>F</em> cos &theta;.`,
+          `Vertical (at rest): <em>F</em> sin &theta; + &mu;<sub>s</sub><em>F</em> cos &theta; = <em>m</em><em>g</em>, so <em>F</em>(sin &theta; + &mu;<sub>s</sub> cos &theta;) = <em>m</em><em>g</em>.`,
+          `<em>F</em><sub>min</sub> = ${(v.m * G_ACCEL).toFixed(1)} / (sin ${v.theta}&deg; + ${v.mus} cos ${v.theta}&deg;) = ${(v.m * G_ACCEL).toFixed(1)} / ${(Math.sin(v.theta * DEG2RAD) + v.mus * Math.cos(v.theta * DEG2RAD)).toFixed(4)} = <strong>${ans.toFixed(1)} N</strong>.`
+        )
+      }
+    ]
+  },
+  {
+    id: "DYN-88", docNum: "Set 4 #6", title: "Hanging Block Pulling a Block Up a Frictionless Incline",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Multi-Body Systems and Pulleys", diagram: "inclineAtwoodKnown",
+    baseVars: { m1: 10.0, m2: 18.0, theta: 26.0 },
+    randomize: (b) => {
+      const m2 = rnd(b.m2, 0.10, 1), theta = rnd(b.theta, 0.08, 1);
+      let m1 = rnd(b.m1, 0.10, 1);
+      m1 = Math.max(m1, Number((1.2 * m2 * Math.sin(theta * DEG2RAD)).toFixed(1)));
+      return { m1, m2, theta };
+    },
+    renderPrompt: (v) => `Block two (<em>m</em><sub>2</sub> = <strong>${v.m2} kg</strong>) sits on a frictionless incline that makes a <strong>${v.theta}&deg;</strong> angle with the horizontal. It is connected by a light cable over a frictionless pulley to a hanging block one (<em>m</em><sub>1</sub> = <strong>${v.m1} kg</strong>). The system is released from rest.`,
+    parts: [
+      {
+        label: "a. Acceleration of the blocks (a)", unit: "m/s²",
+        solve: (v) => (v.m1 * G_ACCEL - v.m2 * G_ACCEL * Math.sin(v.theta * DEG2RAD)) / (v.m1 + v.m2),
+        steps: (v, ans) => guidedSteps(
+          `Compare the pulls along the rope: the hanging block pulls with <em>m</em><sub>1</sub><em>g</em> = ${(v.m1 * G_ACCEL).toFixed(1)} N, while block two is pulled back down the slope by <em>m</em><sub>2</sub><em>g</em> sin &theta; = ${(v.m2 * G_ACCEL * Math.sin(v.theta * DEG2RAD)).toFixed(1)} N. The hanging block wins, so block one moves down and block two moves up the slope.`,
+          `Treat the two blocks as one system moving along the rope (the tension is internal and cancels): <em>m</em><sub>1</sub><em>g</em> &minus; <em>m</em><sub>2</sub><em>g</em> sin &theta; = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)<em>a</em>.`,
+          `<em>a</em> = (${(v.m1 * G_ACCEL).toFixed(1)} &minus; ${(v.m2 * G_ACCEL * Math.sin(v.theta * DEG2RAD)).toFixed(1)}) / (${v.m1} + ${v.m2}) = <strong>${ans.toFixed(3)} m/s²</strong>.`
+        )
+      },
+      {
+        label: "b. Tension in the cable (<em>F</em><sub>T</sub>)", unit: "N",
+        solve: (v) => {
+          const a = (v.m1 * G_ACCEL - v.m2 * G_ACCEL * Math.sin(v.theta * DEG2RAD)) / (v.m1 + v.m2);
+          return v.m1 * (G_ACCEL - a);
+        },
+        steps: (v, ans) => {
+          const a = (v.m1 * G_ACCEL - v.m2 * G_ACCEL * Math.sin(v.theta * DEG2RAD)) / (v.m1 + v.m2);
+          return guidedSteps(
+            `Isolate the hanging block. Down is its direction of motion: weight <em>m</em><sub>1</sub><em>g</em> down, tension <em>F</em><sub>T</sub> up.`,
+            `Newton's second law (down positive): <em>m</em><sub>1</sub><em>g</em> &minus; <em>F</em><sub>T</sub> = <em>m</em><sub>1</sub><em>a</em>, so <em>F</em><sub>T</sub> = <em>m</em><sub>1</sub>(<em>g</em> &minus; <em>a</em>).`,
+            `<em>F</em><sub>T</sub> = (${v.m1})(9.80 &minus; ${a.toFixed(3)}) = <strong>${ans.toFixed(1)} N</strong>.`
+          );
+        }
+      }
+    ]
+  },
+  {
+    id: "DYN-89", docNum: "Set 4 #7", title: "Crate Pushed Downward at an Angle Across a Rough Floor",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "cratePushDown",
+    baseVars: { m: 16.0, theta: 22.0, a: 1.3, mu: 0.40 },
+    randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.12, 1), a: rnd(b.a, 0.15, 1), mu: rnd(b.mu, 0.15, 2) }),
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> crate is pushed across a horizontal floor by a force directed <strong>${v.theta}&deg;</strong> <em>below</em> the horizontal. The coefficient of kinetic friction between the crate and the floor is <strong>${v.mu}</strong>, and the crate accelerates at <strong>${v.a} m/s&sup2;</strong>. What is the magnitude of the pushing force?`,
+    parts: [{
+      label: "Pushing force (<em>F</em>)", unit: "N",
+      solve: (v) => v.m * (v.a + v.mu * G_ACCEL) / (Math.cos(v.theta * DEG2RAD) - v.mu * Math.sin(v.theta * DEG2RAD)),
+      steps: (v, ans) => guidedSteps(
+        `The push has a horizontal part <em>F</em> cos &theta; (forward) and a vertical part <em>F</em> sin &theta; pointing <em>down</em> into the floor. Forces: weight <em>m</em><em>g</em> down, normal force up, friction backward.`,
+        `Vertical (no acceleration): <em>F</em><sub>N</sub> = <em>m</em><em>g</em> + <em>F</em> sin &theta;. The downward push increases the normal force, so friction is <em>f</em><sub>k</sub> = &mu;<sub>k</sub>(<em>m</em><em>g</em> + <em>F</em> sin &theta;).`,
+        `Horizontal: <em>F</em> cos &theta; &minus; &mu;<sub>k</sub>(<em>m</em><em>g</em> + <em>F</em> sin &theta;) = <em>m</em><em>a</em>. Collect the <em>F</em> terms: <em>F</em>(cos &theta; &minus; &mu;<sub>k</sub> sin &theta;) = <em>m</em>(<em>a</em> + &mu;<sub>k</sub><em>g</em>).`,
+        `<em>F</em> = (${v.m})(${v.a} + ${v.mu} &times; 9.80) / (cos ${v.theta}&deg; &minus; ${v.mu} sin ${v.theta}&deg;) = ${(v.m * (v.a + v.mu * G_ACCEL)).toFixed(2)} / ${(Math.cos(v.theta * DEG2RAD) - v.mu * Math.sin(v.theta * DEG2RAD)).toFixed(4)} = <strong>${ans.toFixed(1)} N</strong>.`
+      )
+    }]
+  },
+  {
+    id: "DYN-90", docNum: "Set 4 #8", title: "Block Sliding Down a Wall at Constant Velocity (Force Angled from Vertical)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "wallBlockV",
+    baseVars: { m: 6.50, theta: 36.0, mus: 0.55, muk: 0.44 },
+    randomize: (b) => ({ m: rnd(b.m, 0.15, 2), theta: rnd(b.theta, 0.10, 1), mus: rnd(b.mus, 0.10, 2), muk: rnd(b.muk, 0.10, 2) }),
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> block is pressed against a vertical wall by a force <em>F</em> that is directed upward and into the wall, <strong>${v.theta}&deg;</strong> from the vertical. The coefficients of friction between the block and the wall are &mu;<sub>s</sub> = <strong>${v.mus}</strong> and &mu;<sub>k</sub> = <strong>${v.muk}</strong>. What magnitude of <em>F</em> makes the block slide <em>down</em> the wall at constant velocity?`,
+    parts: [{
+      label: "Force (<em>F</em>)", unit: "N",
+      solve: (v) => v.m * G_ACCEL / (Math.cos(v.theta * DEG2RAD) + v.muk * Math.sin(v.theta * DEG2RAD)),
+      steps: (v, ans) => guidedSteps(
+        `Because the angle is measured from the <em>vertical</em>, the vertical part of the force is <em>F</em> cos &theta; (up) and the horizontal part, pushing into the wall, is <em>F</em> sin &theta;. The block slides <em>down</em>, so kinetic friction points <em>up</em>.`,
+        `Horizontal (no acceleration): <em>F</em><sub>N</sub> = <em>F</em> sin &theta;, so <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em> sin &theta;.`,
+        `Vertical (constant velocity, net force zero): <em>F</em> cos &theta; + &mu;<sub>k</sub><em>F</em> sin &theta; = <em>m</em><em>g</em>, so <em>F</em>(cos &theta; + &mu;<sub>k</sub> sin &theta;) = <em>m</em><em>g</em>. (The static coefficient is not needed because the block is already sliding.)`,
+        `<em>F</em> = (${v.m})(9.80) / (cos ${v.theta}&deg; + ${v.muk} sin ${v.theta}&deg;) = ${(v.m * G_ACCEL).toFixed(1)} / ${(Math.cos(v.theta * DEG2RAD) + v.muk * Math.sin(v.theta * DEG2RAD)).toFixed(4)} = <strong>${ans.toFixed(1)} N</strong>.`
+      )
+    }]
+  },
+  {
+    id: "DYN-91", docNum: "Set 4 #9", title: "Sphere Suspended by Two Cables (Horizontal and Angled)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "sphereTwoCables",
+    baseVars: { W: 238, theta: 41.0 },
+    randomize: (b) => ({ W: Math.round(rnd(b.W, 0.15, 0)), theta: rnd(b.theta, 0.15, 1) }),
+    renderPrompt: (v) => `A sphere weighing <strong>${v.W} N</strong> hangs at rest from two cables. The left cable is horizontal, and the right cable makes a <strong>${v.theta}&deg;</strong> angle with the horizontal. Find the tension <em>T</em><sub>1</sub> in the left cable and the tension <em>T</em><sub>2</sub> in the right cable.`,
+    parts: [
+      {
+        label: "a. Tension in the left (horizontal) cable (<em>T</em><sub>1</sub>)", unit: "N",
+        solve: (v) => v.W / Math.tan(v.theta * DEG2RAD),
+        steps: (v, ans) => guidedSteps(
+          `The sphere is at rest, so the net force is zero in both directions. Three forces act: weight ${v.W} N down, <em>T</em><sub>1</sub> pulling horizontally to the left, and <em>T</em><sub>2</sub> pulling up and to the right at ${v.theta}&deg; above the horizontal.`,
+          `Vertical: only the right cable has a vertical part, so <em>T</em><sub>2</sub> sin &theta; = <em>W</em>. Horizontal: <em>T</em><sub>2</sub> cos &theta; = <em>T</em><sub>1</sub>.`,
+          `Substitute <em>T</em><sub>2</sub> = <em>W</em>/sin &theta; into the horizontal equation: <em>T</em><sub>1</sub> = <em>W</em> cos &theta; / sin &theta; = <em>W</em>/tan &theta; = ${v.W}/tan ${v.theta}&deg; = <strong>${ans.toFixed(1)} N</strong>.`
+        )
+      },
+      {
+        label: "b. Tension in the right (angled) cable (<em>T</em><sub>2</sub>)", unit: "N",
+        solve: (v) => v.W / Math.sin(v.theta * DEG2RAD),
+        steps: (v, ans) => guidedSteps(
+          `Use the vertical balance from part a: the only upward force is the vertical part of the right cable's tension.`,
+          `<em>T</em><sub>2</sub> sin &theta; = <em>W</em>, so <em>T</em><sub>2</sub> = <em>W</em> / sin &theta;.`,
+          `<em>T</em><sub>2</sub> = ${v.W} / sin ${v.theta}&deg; = <strong>${ans.toFixed(1)} N</strong>. (Check: this is larger than the weight, as expected, since the cable must also supply the horizontal pull.)`
+        )
+      }
+    ]
+  },
+  {
+    id: "DYN-92", docNum: "Set 4 #13", title: "Pushing a Lawn Mower: Friction, Normal Force, and Acceleration",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "lawnMower",
+    baseVars: { m: 14.0, F: 93, theta: 45.0, v: 1.8, t: 2.0 },
+    randomize: (b) => ({ m: rnd(b.m, 0.15, 1), F: Math.round(rnd(b.F, 0.12, 0)), theta: rnd(b.theta, 0.10, 1), v: rnd(b.v, 0.15, 1), t: rnd(b.t, 0.15, 1) }),
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> lawn mower is pushed across level grass at constant speed with a <strong>${v.F}-N</strong> force directed along the handle, which makes a <strong>${v.theta}&deg;</strong> angle below the horizontal. In part (c), the mower is instead to accelerate from rest to <strong>${v.v} m/s</strong> in <strong>${v.t} s</strong>, with the same friction force as in part (a).`,
+    parts: [
+      {
+        label: "a. Horizontal friction force on the mower (<em>f</em>)", unit: "N",
+        solve: (v) => v.F * Math.cos(v.theta * DEG2RAD),
+        steps: (v, ans) => guidedSteps(
+          `Constant speed means zero acceleration. Horizontally, only the push component <em>F</em> cos &theta; (forward) and friction (backward) act.`,
+          `Set them equal: <em>f</em> = <em>F</em> cos &theta; = ${v.F} cos ${v.theta}&deg; = <strong>${ans.toFixed(1)} N</strong>.`
+        )
+      },
+      {
+        label: "b. Normal force from the ground (<em>F</em><sub>N</sub>)", unit: "N",
+        solve: (v) => v.m * G_ACCEL + v.F * Math.sin(v.theta * DEG2RAD),
+        steps: (v, ans) => guidedSteps(
+          `Vertically there is no acceleration. The push is directed <em>downward</em> at ${v.theta}&deg;, so its vertical component <em>F</em> sin &theta; adds to the weight, both pointing down; the ground pushes up with <em>F</em><sub>N</sub>.`,
+          `<em>F</em><sub>N</sub> = <em>m</em><em>g</em> + <em>F</em> sin &theta; = (${v.m})(9.80) + ${v.F} sin ${v.theta}&deg; = ${(v.m * G_ACCEL).toFixed(1)} + ${(v.F * Math.sin(v.theta * DEG2RAD)).toFixed(1)} = <strong>${ans.toFixed(1)} N</strong>.`
+        )
+      },
+      {
+        label: "c. Pushing force needed to accelerate the mower from rest to the speed and time given below (<em>F</em>)", unit: "N",
+        solve: (v) => (v.m * (v.v / v.t) + v.F * Math.cos(v.theta * DEG2RAD)) / Math.cos(v.theta * DEG2RAD),
+        steps: (v, ans) => {
+          const a = v.v / v.t, f = v.F * Math.cos(v.theta * DEG2RAD);
+          return guidedSteps(
+            `First find the acceleration needed: starting from rest, <em>a</em> = &Delta;<em>v</em>/&Delta;<em>t</em> = ${v.v} / ${v.t} = ${a.toFixed(2)} m/s².`,
+            `Keep the same friction force found in part a (<em>f</em> = ${f.toFixed(1)} N), as the problem instructs. Horizontally: <em>F</em> cos &theta; &minus; <em>f</em> = <em>m</em><em>a</em>.`,
+            `<em>F</em> = (<em>m</em><em>a</em> + <em>f</em>) / cos &theta; = ((${v.m})(${a.toFixed(2)}) + ${f.toFixed(1)}) / cos ${v.theta}&deg; = <strong>${ans.toFixed(1)} N</strong>.`
+          );
+        }
+      }
+    ]
+  },
+  {
+    id: "DYN-93", docNum: "Set 4 #15", title: "Pushing a Bobsled Down an Incline to a Target Speed",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
+    baseVars: { m: 22.0, mu: 0.12, theta: 7.0, v: 18.0, d: 83.0 },
+    randomize: (b) => ({ m: rnd(b.m, 0.15, 1), mu: rnd(b.mu, 0.15, 2), theta: rnd(b.theta, 0.15, 1), v: rnd(b.v, 0.10, 1), d: Math.round(rnd(b.d, 0.10, 0)) }),
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> bobsled starts from rest at the top of a <strong>${v.theta}&deg;</strong> incline. The coefficient of kinetic friction between the runners and the ice is <strong>${v.mu}</strong>. A pusher applies a constant force parallel to the incline, down the slope, so that the sled reaches <strong>${v.v} m/s</strong> at the end of a <strong>${v.d}-m</strong> run. How large is the pushing force?`,
+    parts: [{
+      label: "Pushing force (<em>F</em>)", unit: "N",
+      solve: (v) => v.m * (v.v * v.v / (2 * v.d) - G_ACCEL * Math.sin(v.theta * DEG2RAD) + v.mu * G_ACCEL * Math.cos(v.theta * DEG2RAD)),
+      steps: (v, ans) => {
+        const a = v.v * v.v / (2 * v.d);
+        return guidedSteps(
+          `Find the acceleration from kinematics (starting from rest): <em>v</em>² = 2<em>a</em><em>d</em>, so <em>a</em> = ${v.v}² / (2 &times; ${v.d}) = ${a.toFixed(3)} m/s².`,
+          `Forces along the slope: the push <em>F</em> (down), the weight component <em>m</em><em>g</em> sin &theta; (down) and kinetic friction <em>f</em><sub>k</sub> (up the slope, opposing motion). Perpendicular: <em>F</em><sub>N</sub> = <em>m</em><em>g</em> cos &theta; = ${(v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)).toFixed(1)} N, so <em>f</em><sub>k</sub> = ${(v.mu * v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)).toFixed(1)} N.`,
+          `Down-slope Newton's second law: <em>F</em> + <em>m</em><em>g</em> sin &theta; &minus; <em>f</em><sub>k</sub> = <em>m</em><em>a</em>, so <em>F</em> = <em>m</em><em>a</em> &minus; <em>m</em><em>g</em> sin &theta; + <em>f</em><sub>k</sub>.`,
+          `<em>F</em> = ${(v.m * a).toFixed(1)} &minus; ${(v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD)).toFixed(1)} + ${(v.mu * v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)).toFixed(1)} = <strong>${ans.toFixed(1)} N</strong>.`
+        );
+      }
+    }]
+  },
+  {
+    id: "DYN-94", docNum: "Set 4 #18", title: "Sprinter Pushing Off the Starting Block",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Dynamics and Forces", diagram: "sprinter",
+    baseVars: { m: 60.0, F: 580, theta: 23.0, t: 0.35 },
+    randomize: (b) => ({ m: rnd(b.m, 0.15, 1), F: Math.round(rnd(b.F, 0.12, 0)), theta: rnd(b.theta, 0.15, 1), t: rnd(b.t, 0.15, 2) }),
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> sprinter, starting from rest, pushes off the starting block with a force of <strong>${v.F} N</strong> directed <strong>${v.theta}&deg;</strong> above the horizontal. Assume the horizontal component of this force is the only net horizontal force on the sprinter.`,
+    parts: [
+      {
+        label: "a. Horizontal acceleration of the sprinter (a)", unit: "m/s²",
+        solve: (v) => v.F * Math.cos(v.theta * DEG2RAD) / v.m,
+        steps: (v, ans) => guidedSteps(
+          `Only the horizontal component of the push accelerates the sprinter forward: <em>F</em><sub>x</sub> = <em>F</em> cos &theta; = ${v.F} cos ${v.theta}&deg; = ${(v.F * Math.cos(v.theta * DEG2RAD)).toFixed(1)} N. (The vertical component is balanced by weight and the normal force.)`,
+          `<em>a</em> = <em>F</em><sub>x</sub>/<em>m</em> = ${(v.F * Math.cos(v.theta * DEG2RAD)).toFixed(1)} / ${v.m} = <strong>${ans.toFixed(2)} m/s²</strong>.`
+        )
+      },
+      {
+        label: "b. Speed of the sprinter after pushing for the given time (v)", unit: "m/s",
+        solve: (v) => (v.F * Math.cos(v.theta * DEG2RAD) / v.m) * v.t,
+        steps: (v, ans) => {
+          const a = v.F * Math.cos(v.theta * DEG2RAD) / v.m;
+          return guidedSteps(
+            `The sprinter starts from rest and the acceleration is constant at ${a.toFixed(2)} m/s² (from part a) for <em>t</em> = ${v.t} s.`,
+            `<em>v</em> = <em>v</em><sub>0</sub> + <em>a</em><em>t</em> = 0 + (${a.toFixed(2)})(${v.t}) = <strong>${ans.toFixed(2)} m/s</strong>.`
+          );
+        }
+      }
+    ]
+  },
+  {
+    id: "DYN-95", docNum: "Set 4 #19", title: "Water Skier Pulled by a Rope (Horizontal and Angled Pull)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "waterSkier",
+    baseVars: { m: 74.0, mu: 0.22, T: 250, theta: 11.0 },
+    randomize: (b) => ({ m: rnd(b.m, 0.15, 1), mu: rnd(b.mu, 0.15, 2), T: Math.round(rnd(b.T, 0.10, 0)), theta: rnd(b.theta, 0.20, 1) }),
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> water skier is pulled across the water by a rope. The coefficient of kinetic friction between the skis and the water is <strong>${v.mu}</strong> (treat this as an ordinary friction force from the water on the skis). The rope tension is <strong>${v.T} N</strong>.`,
+    parts: [
+      {
+        label: "a. Acceleration if the rope tension pulls horizontally (a)", unit: "m/s²",
+        solve: (v) => (v.T - v.mu * v.m * G_ACCEL) / v.m,
+        steps: (v, ans) => guidedSteps(
+          `With a horizontal rope, the vertical forces are just weight and the normal force from the water, so <em>F</em><sub>N</sub> = <em>m</em><em>g</em> = (${v.m})(9.80) = ${(v.m * G_ACCEL).toFixed(1)} N.`,
+          `Friction: <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em><sub>N</sub> = (${v.mu})(${(v.m * G_ACCEL).toFixed(1)}) = ${(v.mu * v.m * G_ACCEL).toFixed(1)} N.`,
+          `Horizontal: <em>T</em> &minus; <em>f</em><sub>k</sub> = <em>m</em><em>a</em>, so <em>a</em> = (${v.T} &minus; ${(v.mu * v.m * G_ACCEL).toFixed(1)}) / ${v.m} = <strong>${ans.toFixed(2)} m/s²</strong>.`
+        )
+      },
+      {
+        label: "b. Acceleration if the same tension is directed upward at the given angle (a)", unit: "m/s²",
+        solve: (v) => (v.T * Math.cos(v.theta * DEG2RAD) - v.mu * (v.m * G_ACCEL - v.T * Math.sin(v.theta * DEG2RAD))) / v.m,
+        steps: (v, ans) => {
+          const t = v.theta * DEG2RAD, N = v.m * G_ACCEL - v.T * Math.sin(t);
+          return guidedSteps(
+            `Now the rope pulls upward at ${v.theta}&deg;: horizontal component <em>T</em> cos &theta; = ${(v.T * Math.cos(t)).toFixed(1)} N, vertical component <em>T</em> sin &theta; = ${(v.T * Math.sin(t)).toFixed(1)} N (up).`,
+            `Vertical (no acceleration): <em>F</em><sub>N</sub> + <em>T</em> sin &theta; = <em>m</em><em>g</em>, so <em>F</em><sub>N</sub> = ${(v.m * G_ACCEL).toFixed(1)} &minus; ${(v.T * Math.sin(t)).toFixed(1)} = ${N.toFixed(1)} N. The normal force is smaller than in part a, so friction is smaller too: <em>f</em><sub>k</sub> = (${v.mu})(${N.toFixed(1)}) = ${(v.mu * N).toFixed(1)} N.`,
+            `Horizontal: <em>T</em> cos &theta; &minus; <em>f</em><sub>k</sub> = <em>m</em><em>a</em>, so <em>a</em> = (${(v.T * Math.cos(t)).toFixed(1)} &minus; ${(v.mu * N).toFixed(1)}) / ${v.m} = <strong>${ans.toFixed(2)} m/s²</strong>.`
+          );
+        }
+      }
+    ]
+  },
+  {
+    id: "DYN-96", docNum: "Set 4 #20", title: "Snowboarder Down a Rough Slope and Across a Flat Section",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
+    baseVars: { m: 75.0, v0: 3.0, theta: 28.0, d: 45.0, mu1: 0.20, mu2: 0.15 },
+    randomize: (b) => ({ m: rnd(b.m, 0.12, 1), v0: rnd(b.v0, 0.20, 1), theta: rnd(b.theta, 0.12, 1), d: Math.round(rnd(b.d, 0.12, 0)), mu1: rnd(b.mu1, 0.15, 2), mu2: rnd(b.mu2, 0.15, 2) }),
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> snowboarder starts down a <strong>${v.theta}&deg;</strong> slope with an initial speed of <strong>${v.v0} m/s</strong>. The slope is <strong>${v.d} m</strong> long and the coefficient of kinetic friction on it is <strong>${v.mu1}</strong>. At the bottom she continues onto a horizontal section where the coefficient of kinetic friction is <strong>${v.mu2}</strong>. (Ignore the small transition between the two.)`,
+    parts: [
+      {
+        label: "a. Speed at the bottom of the slope (v)", unit: "m/s",
+        solve: (v) => Math.sqrt(v.v0 * v.v0 + 2 * G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.mu1 * Math.cos(v.theta * DEG2RAD)) * v.d),
+        steps: (v, ans) => {
+          const a = G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.mu1 * Math.cos(v.theta * DEG2RAD));
+          return guidedSteps(
+            `Along the slope (down positive): the weight component <em>m</em><em>g</em> sin &theta; speeds her up and kinetic friction &mu;<sub>k</sub><em>m</em><em>g</em> cos &theta; slows her down. Perpendicular to the slope, <em>F</em><sub>N</sub> = <em>m</em><em>g</em> cos &theta;.`,
+            `Newton's second law: <em>m</em><em>a</em> = <em>m</em><em>g</em> sin &theta; &minus; &mu;<sub>k</sub><em>m</em><em>g</em> cos &theta;. The mass cancels: <em>a</em> = <em>g</em>(sin &theta; &minus; &mu;<sub>k</sub> cos &theta;) = 9.80(sin ${v.theta}&deg; &minus; ${v.mu1} cos ${v.theta}&deg;) = ${a.toFixed(3)} m/s².`,
+            `Kinematics: <em>v</em>² = <em>v</em><sub>0</sub>² + 2<em>a</em><em>d</em> = ${v.v0}² + 2(${a.toFixed(3)})(${v.d}) = ${(ans * ans).toFixed(1)}, so <em>v</em> = <strong>${ans.toFixed(2)} m/s</strong>.`
+          );
+        }
+      },
+      {
+        label: "b. Distance she travels on the horizontal section before stopping (x)", unit: "m",
+        solve: (v) => {
+          const v2 = v.v0 * v.v0 + 2 * G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.mu1 * Math.cos(v.theta * DEG2RAD)) * v.d;
+          return v2 / (2 * v.mu2 * G_ACCEL);
+        },
+        steps: (v, ans) => {
+          const v2 = v.v0 * v.v0 + 2 * G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.mu1 * Math.cos(v.theta * DEG2RAD)) * v.d;
+          return guidedSteps(
+            `On the flat section the only horizontal force is kinetic friction, so her acceleration is <em>a</em> = &minus;&mu;<sub>k</sub><em>g</em> = &minus;(${v.mu2})(9.80) = &minus;${(v.mu2 * G_ACCEL).toFixed(3)} m/s².`,
+            `She starts this section at the speed from part a, so <em>v</em>² = ${v2.toFixed(1)} (m/s)². She stops when her final speed is zero.`,
+            `<em>v</em><sub>f</sub>² = <em>v</em>² + 2<em>a</em><em>x</em> = 0, so <em>x</em> = <em>v</em>² / (2&mu;<sub>k</sub><em>g</em>) = ${v2.toFixed(1)} / ${(2 * v.mu2 * G_ACCEL).toFixed(3)} = <strong>${ans.toFixed(1)} m</strong>.`
+          );
+        }
+      }
+    ]
+  },
+  {
+    id: "DYN-97", docNum: "Set 4 #5", title: "Mass Hanging from a Car Mirror: Tension, Acceleration, and Doubled Acceleration",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "carMirror",
+    baseVars: { m: 2.20, theta: 14.0 },
+    randomize: (b) => ({ m: rnd(b.m, 0.20, 2), theta: rnd(b.theta, 0.20, 1) }),
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> mass hangs from the rear-view mirror of an accelerating car on a string. The mass is at rest relative to the car, and the string makes an angle of <strong>${v.theta}&deg;</strong> with the vertical.`,
+    parts: [
+      {
+        label: "a. Tension in the string (<em>T</em>)", unit: "N",
+        solve: (v) => v.m * G_ACCEL / Math.cos(v.theta * DEG2RAD),
+        steps: (v, ans) => guidedSteps(
+          `Two forces act on the mass: its weight <em>m</em><em>g</em> (down) and the string tension <em>T</em> (along the string, ${v.theta}&deg; from vertical). The mass has no vertical acceleration.`,
+          `Vertical: <em>T</em> cos &theta; = <em>m</em><em>g</em>, so <em>T</em> = <em>m</em><em>g</em> / cos &theta; = (${v.m})(9.80) / cos ${v.theta}&deg; = <strong>${ans.toFixed(1)} N</strong>.`
+        )
+      },
+      {
+        label: "b. Acceleration of the car (a)", unit: "m/s²",
+        solve: (v) => G_ACCEL * Math.tan(v.theta * DEG2RAD),
+        steps: (v, ans) => guidedSteps(
+          `The horizontal part of the tension is the only horizontal force on the mass, so it supplies the net force: <em>T</em> sin &theta; = <em>m</em><em>a</em>.`,
+          `Divide by the vertical equation <em>T</em> cos &theta; = <em>m</em><em>g</em>: tan &theta; = <em>a</em>/<em>g</em>, so <em>a</em> = <em>g</em> tan &theta;.`,
+          `<em>a</em> = 9.80 tan ${v.theta}&deg; = <strong>${ans.toFixed(2)} m/s²</strong>.`
+        )
+      },
+      {
+        label: "c. New angle with the vertical if the car's acceleration doubles (&theta;&prime;)", unit: "°",
+        solve: (v) => Math.atan(2 * Math.tan(v.theta * DEG2RAD)) * RAD2DEG,
+        steps: (v, ans) => guidedSteps(
+          `The relationship tan &theta; = <em>a</em>/<em>g</em> holds for any acceleration. Doubling <em>a</em> doubles tan &theta;: tan &theta;&prime; = 2 tan &theta;.`,
+          `tan &theta;&prime; = 2 tan ${v.theta}&deg; = ${(2 * Math.tan(v.theta * DEG2RAD)).toFixed(4)}.`,
+          `&theta;&prime; = tan<sup>&minus;1</sup>(${(2 * Math.tan(v.theta * DEG2RAD)).toFixed(4)}) = <strong>${ans.toFixed(1)}&deg;</strong>. (Doubling the acceleration does <em>not</em> double the angle.)`
+        )
+      }
+    ]
+  },
+  {
+    id: "DYN-98", docNum: "Set 4 #11", title: "Block on a Smooth Table Connected to a Hanging Block (Including Mass Replacement)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Multi-Body Systems and Pulleys", diagram: "tableAndHanging",
+    baseVars: { m1: 44.0, m2: 26.0 },
+    randomize: (b) => ({ m1: rnd(b.m1, 0.15, 0), m2: rnd(b.m2, 0.15, 0) }),
+    renderPrompt: (v) => `Block one (<em>m</em><sub>1</sub> = <strong>${v.m1} kg</strong>) rests on a smooth (frictionless) horizontal table and is connected by a light cord over a frictionless pulley to a hanging block two (<em>m</em><sub>2</sub> = <strong>${v.m2} kg</strong>). The system is released from rest.`,
+    parts: [
+      {
+        label: "a. Acceleration of the blocks (a)", unit: "m/s²",
+        solve: (v) => v.m2 * G_ACCEL / (v.m1 + v.m2),
+        steps: (v, ans) => guidedSteps(
+          `Only the weight of the hanging block drives the motion. The table is frictionless and block one's weight is cancelled by the normal force, so the net external force along the cord is <em>m</em><sub>2</sub><em>g</em>.`,
+          `The total mass being accelerated is <em>m</em><sub>1</sub> + <em>m</em><sub>2</sub> = ${v.m1 + v.m2} kg, so <em>m</em><sub>2</sub><em>g</em> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)<em>a</em>.`,
+          `<em>a</em> = (${v.m2})(9.80) / ${v.m1 + v.m2} = <strong>${ans.toFixed(2)} m/s²</strong>.`
+        )
+      },
+      {
+        label: "b. Tension in the cord (<em>T</em>)", unit: "N",
+        solve: (v) => v.m1 * v.m2 * G_ACCEL / (v.m1 + v.m2),
+        steps: (v, ans) => {
+          const a = v.m2 * G_ACCEL / (v.m1 + v.m2);
+          return guidedSteps(
+            `Isolate block one on the table. The only horizontal force on it is the cord tension <em>T</em>, which pulls it toward the pulley.`,
+            `<em>T</em> = <em>m</em><sub>1</sub><em>a</em> = (${v.m1})(${a.toFixed(3)}) = <strong>${ans.toFixed(1)} N</strong>. (Check with block two: <em>m</em><sub>2</sub>(<em>g</em> &minus; <em>a</em>) gives the same value.)`
+          );
+        }
+      },
+      {
+        label: "c. Mass of a new block that, replacing block one, makes the acceleration a = 0.100<em>g</em> (<em>M</em>)", unit: "kg",
+        solve: (v) => 9 * v.m2,
+        steps: (v, ans) => guidedSteps(
+          `The same equation applies with the new mass <em>M</em> in place of <em>m</em><sub>1</sub>: <em>a</em> = <em>m</em><sub>2</sub><em>g</em> / (<em>M</em> + <em>m</em><sub>2</sub>). Set <em>a</em> = 0.100<em>g</em>.`,
+          `<em>m</em><sub>2</sub><em>g</em> / (<em>M</em> + <em>m</em><sub>2</sub>) = 0.100<em>g</em>. The <em>g</em> cancels, so <em>M</em> + <em>m</em><sub>2</sub> = <em>m</em><sub>2</sub> / 0.100 = 10<em>m</em><sub>2</sub>.`,
+          `<em>M</em> = 9<em>m</em><sub>2</sub> = 9(${v.m2}) = <strong>${ans.toFixed(0)} kg</strong>.`
+        )
+      }
+    ]
+  }
+,
+  {
+    id: "DYN-99", docNum: "Set 4 #10", title: "Two Men Holding a Suspended Rock at Rest (Right Rope Known)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "twoMenRopesRockRightKnown",
+    baseVars: { m: 65.0, theta2: 33.0, T2: 698 },
+    randomize: (b) => ({ m: rnd(b.m, 0.12, 1), theta2: rnd(b.theta2, 0.12, 1), T2: Math.round(rnd(b.T2, 0.10, 0)) }),
+    renderPrompt: (v) => `The men pictured hold the <strong>${v.m}-kg</strong> rock at rest. The right rope forms a <strong>${v.theta2}&deg;</strong> angle with the horizontal and applies a <strong>${v.T2}-N</strong> tension force. Find the size of the tension in the rope held by the man on the <em>left</em>, and the angle his rope makes with the horizontal.`,
+    parts: [
+      {
+        label: "a. Tension in the left rope (<em>T</em><sub>1</sub>)", unit: "N",
+        solve: (v) => Math.hypot(v.T2 * Math.cos(v.theta2 * DEG2RAD), v.m * G_ACCEL - v.T2 * Math.sin(v.theta2 * DEG2RAD)),
+        steps: (v, ans) => {
+          const T1x = v.T2 * Math.cos(v.theta2 * DEG2RAD), T1y = v.m * G_ACCEL - v.T2 * Math.sin(v.theta2 * DEG2RAD);
+          return guidedSteps(
+            `The rock is at rest, so the net force is zero in both directions. Three forces act at the knot: the right rope pulls up and to the right with ${v.T2} N at ${v.theta2}&deg;, the left rope pulls up and to the left with <em>T</em><sub>1</sub>, and the weight <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N pulls down.`,
+            `Horizontal: the left rope must cancel the right rope's horizontal pull, so <em>T</em><sub>1x</sub> = <em>T</em><sub>2</sub> cos &theta;<sub>2</sub> = ${v.T2} cos ${v.theta2}&deg; = ${T1x.toFixed(1)} N.`,
+            `Vertical: <em>T</em><sub>1y</sub> + <em>T</em><sub>2y</sub> = <em>m</em><em>g</em>, so <em>T</em><sub>1y</sub> = <em>m</em><em>g</em> &minus; <em>T</em><sub>2</sub> sin &theta;<sub>2</sub> = ${(v.m * G_ACCEL).toFixed(1)} &minus; ${(v.T2 * Math.sin(v.theta2 * DEG2RAD)).toFixed(1)} = ${T1y.toFixed(1)} N.`,
+            `Combine: <em>T</em><sub>1</sub> = &radic;(<em>T</em><sub>1x</sub>&sup2; + <em>T</em><sub>1y</sub>&sup2;) = &radic;(${T1x.toFixed(1)}&sup2; + ${T1y.toFixed(1)}&sup2;) = <strong>${ans.toFixed(1)} N</strong>.`
+          );
+        }
+      },
+      {
+        label: "b. Angle of the left rope with the horizontal (&theta;<sub>1</sub>)", unit: "°",
+        solve: (v) => Math.atan2(v.m * G_ACCEL - v.T2 * Math.sin(v.theta2 * DEG2RAD), v.T2 * Math.cos(v.theta2 * DEG2RAD)) * RAD2DEG,
+        steps: (v, ans) => {
+          const T1x = v.T2 * Math.cos(v.theta2 * DEG2RAD), T1y = v.m * G_ACCEL - v.T2 * Math.sin(v.theta2 * DEG2RAD);
+          return guidedSteps(
+            `From part a, the left rope's components are <em>T</em><sub>1x</sub> = ${T1x.toFixed(1)} N (horizontal) and <em>T</em><sub>1y</sub> = ${T1y.toFixed(1)} N (vertical).`,
+            `The angle with the horizontal comes from tan &theta;<sub>1</sub> = <em>T</em><sub>1y</sub> / <em>T</em><sub>1x</sub> = ${T1y.toFixed(1)} / ${T1x.toFixed(1)} = ${(T1y / T1x).toFixed(3)}.`,
+            `&theta;<sub>1</sub> = arctan(${(T1y / T1x).toFixed(3)}) = <strong>${ans.toFixed(1)}&deg;</strong> above the horizontal.`
+          );
+        }
+      }
+    ]
+  },
+  {
+    id: "DYN-100", docNum: "Set 4 #12", title: "How Far Does a Pushed Box Slide?",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "boxSlidingStop",
+    baseVars: { mu: 0.17, v0: 11.8 },
+    randomize: (b) => ({ mu: rnd(b.mu, 0.20, 2), v0: rnd(b.v0, 0.15, 1) }),
+    renderPrompt: (v) => `A box is given a push so that it slides across the floor. How far will it go, given that the coefficient of kinetic friction is <strong>${v.mu}</strong> and the push imparts an initial speed of <strong>${v.v0} m/s</strong>?`,
+    parts: [{
+      label: "Sliding distance (x)", unit: "m",
+      solve: (v) => (v.v0 * v.v0) / (2 * v.mu * G_ACCEL),
+      steps: (v, ans) => guidedSteps(
+        `After the push, kinetic friction is the only horizontal force on the box, so it decelerates at <em>a</em> = &mu;<sub>k</sub><em>g</em> = ${v.mu} &times; 9.80 = ${(v.mu * G_ACCEL).toFixed(3)} m/s². (The mass cancels out.)`,
+        `The box slides until it stops: 0 = <em>v</em><sub>0</sub>&sup2; &minus; 2<em>a</em><em>x</em>, so <em>x</em> = <em>v</em><sub>0</sub>&sup2; / (2<em>a</em>) = <em>v</em><sub>0</sub>&sup2; / (2&mu;<sub>k</sub><em>g</em>).`,
+        `Substitute: <em>x</em> = ${v.v0}&sup2; / (2 &times; ${v.mu} &times; 9.80) = <strong>${ans.toFixed(1)} m</strong>.`
+      )
+    }]
+  },
+  {
+    id: "DYN-101", docNum: "Set 4 #16", title: "Crane Trolley Accelerating with a Hanging Load",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "craneTrolley",
+    baseVars: { m: 645, theta: 6.0 },
+    randomize: (b) => ({ m: Math.round(rnd(b.m, 0.15, 0)), theta: rnd(b.theta, 0.25, 1) }),
+    renderPrompt: (v) => `A crane's trolley at point P moves for a few seconds to the right with constant acceleration, and the <strong>${v.m}-kg</strong> load hangs on a light cable at a <strong>${v.theta}&deg;</strong> angle to the vertical as shown. What is the acceleration of the load?`,
+    parts: [{
+      label: "Acceleration of the load (a)", unit: "m/s²",
+      solve: (v) => G_ACCEL * Math.tan(v.theta * DEG2RAD),
+      steps: (v, ans) => guidedSteps(
+        `Only two forces act on the load: its weight <em>m</em><em>g</em> (down) and the cable tension <em>T</em> (along the cable, ${v.theta}&deg; from the vertical). The load accelerates horizontally with the trolley.`,
+        `Vertical (no vertical acceleration): <em>T</em> cos &theta; = <em>m</em><em>g</em>. Horizontal: the horizontal part of the tension is the net force, so <em>T</em> sin &theta; = <em>m</em><em>a</em>.`,
+        `Divide the horizontal equation by the vertical one: tan &theta; = <em>a</em>/<em>g</em>. The mass cancels (the ${v.m} kg is not needed).`,
+        `<em>a</em> = <em>g</em> tan &theta; = 9.80 tan ${v.theta}&deg; = <strong>${ans.toFixed(2)} m/s²</strong>, to the right. (The load swings back, so the cable tilts opposite to the acceleration.)`
+      )
+    }]
+  },
+  {
+    id: "DYN-102", docNum: "Set 4 #17", title: "Tension in a High Wire With a Person at the Midpoint",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "highWire",
+    baseVars: { m: 56.0, theta: 12.0 },
+    randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.20, 1) }),
+    renderPrompt: (v) => `Karissa walks across a "high wire" strung horizontally between two buildings. When she is at rest at the midpoint of the wire, the angle of the rope is &theta; = <strong>${v.theta}&deg;</strong>. If her mass is <strong>${v.m} kg</strong>, what is the tension in the wire?`,
+    parts: [{
+      label: "Tension in the wire (<em>T</em>)", unit: "N",
+      solve: (v) => v.m * G_ACCEL / (2 * Math.sin(v.theta * DEG2RAD)),
+      steps: (v, ans) => guidedSteps(
+        `Karissa is at rest at the midpoint, so the forces balance. Her weight is <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N, pulling down. Each half of the wire pulls on her with the same tension <em>T</em>, at ${v.theta}&deg; above the horizontal.`,
+        `Horizontally, the two horizontal components cancel by symmetry. Vertically, the two upward components carry her weight: 2<em>T</em> sin &theta; = <em>m</em><em>g</em>.`,
+        `<em>T</em> = <em>m</em><em>g</em> / (2 sin &theta;) = ${(v.m * G_ACCEL).toFixed(1)} / (2 sin ${v.theta}&deg;) = <strong>${ans.toFixed(0)} N</strong>. This is much larger than her weight because the wire is nearly horizontal, so only a small part of each tension points up.`
+      )
+    }]
   }
 ];

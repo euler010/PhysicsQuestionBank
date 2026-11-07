@@ -991,8 +991,9 @@ const DIAGRAM_DRAWERS = {
         <rect x="30" y="85" width="240" height="100" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
         
         <!-- Pulley at corner -->
-        <circle cx="272" cy="85" r="18" fill="${boxFill}" stroke="${accent}" stroke-width="3"/>
-        <circle cx="272" cy="85" r="4.5" fill="${stroke}"/>
+        <line x1="268" y1="85" x2="292" y2="85" stroke="${stroke}" stroke-width="5"/>
+        <circle cx="292" cy="85" r="18" fill="${boxFill}" stroke="${accent}" stroke-width="3"/>
+        <circle cx="292" cy="85" r="4.5" fill="${stroke}"/>
 
         <!-- Mass 2 on table -->
         <rect x="90" y="40" width="76" height="45" rx="6" fill="${boxFill}" stroke="#7c3aed" stroke-width="2.5"/>
@@ -1001,14 +1002,14 @@ const DIAGRAM_DRAWERS = {
         <text x="128" y="78" text-anchor="middle" fill="#7c3aed" font-size="12" font-weight="700">${v.m2} kg</text>
 
         <!-- String connecting masses -->
-        <line x1="166" y1="68" x2="272" y2="68" stroke="#d97706" stroke-width="3"/>
-        <line x1="290" y1="85" x2="290" y2="135" stroke="#d97706" stroke-width="3"/>
+        <line x1="166" y1="67" x2="292" y2="67" stroke="#d97706" stroke-width="3"/>
+        <line x1="310" y1="85" x2="310" y2="135" stroke="#d97706" stroke-width="3"/>
 
         <!-- Mass 1 hanging -->
-        <rect x="262" y="135" width="56" height="48" rx="6" fill="${boxFill}" stroke="#059669" stroke-width="2.5"/>
-        <text x="290" y="150" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">1</tspan></text>
-        <rect x="267" y="160" width="46" height="20" rx="4" fill="#ffffff" stroke="#a7f3d0" stroke-width="1"/>
-        <text x="290" y="174" text-anchor="middle" fill="#059669" font-size="12" font-weight="700">${v.m1} kg</text>
+        <rect x="282" y="135" width="56" height="48" rx="6" fill="${boxFill}" stroke="#059669" stroke-width="2.5"/>
+        <text x="310" y="150" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="15" font-weight="800">m<tspan baseline-shift="sub" font-size="11">1</tspan></text>
+        <rect x="287" y="160" width="46" height="20" rx="4" fill="#ffffff" stroke="#a7f3d0" stroke-width="1"/>
+        <text x="310" y="174" text-anchor="middle" fill="#059669" font-size="12" font-weight="700">${v.m1} kg</text>
       </svg>`;
   };
     var s = __orig(v);
@@ -1227,7 +1228,7 @@ const DIAGRAM_DRAWERS = {
     const th = v.theta || 26, t = th * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t), xr = 290;
     const run = Math.min(250, 105 / Math.tan(t)), H = run * Math.tan(t), x0 = xr - run, vy = 100, gy = vy + H;
     const ux = c, uy = -sn, nx = -sn, ny = -c;
-    const Cx = xr + 7 * nx + 24 * ux, Cy = vy + 7 * ny + 24 * uy;
+    const Lc = Math.max(24, (30-3 - 7 * nx) / ux), Cx = xr + 7 * nx + Lc * ux, Cy = vy + 7 * ny + Lc * uy;
     const Tx = Cx + 13 * nx, Ty = Cy + 13 * ny;
     const s = 0.34, px = x0 + run * s, py = gy - H * s;
     const ax = px + 32 * c - 20 * sn, ay = py - 32 * sn - 20 * c;
@@ -2285,7 +2286,7 @@ const DIAGRAM_DRAWERS = {
     const th = v.theta || 26, t = th * Math.PI / 180, c = Math.cos(t), sn = Math.sin(t), xr = 290;
     const run = Math.min(250, 105 / Math.tan(t)), H = run * Math.tan(t), x0 = xr - run, vy = 100, gy = vy + H;
     const ux = c, uy = -sn, nx = -sn, ny = -c;
-    const Cx = xr + 7 * nx + 24 * ux, Cy = vy + 7 * ny + 24 * uy;
+    const Lc = Math.max(24, (38-3 - 7 * nx) / ux), Cx = xr + 7 * nx + Lc * ux, Cy = vy + 7 * ny + Lc * uy;
     const Tx = Cx + 13 * nx, Ty = Cy + 13 * ny;
     const s = 0.34, px = x0 + run * s, py = gy - H * s;
     const ax = px + 32 * c - 20 * sn, ay = py - 32 * sn - 20 * c;
@@ -2467,16 +2468,18 @@ const DIAGRAM_DRAWERS = {
     const stroke = "#64748b", accent = "#2563eb", textCol = "#0f172a", boxFill = "#f8fafc";
     return `<svg viewBox="0 0 440 220" class="w-full max-w-md mx-auto h-52 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">
         <rect x="30" y="100" width="290" height="14" fill="#e2e8f0" stroke="${stroke}" stroke-width="2.5"/>
-        <rect x="60" y="114" width="14" height="95" fill="#e2e8f0" stroke="${stroke}" stroke-width="2"/>
-        <circle cx="338" cy="92" r="16" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
-        <circle cx="338" cy="92" r="4" fill="${stroke}"/>
+        <rect x="38" y="114" width="14" height="95" fill="#e2e8f0" stroke="${stroke}" stroke-width="2"/>
+        <rect x="296" y="114" width="14" height="95" fill="#e2e8f0" stroke="${stroke}" stroke-width="2"/>
+        <line x1="316" y1="102" x2="356" y2="92" stroke="${stroke}" stroke-width="5"/>
+        <circle cx="356" cy="92" r="16" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
+        <circle cx="356" cy="92" r="4" fill="${stroke}"/>
         <rect x="120" y="55" width="90" height="45" rx="5" fill="${boxFill}" stroke="${accent}" stroke-width="2.5"/>
         <text x="165" y="77" text-anchor="middle" dominant-baseline="central" fill="${textCol}" font-size="13" font-weight="800">m<tspan baseline-shift="sub" font-size="9">1</tspan> = ${v.m1} kg</text>
-        <line x1="210" y1="76" x2="338" y2="76" stroke="#d97706" stroke-width="3"/>
-        <line x1="354" y1="92" x2="354" y2="140" stroke="#d97706" stroke-width="3"/>
-        <rect x="316" y="140" width="76" height="46" rx="5" fill="${boxFill}" stroke="#059669" stroke-width="2.5"/>
-        <text x="354" y="163" text-anchor="middle" dominant-baseline="central" fill="#059669" font-size="13" font-weight="800">m<tspan baseline-shift="sub" font-size="9">2</tspan> = ${v.m2} kg</text>
-        <text x="130" y="140" fill="#475569" font-size="12" font-weight="700">smooth (frictionless) table</text>
+        <line x1="210" y1="76" x2="356" y2="76" stroke="#d97706" stroke-width="3"/>
+        <line x1="372" y1="92" x2="372" y2="140" stroke="#d97706" stroke-width="3"/>
+        <rect x="328" y="140" width="88" height="46" rx="5" fill="${boxFill}" stroke="#059669" stroke-width="2.5"/>
+        <text x="372" y="163" text-anchor="middle" dominant-baseline="central" fill="#059669" font-size="13" font-weight="800">m<tspan baseline-shift="sub" font-size="9">2</tspan> = ${v.m2} kg</text>
+        <text x="167" y="140" text-anchor="middle" fill="#475569" font-size="12" font-weight="700">smooth (frictionless) table</text>
       </svg>`;
   };
     var s = __orig(v);
@@ -4363,12 +4366,13 @@ const DIAGRAM_DRAWERS = {
     const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
     const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
     const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const sky = (x, y, c) => { c = c || T; const L = (a, b, d, e) => `<line x1="${a}" y1="${y + b}" x2="${d}" y2="${y + e}" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`; const hx = x - 45; return `<circle cx="${hx}" cy="${y}" r="10" fill="${B}" stroke="${c}" stroke-width="2.5"/>` + L(hx + 10, 0, hx + 52, 0) + L(hx + 24, 0, hx + 2, -22) + L(hx + 24, 0, hx + 2, 22) + L(hx + 52, 0, hx + 80, -16) + L(hx + 52, 0, hx + 80, 16); };
     const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
     const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
     const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
     const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
     const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
-    return svg(205, man(200, 110, T) + `<path d="M 160 40 Q 200 -5 240 40" fill="none" stroke="none"/>` + ar(200, 112, 200, 190, A) + tx(214, 172, "W", A, "start") + ar(236, 62, 236, 22, R) + tx(250, 40, "F" + sb("air") + " = ?", R, "start") + ar(310, 60, 310, 130, "#475569") + tx(322, 100, `a = ${v.a} m/s&sup2;`, "#475569", "start"));
+    return svg(205, sky(200, 95, T) + ar(200, 112, 200, 190, A) + tx(214, 172, "W", A, "start") + ar(210, 72, 210, 22, R) + tx(224, 40, "F" + sb("air") + " = ?", R, "start") + ar(310, 60, 310, 130, "#475569") + tx(322, 100, `a = ${v.a} m/s&sup2;`, "#475569", "start"));
   };
     var s = __orig(v);
     var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
@@ -4415,12 +4419,13 @@ const DIAGRAM_DRAWERS = {
     const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
     const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
     const gnd = (y) => `<line x1="15" y1="${y}" x2="425" y2="${y}" stroke="${S}" stroke-width="3"/>`;
+    const sky = (x, y, c) => { c = c || T; const L = (a, b, d, e) => `<line x1="${a}" y1="${y + b}" x2="${d}" y2="${y + e}" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`; const hx = x - 45; return `<circle cx="${hx}" cy="${y}" r="10" fill="${B}" stroke="${c}" stroke-width="2.5"/>` + L(hx + 10, 0, hx + 52, 0) + L(hx + 24, 0, hx + 2, -22) + L(hx + 24, 0, hx + 2, 22) + L(hx + 52, 0, hx + 80, -16) + L(hx + 52, 0, hx + 80, 16); };
     const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
     const box = (x, y, w, h, lab, c) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${B}" stroke="${c || A}" stroke-width="2.5"/>` + tx(x + w / 2, y + h / 2 + 5, lab, T, "middle", 13);
     const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
     const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
     const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
-    return svg(205, man(200, 110, T) + ar(200, 112, 200, 190, A) + tx(214, 172, "W = mg", A, "start") + ar(236, 62, 236, 22, R) + tx(250, 40, "F" + sb("air") + " = W / " + v.den, R, "start") + tx(130, 90, `${v.m} kg`, T, "end") + tx(290, 100, "part b: parachute open,", "#475569", "start", 11) + tx(290, 114, "constant speed", "#475569", "start", 11));
+    return svg(205, sky(200, 95, T) + ar(200, 112, 200, 190, A) + tx(214, 172, "W = mg", A, "start") + ar(210, 72, 210, 22, R) + tx(224, 40, "F" + sb("air") + " = W / " + v.den, R, "start") + tx(134, 99, `${v.m} kg`, T, "end") + tx(290, 100, "part b: parachute open,", "#475569", "start", 11) + tx(290, 114, "constant speed", "#475569", "start", 11));
   };
     var s = __orig(v);
     var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };

@@ -2002,7 +2002,7 @@ const DIAGRAM_DRAWERS = {
     const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
     const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
     const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
-    return svg(185, gnd(150) + box(170, 92, 90, 58, `${v.m} kg`) + ar(270, 121, 350, 121, R) + tx(310, 110, `F`, R) + ar(160, 136, 90, 136, O) + tx(125, 128, `f`, O) + tx(220, 176, `${v.Fs} N to start it moving, ${v.Fk} N to keep it moving at constant velocity`, "#475569", "middle", 12));
+    return svg(185, gnd(150) + `<rect x="178" y="108" width="82" height="9" rx="2" fill="#fde7c8" stroke="#92400e" stroke-width="2.5"/><rect x="178" y="62" width="9" height="46" rx="2" fill="#fde7c8" stroke="#92400e" stroke-width="2.5"/><line x1="182" y1="76" x2="182" y2="100" stroke="#92400e" stroke-width="1.2"/><rect x="180" y="117" width="7" height="33" fill="#fde7c8" stroke="#92400e" stroke-width="2.5"/><rect x="251" y="117" width="7" height="33" fill="#fde7c8" stroke="#92400e" stroke-width="2.5"/>` + tx(220, 138, `${v.m} kg`, T, "middle", 13) + ar(270, 112, 350, 112, R) + tx(310, 101, `F`, R) + ar(165, 140, 95, 140, O) + tx(130, 132, `f`, O) + tx(220, 176, `${v.Fs} N to start it moving, ${v.Fk} N to keep it moving at constant velocity`, "#475569", "middle", 12));
   };
     var s = __orig(v);
     var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
@@ -2080,7 +2080,7 @@ const DIAGRAM_DRAWERS = {
     const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
     const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
     const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
-    return svg(185, gnd(150) + box(170, 92, 90, 58, `${v.m} kg`) + ar(270, 121, 350, 121, R) + tx(310, 110, `F (push)`, R) + ar(160, 136, 90, 136, O) + tx(125, 128, `f`, O) + tx(220, 176, `&mu;${sb("s")} = ${v.muS}, &mu;${sb("k")} = ${v.muK}`, "#475569", "middle", 12));
+    return svg(185, gnd(150) + `<rect x="188" y="40" width="54" height="108" rx="5" fill="#f1f5f9" stroke="${A}" stroke-width="2.5"/><line x1="188" y1="72" x2="242" y2="72" stroke="${A}" stroke-width="1.8"/><line x1="196" y1="52" x2="196" y2="64" stroke="${S}" stroke-width="3" stroke-linecap="round"/><line x1="196" y1="82" x2="196" y2="98" stroke="${S}" stroke-width="3" stroke-linecap="round"/><rect x="194" y="148" width="8" height="2" fill="${T}"/><rect x="228" y="148" width="8" height="2" fill="${T}"/>` + tx(218, 118, `${v.m} kg`, T, "middle", 13) + ar(110, 84, 186, 84, R) + tx(148, 73, `F (push)`, R) + ar(180, 138, 120, 138, O) + tx(150, 130, `f`, O) + tx(220, 176, `&mu;${sb("s")} = ${v.muS}, &mu;${sb("k")} = ${v.muK}`, "#475569", "middle", 12));
   };
     var s = __orig(v);
     var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
@@ -2132,7 +2132,7 @@ const DIAGRAM_DRAWERS = {
     const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
     const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
     const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
-    return svg(185, gnd(150) + box(170, 92, 90, 58, `${v.m} kg`) + ar(270, 121, 350, 121, R) + tx(310, 110, `T (rope)`, R) + ar(160, 136, 90, 136, O) + tx(125, 128, `f`, O) + tx(220, 176, `a = ${v.a} m/s&sup2;, &mu;${sb("s")} = ${v.muS}, &mu;${sb("k")} = ${v.muK}`, "#475569", "middle", 12));
+    return svg(185, gnd(150) + `<rect x="140" y="124" width="170" height="26" rx="2" fill="#e5e7eb" stroke="${S}" stroke-width="2.5"/><line x1="140" y1="131" x2="310" y2="131" stroke="${S}" stroke-width="1.5"/><line x1="140" y1="143" x2="310" y2="143" stroke="${S}" stroke-width="1.5"/><circle cx="310" cy="137" r="4" fill="none" stroke="${T}" stroke-width="2"/>` + tx(225, 117, `${v.m} kg steel beam`, T, "middle", 12.5) + ar(314, 137, 395, 137, R) + tx(355, 126, `T (rope)`, R) + ar(132, 137, 70, 137, O) + tx(100, 129, `f`, O) + tx(220, 176, `a = ${v.a} m/s&sup2;, &mu;${sb("s")} = ${v.muS}, &mu;${sb("k")} = ${v.muK}`, "#475569", "middle", 12));
   };
     var s = __orig(v);
     var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
@@ -2184,7 +2184,7 @@ const DIAGRAM_DRAWERS = {
     const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
     const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
     const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
-    return svg(225, gnd(150) + man(95, 150) + tx(95, 170, "", T) + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ${v.v0} m/s`, A) + (`stops` ? tx(360, 50, `stops`, A) : "") + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + (`d = ${v.d} m` ? dim(130, 385, 184, `d = ${v.d} m`) : "") + tx(220, 219, `${v.m} kg player`, "#475569", "middle", 12));
+    return svg(225, gnd(150) + `<circle cx="62" cy="106" r="8" fill="${B}" stroke="${T}" stroke-width="2.5"/><line x1="66" y1="114" x2="82" y2="140" stroke="#7c3aed" stroke-width="8" stroke-linecap="round"/><line x1="82" y1="142" x2="122" y2="136" stroke="${T}" stroke-width="4" stroke-linecap="round"/><line x1="82" y1="142" x2="106" y2="126" stroke="${T}" stroke-width="4" stroke-linecap="round"/><line x1="106" y1="126" x2="118" y2="140" stroke="${T}" stroke-width="4" stroke-linecap="round"/><line x1="70" y1="122" x2="56" y2="136" stroke="#7c3aed" stroke-width="3.5" stroke-linecap="round"/><line x1="72" y1="124" x2="92" y2="134" stroke="#7c3aed" stroke-width="3.5" stroke-linecap="round"/><path d="M 130 150 L 138 146 L 146 150 L 143 153 L 133 153 Z" fill="none" stroke="none"/><polygon points="372,147 398,147 398,151 385,156 372,151" fill="#fff" stroke="${T}" stroke-width="2"/>` + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ${v.v0} m/s`, A) + tx(360, 50, `stops`, A) + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + dim(130, 385, 184, `d = ${v.d} m`) + tx(220, 219, `${v.m} kg player`, "#475569", "middle", 12));
   };
     var s = __orig(v);
     var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
@@ -2288,7 +2288,7 @@ const DIAGRAM_DRAWERS = {
     const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
     const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
     const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
-    return svg(225, gnd(150) + box(70, 128, 44, 22, "") + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ${v.v0} m/s`, A) + (`stops` ? tx(360, 50, `stops`, A) : "") + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + (`d = ${v.d} m` ? dim(130, 385, 184, `d = ${v.d} m`) : "") + tx(220, 219, ``, "#475569", "middle", 12));
+    return svg(225, gnd(150) + `<path d="M 70 140 L 70 148 A 22 4.5 0 0 0 114 148 L 114 140 Z" fill="#e5e7eb" stroke="${A}" stroke-width="2.5"/><ellipse cx="92" cy="140" rx="22" ry="4.5" fill="#fff" stroke="${A}" stroke-width="2.5"/>` + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ${v.v0} m/s`, A) + tx(360, 50, `stops`, A) + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + dim(130, 385, 184, `d = ${v.d} m`) + tx(220, 219, ``, "#475569", "middle", 12));
   };
     var s = __orig(v);
     var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
@@ -2366,7 +2366,7 @@ const DIAGRAM_DRAWERS = {
     const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
     const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
     const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
-    return svg(225, gnd(150) + box(20, 110, 60, 40, "") + box(86, 110, 60, 40, "") + box(152, 110, 60, 40, "") + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ${v.v0Kmh} km/h`, A) + (`stops` ? tx(360, 50, `stops`, A) : "") + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + (`d = ${v.d} m` ? dim(130, 385, 184, `d = ${v.d} m`) : "") + tx(220, 219, ``, "#475569", "middle", 12));
+    return svg(225, gnd(150) + `${[0,1].map(i => { const x = 8 + i * 68; return `<rect x="${x}" y="116" width="62" height="28" rx="3" fill="#fef3c7" stroke="${O}" stroke-width="2.5"/><line x1="${x + 31}" y1="116" x2="${x + 31}" y2="144" stroke="${O}" stroke-width="1.2"/><circle cx="${x + 13}" cy="144" r="6" fill="#475569" stroke="${T}" stroke-width="1.5"/><circle cx="${x + 49}" cy="144" r="6" fill="#475569" stroke="${T}" stroke-width="1.5"/>`; }).join("")}<line x1="70" y1="136" x2="76" y2="136" stroke="${T}" stroke-width="2"/><line x1="138" y1="136" x2="144" y2="136" stroke="${T}" stroke-width="2"/><rect x="144" y="120" width="86" height="24" rx="3" fill="#dbeafe" stroke="${A}" stroke-width="2.5"/><rect x="144" y="102" width="30" height="42" rx="3" fill="#dbeafe" stroke="${A}" stroke-width="2.5"/><rect x="150" y="109" width="16" height="12" fill="#fff" stroke="${A}" stroke-width="1.5"/><rect x="204" y="104" width="12" height="16" fill="#dbeafe" stroke="${A}" stroke-width="2"/><path d="M 230 144 L 242 150 L 230 150 Z" fill="#dbeafe" stroke="${A}" stroke-width="2"/><circle cx="158" cy="144" r="7" fill="#475569" stroke="${T}" stroke-width="1.5"/><circle cx="184" cy="144" r="7" fill="#475569" stroke="${T}" stroke-width="1.5"/><circle cx="212" cy="144" r="7" fill="#475569" stroke="${T}" stroke-width="1.5"/>` + ar(30, 60, 140, 60, A) + tx(85, 50, `v${sb("0")} = ${v.v0Kmh} km/h`, A) + tx(360, 50, `stops`, A) + `<line x1="385" y1="150" x2="385" y2="70" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>` + ar(150, 167, 100, 167, O) + tx(92, 171, `f${sb("k")}`, O, "end") + dim(245, 385, 184, `d = ${v.d} m`) + tx(220, 219, ``, "#475569", "middle", 12));
   };
     var s = __orig(v);
     var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
@@ -4263,6 +4263,218 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
     return s;
+  },
+  inclineSkier: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706", P = "#7c3aed", BR = "#92400e";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const ln = (x1, y1, x2, y2, c, w) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w || 3}" stroke-linecap="round"/>`;
+    const rtx = (p, s, c) => `<text transform="translate(${p[0]},${p[1]}) rotate(${th})" text-anchor="middle" fill="${c}" font-size="12.5" font-weight="800">${s}</text>`;
+    const th = v.theta || 30, t = th * Math.PI / 180, cs = Math.cos(t), sn = Math.sin(t), tn = Math.tan(t);const gy = 175, x0 = 40;
+    const run = Math.min(340, 135 / tn), H = run * tn, xr = x0 + run, yt = gy - H;
+    const sF = 0.5, px = x0 + run * sF, py = yt + H * sF;
+    const loc = (lx, ly) => [px + lx * cs - ly * sn, py + lx * sn + ly * cs];
+    const arrL = (x1, y1, x2, y2, c) => { const a = loc(x1, y1), b = loc(x2, y2); return ar(a[0], a[1], b[0], b[1], c); };
+    const slope = `<polygon points="${x0},${gy} ${xr},${gy} ${x0},${yt}" fill="#e2e8f0" stroke="${S}" stroke-width="3"/><path d="M ${xr - 50} ${gy} A 50 50 0 0 1 ${xr - 50 * cs} ${gy - 50 * sn}" fill="none" stroke="${A}" stroke-width="2.5"/>` + tx(xr - 58, th < 16 ? gy + 17 : gy - 8, `&theta; = ${th}&deg;`, A, "end", 14);
+    const head = (x, y, c) => `<circle cx="${x}" cy="${y}" r="7.5" fill="${B}" stroke="${c || T}" stroke-width="2.5"/>`;
+    const SVGOPEN = `<svg viewBox="0 0 440 215" class="w-full max-w-md mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">`;
+    const b1 = loc(-9, -4), b2 = loc(8, -4);
+    const skier = `<g transform="translate(${px}, ${py}) rotate(${th})"><path d="M -36 -3 L 30 -3 Q 42 -3 45 -10" fill="none" stroke="${O}" stroke-width="4.5" stroke-linecap="round"/></g>`
+      + ln(b1[0], b1[1], px - 5, py - 17, T, 3.5) + ln(px - 5, py - 17, px + 1, py - 31, T, 3.5)
+      + ln(b2[0], b2[1], px + 9, py - 16, T, 3.5) + ln(px + 9, py - 16, px + 1, py - 31, T, 3.5)
+      + ln(px + 1, py - 31, px + 7, py - 54, A, 7)
+      + ln(px + 7, py - 51, px + 25, py - 40, A, 3.5)
+      + ln(px + 25, py - 40, px - 20, py + (-20 * tn) - 2, T, 1.8)
+      + head(px + 9, py - 65, A);
+    const wind = v.Fwind !== undefined ? arrL(-100, -26, -52, -26, R) + rtx(loc(-76, -39), `wind ${v.Fwind} N`, R) : "";
+    return SVGOPEN + slope + skier + wind + tx(px + 30, py - 70, `${v.m} kg`, T, "start", 13) + `</svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  inclineSnowboarder: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706", P = "#7c3aed", BR = "#92400e";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const ln = (x1, y1, x2, y2, c, w) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w || 3}" stroke-linecap="round"/>`;
+    const rtx = (p, s, c) => `<text transform="translate(${p[0]},${p[1]}) rotate(${th})" text-anchor="middle" fill="${c}" font-size="12.5" font-weight="800">${s}</text>`;
+    const th = v.theta || 30, t = th * Math.PI / 180, cs = Math.cos(t), sn = Math.sin(t), tn = Math.tan(t);const gy = 175, x0 = 40;
+    const run = Math.min(340, 135 / tn), H = run * tn, xr = x0 + run, yt = gy - H;
+    const sF = 0.5, px = x0 + run * sF, py = yt + H * sF;
+    const loc = (lx, ly) => [px + lx * cs - ly * sn, py + lx * sn + ly * cs];
+    const arrL = (x1, y1, x2, y2, c) => { const a = loc(x1, y1), b = loc(x2, y2); return ar(a[0], a[1], b[0], b[1], c); };
+    const slope = `<polygon points="${x0},${gy} ${xr},${gy} ${x0},${yt}" fill="#e2e8f0" stroke="${S}" stroke-width="3"/><path d="M ${xr - 50} ${gy} A 50 50 0 0 1 ${xr - 50 * cs} ${gy - 50 * sn}" fill="none" stroke="${A}" stroke-width="2.5"/>` + tx(xr - 58, th < 16 ? gy + 17 : gy - 8, `&theta; = ${th}&deg;`, A, "end", 14);
+    const head = (x, y, c) => `<circle cx="${x}" cy="${y}" r="7.5" fill="${B}" stroke="${c || T}" stroke-width="2.5"/>`;
+    const SVGOPEN = `<svg viewBox="0 0 440 215" class="w-full max-w-md mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">`;
+    const f1 = loc(-13, -6), f2 = loc(14, -6);
+    const rider = `<g transform="translate(${px}, ${py}) rotate(${th})"><path d="M -34 -4 L 30 -4 Q 40 -4 42 -11" fill="none" stroke="${G}" stroke-width="5" stroke-linecap="round"/></g>`
+      + ln(f1[0], f1[1], px - 6, py - 17, T, 3.5) + ln(px - 6, py - 17, px + 2, py - 31, T, 3.5)
+      + ln(f2[0], f2[1], px + 11, py - 17, T, 3.5) + ln(px + 11, py - 17, px + 2, py - 31, T, 3.5)
+      + ln(px + 2, py - 31, px + 3, py - 54, P, 8)
+      + ln(px + 3, py - 50, px - 19, py - 41, P, 3.5) + ln(px + 3, py - 50, px + 25, py - 45, P, 3.5)
+      + head(px + 4, py - 64, P);
+    const fr = v.fk !== undefined ? arrL(-50, -26, -104, -26, O) + rtx(loc(-80, -40), `f = ${v.fk} N`, O) : "";
+    return SVGOPEN + slope + rider + fr + tx(px + 30, py - 70, `${v.m} kg`, T, "start", 13) + `</svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  inclineBobsled: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706", P = "#7c3aed", BR = "#92400e";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const ln = (x1, y1, x2, y2, c, w) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w || 3}" stroke-linecap="round"/>`;
+    const rtx = (p, s, c) => `<text transform="translate(${p[0]},${p[1]}) rotate(${th})" text-anchor="middle" fill="${c}" font-size="12.5" font-weight="800">${s}</text>`;
+    const th = v.theta || 30, t = th * Math.PI / 180, cs = Math.cos(t), sn = Math.sin(t), tn = Math.tan(t);const gy = 175, x0 = 40;
+    const run = Math.min(340, 135 / tn), H = run * tn, xr = x0 + run, yt = gy - H;
+    const sF = 0.45, px = x0 + run * sF, py = yt + H * sF;
+    const loc = (lx, ly) => [px + lx * cs - ly * sn, py + lx * sn + ly * cs];
+    const arrL = (x1, y1, x2, y2, c) => { const a = loc(x1, y1), b = loc(x2, y2); return ar(a[0], a[1], b[0], b[1], c); };
+    const slope = `<polygon points="${x0},${gy} ${xr},${gy} ${x0},${yt}" fill="#e2e8f0" stroke="${S}" stroke-width="3"/><path d="M ${xr - 50} ${gy} A 50 50 0 0 1 ${xr - 50 * cs} ${gy - 50 * sn}" fill="none" stroke="${A}" stroke-width="2.5"/>` + tx(xr - 58, th < 16 ? gy + 17 : gy - 8, `&theta; = ${th}&deg;`, A, "end", 14);
+    const head = (x, y, c) => `<circle cx="${x}" cy="${y}" r="7.5" fill="${B}" stroke="${c || T}" stroke-width="2.5"/>`;
+    const SVGOPEN = `<svg viewBox="0 0 440 215" class="w-full max-w-md mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">`;
+    const body = `<g transform="translate(${px}, ${py}) rotate(${th})">`
+      + ln(-90, -2, -84, -16, T, 3.5) + ln(-84, -16, -78, -30, T, 3.5) + ln(-70, -2, -74, -16, T, 3.5) + ln(-74, -16, -78, -30, T, 3.5)
+      + ln(-78, -30, -64, -52, A, 7.5) + ln(-64, -48, -47, -28, A, 3.5)
+      + `<circle cx="-59" cy="-62" r="7.5" fill="${B}" stroke="${T}" stroke-width="2.5"/>`
+      + `<path d="M -46 -7 L -46 -25 Q -32 -35 10 -31 L 42 -22 Q 60 -16 56 -7 Z" fill="#fee2e2" stroke="${R}" stroke-width="2.5"/>`
+      + `<circle cx="-6" cy="-39" r="6.5" fill="${A}" stroke="${T}" stroke-width="2"/>`
+      + ln(-52, -2, 60, -2, T, 3) + ln(-28, -7, -28, -2, T, 2.5) + ln(32, -7, 32, -2, T, 2.5)
+      + ar(-128, -22, -96, -22, R) + `</g>`;
+    return SVGOPEN + slope + body + rtx(loc(-112, -36), `F`, R) + tx(...loc(14, -56), `${v.m} kg`, T, "start", 13) + `</svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  inclineLog: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706", P = "#7c3aed", BR = "#92400e";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const ln = (x1, y1, x2, y2, c, w) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w || 3}" stroke-linecap="round"/>`;
+    const rtx = (p, s, c) => `<text transform="translate(${p[0]},${p[1]}) rotate(${th})" text-anchor="middle" fill="${c}" font-size="12.5" font-weight="800">${s}</text>`;
+    const th = v.theta || 30, t = th * Math.PI / 180, cs = Math.cos(t), sn = Math.sin(t), tn = Math.tan(t);const gy = 175, x0 = 40;
+    const run = Math.min(340, 135 / tn), H = run * tn, xr = x0 + run, yt = gy - H;
+    const sF = 0.55, px = x0 + run * sF, py = yt + H * sF;
+    const loc = (lx, ly) => [px + lx * cs - ly * sn, py + lx * sn + ly * cs];
+    const arrL = (x1, y1, x2, y2, c) => { const a = loc(x1, y1), b = loc(x2, y2); return ar(a[0], a[1], b[0], b[1], c); };
+    const slope = `<polygon points="${x0},${gy} ${xr},${gy} ${x0},${yt}" fill="#e2e8f0" stroke="${S}" stroke-width="3"/><path d="M ${xr - 50} ${gy} A 50 50 0 0 1 ${xr - 50 * cs} ${gy - 50 * sn}" fill="none" stroke="${A}" stroke-width="2.5"/>` + tx(xr - 58, th < 16 ? gy + 17 : gy - 8, `&theta; = ${th}&deg;`, A, "end", 14);
+    const head = (x, y, c) => `<circle cx="${x}" cy="${y}" r="7.5" fill="${B}" stroke="${c || T}" stroke-width="2.5"/>`;
+    const SVGOPEN = `<svg viewBox="0 0 440 215" class="w-full max-w-md mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">`;
+    const obj = `<rect x="-42" y="-26" width="84" height="26" rx="4" fill="#fde7c8" stroke="${BR}" stroke-width="2.5"/><line x1="-34" y1="-18" x2="34" y2="-18" stroke="${BR}" stroke-width="1.2"/><line x1="-34" y1="-9" x2="34" y2="-9" stroke="${BR}" stroke-width="1.2"/><ellipse cx="42" cy="-13" rx="6" ry="13" fill="#f6d29a" stroke="${BR}" stroke-width="2.5"/><ellipse cx="42" cy="-13" rx="2.2" ry="5" fill="none" stroke="${BR}" stroke-width="1.2"/>`;
+    const note = `${v.m}-kg log pulled up the ramp by a rope, a = ${v.a} m/s&sup2;`;
+    return SVGOPEN + slope + `<g transform="translate(${px}, ${py}) rotate(${th})">` + obj + ar(-48, -17, -112, -17, R) + `</g>` + rtx(loc(-80, -30), `T = ?`, R) + tx(220, 207, note, "#475569", "middle", 12) + `</svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  inclineCratePull: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706", P = "#7c3aed", BR = "#92400e";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const ln = (x1, y1, x2, y2, c, w) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w || 3}" stroke-linecap="round"/>`;
+    const rtx = (p, s, c) => `<text transform="translate(${p[0]},${p[1]}) rotate(${th})" text-anchor="middle" fill="${c}" font-size="12.5" font-weight="800">${s}</text>`;
+    const th = v.theta || 30, t = th * Math.PI / 180, cs = Math.cos(t), sn = Math.sin(t), tn = Math.tan(t);const gy = 175, x0 = 40;
+    const run = Math.min(340, 135 / tn), H = run * tn, xr = x0 + run, yt = gy - H;
+    const sF = 0.55, px = x0 + run * sF, py = yt + H * sF;
+    const loc = (lx, ly) => [px + lx * cs - ly * sn, py + lx * sn + ly * cs];
+    const arrL = (x1, y1, x2, y2, c) => { const a = loc(x1, y1), b = loc(x2, y2); return ar(a[0], a[1], b[0], b[1], c); };
+    const slope = `<polygon points="${x0},${gy} ${xr},${gy} ${x0},${yt}" fill="#e2e8f0" stroke="${S}" stroke-width="3"/><path d="M ${xr - 50} ${gy} A 50 50 0 0 1 ${xr - 50 * cs} ${gy - 50 * sn}" fill="none" stroke="${A}" stroke-width="2.5"/>` + tx(xr - 58, th < 16 ? gy + 17 : gy - 8, `&theta; = ${th}&deg;`, A, "end", 14);
+    const head = (x, y, c) => `<circle cx="${x}" cy="${y}" r="7.5" fill="${B}" stroke="${c || T}" stroke-width="2.5"/>`;
+    const SVGOPEN = `<svg viewBox="0 0 440 215" class="w-full max-w-md mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">`;
+    const obj = `<rect x="-34" y="-34" width="68" height="34" rx="3" fill="#fde7c8" stroke="${BR}" stroke-width="2.5"/><line x1="-34" y1="-34" x2="34" y2="0" stroke="${BR}" stroke-width="1.2"/><line x1="34" y1="-34" x2="-34" y2="0" stroke="${BR}" stroke-width="1.2"/><rect x="-18" y="-22" width="36" height="14" rx="2" fill="#fff" stroke="none"/>` + `<text transform="translate(0,-13) rotate(${-0})" text-anchor="middle" dominant-baseline="central" font-size="12.5" font-weight="800" fill="${T}">${v.m} kg</text>`;
+    const note = `${v.m}-kg crate pulled up the ramp at constant velocity`;
+    return SVGOPEN + slope + `<g transform="translate(${px}, ${py}) rotate(${th})">` + obj + ar(-36, -17, -108, -17, R) + `</g>` + rtx(loc(-80, -30), `T = ?`, R) + tx(220, 207, note, "#475569", "middle", 12) + `</svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
+  },
+  inclineSnowboarderFlat: function (v) {
+    var __orig = function (v) {
+    const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706", P = "#7c3aed", BR = "#92400e";
+    const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+    const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+    const ln = (x1, y1, x2, y2, c, w) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="${w || 3}" stroke-linecap="round"/>`;
+    const rtx = (p, s, c) => `<text transform="translate(${p[0]},${p[1]}) rotate(${th})" text-anchor="middle" fill="${c}" font-size="12.5" font-weight="800">${s}</text>`;
+    const th = v.theta || 30, t = th * Math.PI / 180, cs = Math.cos(t), sn = Math.sin(t), tn = Math.tan(t);const gy = 175, x0 = 30;
+    const run = Math.min(235, 125 / tn), H = run * tn, xb = x0 + run, yt = gy - H;
+    const sF = 0.5, px = x0 + run * sF, py = yt + H * sF;
+    const loc = (lx, ly) => [px + lx * cs - ly * sn, py + lx * sn + ly * cs];
+    const arrL = (x1, y1, x2, y2, c) => { const a = loc(x1, y1), b = loc(x2, y2); return ar(a[0], a[1], b[0], b[1], c); };
+    const head = (x, y, c) => `<circle cx="${x}" cy="${y}" r="7.5" fill="${B}" stroke="${c || T}" stroke-width="2.5"/>`;
+    const ground = `<polygon points="${x0},${yt} ${xb},${gy} 425,${gy} ${x0},${gy}" fill="#e2e8f0" stroke="${S}" stroke-width="3"/><path d="M ${xb - 48} ${gy} A 48 48 0 0 1 ${xb - 48 * cs} ${gy - 48 * sn}" fill="none" stroke="${A}" stroke-width="2.5"/>` + tx(xb - 56, th < 16 ? gy + 17 : gy - 8, `&theta; = ${th}&deg;`, A, "end", 14);
+    const f1 = loc(-13, -6), f2 = loc(14, -6);
+    const rider = `<g transform="translate(${px}, ${py}) rotate(${th})"><path d="M -34 -4 L 30 -4 Q 40 -4 42 -11" fill="none" stroke="${G}" stroke-width="5" stroke-linecap="round"/></g>`
+      + ln(f1[0], f1[1], px - 6, py - 17, T, 3.5) + ln(px - 6, py - 17, px + 2, py - 31, T, 3.5)
+      + ln(f2[0], f2[1], px + 11, py - 17, T, 3.5) + ln(px + 11, py - 17, px + 2, py - 31, T, 3.5)
+      + ln(px + 2, py - 31, px + 3, py - 54, P, 8)
+      + ln(px + 3, py - 50, px - 19, py - 41, P, 3.5) + ln(px + 3, py - 50, px + 25, py - 45, P, 3.5)
+      + head(px + 4, py - 64, P);
+    return `<svg viewBox="0 0 440 215" class="w-full max-w-md mx-auto h-56 bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">` + ground + rider
+      + arrL(-100, -26, -52, -26, A) + rtx(loc(-76, -39), `v&#8320; = ${v.v0} m/s`, A)
+      + tx(px + 30, py - 70, `${v.m} kg`, T, "start", 13)
+      + tx(330, 118, `slope: ${v.d} m, &mu;k = ${v.mu1}`, T, "middle", 12.5) + tx(335, 138, `flat section: &mu;k = ${v.mu2}`, T, "middle", 12.5) + `</svg>`;
+  };
+    var s = __orig(v);
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var f = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (f && sat(f[1])) col = f[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    return s;
   }
 };
 
@@ -5779,7 +5991,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-31", docNum: "Set 2 #31", title: "Snowboarder Accelerating Down a Hill",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "inclineSnowboarder",
     baseVars: { m: 70, theta: 39, muK: 0.18, d: 5 },
     randomize: (b) => ({ m: rnd(b.m, 0.2, 1), theta: rnd(b.theta, 0.15, 1), muK: rnd(b.muK, 0.15, 2), d: rnd(b.d, 0.2, 1) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> snowboarder beginning at rest goes down a <strong>${v.theta}&deg;</strong> slope, and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> Find the acceleration of the snowboarder.<br/><strong>b.</strong> Find his speed after traveling <strong>${v.d} m</strong>.`,
@@ -5816,7 +6028,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-43", docNum: "Doc 1 #3", title: "Skier Accelerating Down Slope Aided by Wind",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "inclineSkier",
     baseVars: { m: 51, theta: 23, Fwind: 82, muS: 0.25, muK: 0.16, L: 236 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.12, 1), Fwind: rnd(b.Fwind, 0.18, 1), muS: 0.25, muK: rnd(b.muK, 0.15, 2), L: Math.round(rnd(b.L, 0.15, 0)) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> skier goes down a <strong>${v.theta}&deg;</strong> slope aided by a wind force of <strong>${v.Fwind} N</strong> parallel to the slope. The skier’s motion is opposed by friction and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> Find the magnitude of the skier’s acceleration down hill.<br/><strong>b.</strong> If she begins at rest, determine the time it will take her to reach the bottom <strong>${v.L} m</strong> away.`,
@@ -5843,7 +6055,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-47", docNum: "Doc 1 #7", title: "Log Pulled Up Incline with Acceleration and Friction",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "inclineLog",
     baseVars: { m: 185, theta: 25.8, muK: 0.67, a: 0.48 },
     randomize: (b) => ({ m: Math.round(rnd(b.m, 0.15, 0)), theta: rnd(b.theta, 0.12, 1), muK: rnd(b.muK, 0.15, 2), a: rnd(b.a, 0.20, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> log is pulled up a <strong>${v.theta}&deg;</strong> ramp accelerating at <strong>${v.a} m/s&sup2;</strong> with &mu;<sub>k</sub> = <strong>${v.muK}</strong>. Find the tension in the rope.`,
@@ -5859,7 +6071,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-51", docNum: "Doc 2 #7", title: "Skier Down Hill Components and Acceleration",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "inclineSkier",
     baseVars: { m: 74, theta: 37, muS: 0.16, muK: 0.11 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.12, 1), muS: 0.16, muK: rnd(b.muK, 0.15, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> skier descends a <strong>${v.theta}&deg;</strong> hill with &mu;<sub>s</sub> = <strong>${v.muS}</strong> and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> What is the gravity component down hill?<br/><strong>b.</strong> What is the magnitude of the kinetic friction?<br/><strong>c.</strong> What is the skier’s acceleration?`,
@@ -5887,7 +6099,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-53", docNum: "Doc 2 #9", title: "Crate Pulled Up Incline at Constant Velocity",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "inclineCratePull",
     baseVars: { m: 92, theta: 24, muK: 0.35 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.12, 1), muK: rnd(b.muK, 0.15, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> crate is pulled up a <strong>${v.theta}&deg;</strong> ramp at a constant velocity (&mu;<sub>k</sub> = <strong>${v.muK}</strong>).<br/><strong>a.</strong> Determine the magnitude of the kinetic friction force.<br/><strong>b.</strong> Determine the magnitude of the tension force pulling the crate up the hill.`,
@@ -5911,7 +6123,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-55", docNum: "Set 3 #1", title: "Skier on Frictionless Hill: Weight Components, Normal Force and Acceleration",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "inclineSkier",
     baseVars: { m: 59.0, theta: 23.0 },
     randomize: (b) => ({ m: rnd(b.m, 0.20, 1), theta: rnd(b.theta, 0.15, 1) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> skier skis down a <strong>${v.theta}&deg;</strong> hill without any friction.<br/><strong>a.</strong> What is the magnitude of her weight in the x-direction?<br/><strong>b.</strong> What is the magnitude of her weight in the y-direction?<br/><strong>c.</strong> What is the magnitude of the normal force acting on her?<br/><strong>d.</strong> What is the magnitude of her acceleration down the hill?`,
@@ -5940,7 +6152,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-56", docNum: "Set 3 #2", title: "Snowboarder Down Hill with Opposing Friction Force",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "inclineSnowboarder",
     baseVars: { m: 82.0, theta: 41.0, fk: 265, v0: 2.60, d: 13.0 },
     randomize: (b) => {
       const m = rnd(b.m, 0.20, 1);
@@ -7210,7 +7422,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-93", docNum: "Set 4 #15", title: "Pushing a Bobsled Down an Incline to a Target Speed",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "inclineBobsled",
     baseVars: { m: 22.0, mu: 0.12, theta: 7.0, v: 18.0, d: 83.0 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), mu: rnd(b.mu, 0.15, 2), theta: rnd(b.theta, 0.15, 1), v: rnd(b.v, 0.10, 1), d: Math.round(rnd(b.d, 0.10, 0)) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> bobsled starts from rest at the top of a <strong>${v.theta}&deg;</strong> incline. The coefficient of kinetic friction between the runners and the ice is <strong>${v.mu}</strong>. A pusher applies a constant force parallel to the incline, down the slope, so that the sled reaches <strong>${v.v} m/s</strong> at the end of a <strong>${v.d}-m</strong> run. How large is the pushing force?`,
@@ -7288,7 +7500,7 @@ const PHYSICS_QUESTIONS = [
   },
   {
     id: "DYN-96", docNum: "Set 4 #20", title: "Snowboarder Down a Rough Slope and Across a Flat Section",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "inclineSnowboarderFlat",
     baseVars: { m: 75.0, v0: 3.0, theta: 28.0, d: 45.0, mu1: 0.20, mu2: 0.15 },
     randomize: (b) => ({ m: rnd(b.m, 0.12, 1), v0: rnd(b.v0, 0.20, 1), theta: rnd(b.theta, 0.12, 1), d: Math.round(rnd(b.d, 0.12, 0)), mu1: rnd(b.mu1, 0.15, 2), mu2: rnd(b.mu2, 0.15, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> snowboarder starts down a <strong>${v.theta}&deg;</strong> slope with an initial speed of <strong>${v.v0} m/s</strong>. The slope is <strong>${v.d} m</strong> long and the coefficient of kinetic friction on it is <strong>${v.mu1}</strong>. At the bottom she continues onto a horizontal section where the coefficient of kinetic friction is <strong>${v.mu2}</strong>. (Ignore the small transition between the two.)`,

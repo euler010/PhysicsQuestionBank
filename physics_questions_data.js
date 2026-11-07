@@ -1,6 +1,6 @@
 // ============================================================================
 // PHYSICS QUESTION LIBRARY DATA (physics_questions_data.js)
-// 135 questions, plus the code that draws their diagrams.
+// 134 questions, plus the code that draws their diagrams.
 // Loaded by the Library App via <script src=".../physics_questions_data.js">
 //
 // What is in this file, top to bottom:
@@ -6485,24 +6485,6 @@ const PHYSICS_QUESTIONS = [
             `The angle <em>between</em> the ropes is measured across the top. Each rope is ${th.toFixed(2)}&deg; from the horizontal on its side, so the angle between them is &phi; = 180&deg; &minus; 2 &times; ${th.toFixed(2)}&deg; = <strong>${ans.toFixed(1)}&deg;</strong>.`
           );
         }}]
-  },
-  {
-    id: "DYN-67", docNum: "Set 3 #13", title: "Mass Hanging from Car Rear-View Mirror During Acceleration",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "carMirror",
-    baseVars: { m: 1.8, theta: 23.0 },
-    randomize: (b) => ({ m: rnd(b.m, 0.20, 2), theta: rnd(b.theta, 0.18, 1) }),
-    renderPrompt: (v) => `You are the passenger in a car, and at one point you notice that a <strong>${v.m}-kg</strong> mass attached to the rear-view mirror hangs at rest (relative to the car) on a string that forms an angle of <strong>${v.theta}&deg;</strong> with the vertical. Determine the acceleration of the car.`,
-    parts: [
-      {
-        label: "Acceleration of the car (<em>a</em>)", unit: "m/s²",
-        solve: (v) => G_ACCEL * Math.tan(v.theta * DEG2RAD),
-        steps: (v, ans) => guidedSteps(
-          `Only two forces act on the hanging mass: its weight <em>m</em><em>g</em> (down) and the string tension <em>T</em> (along the string, which is tilted ${v.theta}&deg; from the vertical). The mass accelerates with the car, which is horizontal.`,
-          `Vertical: no vertical acceleration, so <em>T</em> cos &theta; = <em>m</em><em>g</em>. Horizontal: the horizontal part of the tension is the net force, so <em>T</em> sin &theta; = <em>m</em><em>a</em>.`,
-          `Divide the horizontal equation by the vertical one: tan &theta; = <em>a</em> / <em>g</em>. The mass cancels, and the tension is not needed.`,
-          `<em>a</em> = <em>g</em> tan &theta; = 9.80 tan ${v.theta}&deg; = <strong>${ans.toFixed(2)} m/s²</strong>, in the direction the mass swings away from (the car is accelerating forward and the mass hangs back).`
-        )}
-    ]
   },
 
   // --- UNIT 2: FORCE AND TRANSLATIONAL DYNAMICS - NEWTON'S 3RD LAW (CED 2.3) ---

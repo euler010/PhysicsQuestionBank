@@ -7325,12 +7325,12 @@ const PHYSICS_QUESTIONS = [
   {
     id: "DYN-97", docNum: "Set 4 #5", title: "Mass Hanging from a Car Mirror: Tension, Acceleration, and Doubled Acceleration",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "carMirror",
-    baseVars: { m: 2.20, theta: 14.0 },
+    baseVars: { m: 1.80, theta: 12.0 },
     randomize: (b) => ({ m: rnd(b.m, 0.20, 2), theta: rnd(b.theta, 0.20, 1) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> mass hangs from the rear-view mirror of an accelerating car on a string. The mass is at rest relative to the car, and the string makes an angle of <strong>${v.theta}&deg;</strong> with the vertical.`,
     parts: [
       {
-        label: "a. Tension in the string (<em>T</em>)", unit: "N",
+        label: "a. Determine the tension in the string.", unit: "N",
         solve: (v) => v.m * G_ACCEL / Math.cos(v.theta * DEG2RAD),
         steps: (v, ans) => guidedSteps(
           `Two forces act on the mass: its weight <em>m</em><em>g</em> (down) and the string tension <em>T</em> (along the string, ${v.theta}&deg; from vertical). The mass has no vertical acceleration.`,
@@ -7338,7 +7338,7 @@ const PHYSICS_QUESTIONS = [
         )
       },
       {
-        label: "b. Acceleration of the car (a)", unit: "m/s²",
+        label: "b. Determine the acceleration of the car.", unit: "m/s²",
         solve: (v) => G_ACCEL * Math.tan(v.theta * DEG2RAD),
         steps: (v, ans) => guidedSteps(
           `The horizontal part of the tension is the only horizontal force on the mass, so it supplies the net force: <em>T</em> sin &theta; = <em>m</em><em>a</em>.`,
@@ -7347,7 +7347,7 @@ const PHYSICS_QUESTIONS = [
         )
       },
       {
-        label: "c. New angle with the vertical if the car's acceleration doubles (&theta;&prime;)", unit: "°",
+        label: "c. Determine the new angle with the vertical if the car's acceleration doubles.", unit: "°",
         solve: (v) => Math.atan(2 * Math.tan(v.theta * DEG2RAD)) * RAD2DEG,
         steps: (v, ans) => guidedSteps(
           `The relationship tan &theta; = <em>a</em>/<em>g</em> holds for any acceleration. Doubling <em>a</em> doubles tan &theta;: tan &theta;&prime; = 2 tan &theta;.`,

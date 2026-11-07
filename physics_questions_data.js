@@ -1,6 +1,6 @@
 // ============================================================================
 // PHYSICS QUESTION LIBRARY DATA (physics_questions_data.js)
-// 137 questions, plus the code that draws their diagrams.
+// 135 questions, plus the code that draws their diagrams.
 // Loaded by the Library App via <script src=".../physics_questions_data.js">
 //
 // What is in this file, top to bottom:
@@ -5990,28 +5990,6 @@ const PHYSICS_QUESTIONS = [
         )}]
   },
   {
-    id: "DYN-31", docNum: "Set 2 #31", title: "Snowboarder Accelerating Down a Hill",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "inclineSnowboarder",
-    baseVars: { m: 70, theta: 39, muK: 0.18, d: 5 },
-    randomize: (b) => ({ m: rnd(b.m, 0.2, 1), theta: rnd(b.theta, 0.15, 1), muK: rnd(b.muK, 0.15, 2), d: rnd(b.d, 0.2, 1) }),
-    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> snowboarder beginning at rest goes down a <strong>${v.theta}&deg;</strong> slope, and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> Find the acceleration of the snowboarder.<br/><strong>b.</strong> Find his speed after traveling <strong>${v.d} m</strong>.`,
-    parts: [
-      { label: "a. Acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.muK * Math.cos(v.theta * DEG2RAD)), steps: (v, ans) => guidedSteps(
-          `Take down the slope as positive. Forces along the slope: the weight component <em>m</em><em>g</em> sin &theta; (down) and kinetic friction &mu;<sub>k</sub><em>F</em><sub>N</sub> (up). Perpendicular to the slope, <em>F</em><sub>N</sub> = <em>m</em><em>g</em> cos &theta;.`,
-          `Newton's second law: <em>m</em><em>a</em> = <em>m</em><em>g</em> sin &theta; &minus; &mu;<sub>k</sub><em>m</em><em>g</em> cos &theta;, so <em>a</em> = <em>g</em>(sin &theta; &minus; &mu;<sub>k</sub> cos &theta;). The mass cancels.`,
-          `Substitute: <em>a</em> = 9.80(sin ${v.theta}&deg; &minus; ${v.muK} cos ${v.theta}&deg;) = <strong>${ans.toFixed(2)} m/s²</strong>.`
-        )},
-      { label: "b. Speed after traveling <em>d</em> (<em>v</em>)", unit: "m/s", solve: (v) => Math.sqrt(2 * (G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.muK * Math.cos(v.theta * DEG2RAD))) * v.d), steps: (v, ans) => {
-          const a = G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.muK * Math.cos(v.theta * DEG2RAD));
-          return guidedSteps(
-            `The snowboarder starts at rest and accelerates at <em>a</em> = ${a.toFixed(2)} m/s² (from part a) over <em>d</em> = ${v.d} m. No time is given.`,
-            `Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; + 2<em>a</em><em>d</em> with <em>v</em><sub>0</sub> = 0, so <em>v</em> = &radic;(2<em>a</em><em>d</em>).`,
-            `Substitute: <em>v</em> = &radic;(2 &times; ${a.toFixed(2)} &times; ${v.d}) = <strong>${ans.toFixed(2)} m/s</strong>.`
-          );
-        }}
-    ]
-  },
-  {
     id: "DYN-34", docNum: "Set 2 #34", title: "Finding Coefficient of Friction on an Inclined Ramp",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "incline",
     baseVars: { m: 15.0, theta: 28.0, a: 2.30 },
@@ -6093,30 +6071,6 @@ const PHYSICS_QUESTIONS = [
             `Net force along the slope (down is positive): <em>F</em><sub>net</sub> = <em>F</em><sub>gx</sub> &minus; <em>f</em><sub>k</sub> = ${gx.toFixed(1)} &minus; ${fk.toFixed(1)} = ${(gx - fk).toFixed(1)} N.`,
             `Newton's second law: <em>a</em> = <em>F</em><sub>net</sub> / <em>m</em> = ${(gx - fk).toFixed(1)} / ${v.m}.`,
             `<em>a</em> = <strong>${ans.toFixed(3)} m/s²</strong>. (Equivalent to <em>g</em>(sin &theta; &minus; &mu;<sub>k</sub> cos &theta;), since the mass cancels.)`
-          );
-        }}
-    ]
-  },
-  {
-    id: "DYN-53", docNum: "Doc 2 #9", title: "Crate Pulled Up Incline at Constant Velocity",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Inclined Planes", diagram: "inclineCratePull",
-    baseVars: { m: 92, theta: 24, muK: 0.35 },
-    randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.12, 1), muK: rnd(b.muK, 0.15, 2) }),
-    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> crate is pulled up a <strong>${v.theta}&deg;</strong> ramp at a constant velocity (&mu;<sub>k</sub> = <strong>${v.muK}</strong>).<br/><strong>a.</strong> Determine the magnitude of the kinetic friction force.<br/><strong>b.</strong> Determine the magnitude of the tension force pulling the crate up the hill.`,
-    parts: [
-      { label: "a. Magnitude of kinetic friction force (<em>f</em><sub>k</sub>)", unit: "N", solve: (v) => v.muK * v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD), steps: (v, ans) => {
-          const N = v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD);
-          return guidedSteps(
-            `Friction depends on the normal force. Perpendicular to the ramp the crate does not accelerate, so <em>F</em><sub>N</sub> = <em>m</em><em>g</em> cos &theta; = ${v.m} &times; 9.80 &times; cos ${v.theta}&deg; = ${N.toFixed(1)} N.`,
-            `Kinetic friction: <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em><sub>N</sub> = ${v.muK} &times; ${N.toFixed(1)} = <strong>${ans.toFixed(1)} N</strong>, directed down the ramp (opposing the upward motion).`
-          );
-        }},
-      { label: "b. Magnitude of tension force (<em>F</em><sub>T</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) + v.muK * v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD), steps: (v, ans) => {
-          const w = v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD), fk = v.muK * v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD);
-          return guidedSteps(
-            `Constant velocity means zero net force along the ramp. Up the ramp: tension <em>F</em><sub>T</sub>. Down the ramp: the weight component <em>m</em><em>g</em> sin &theta; = ${w.toFixed(1)} N and kinetic friction ${fk.toFixed(1)} N (from part a).`,
-            `Set the forces equal: <em>F</em><sub>T</sub> = <em>m</em><em>g</em> sin &theta; + <em>f</em><sub>k</sub>.`,
-            `Substitute: <em>F</em><sub>T</sub> = ${w.toFixed(1)} + ${fk.toFixed(1)} = <strong>${ans.toFixed(1)} N</strong>.`
           );
         }}
     ]

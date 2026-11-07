@@ -567,6 +567,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   vtGraph: function (v) {
@@ -588,7 +614,7 @@ const DIAGRAM_DRAWERS = {
 
         <!-- Axis Labels -->
         <text x="225" y="215" text-anchor="middle" fill="${textCol}" font-size="14" font-weight="700">Time t (s)</text>
-        <text x="-100" y="24" text-anchor="middle" fill="${textCol}" font-size="14" font-weight="700" transform="rotate(-90)">Speed v (m/s)</text>
+        <text x="-100" y="12" text-anchor="middle" fill="${textCol}" font-size="14" font-weight="700" transform="rotate(-90)">Speed v (m/s)</text>
 
         <!-- Origin Label -->
         <text x="58" y="190" text-anchor="end" fill="#64748b" font-size="13" font-weight="600">0</text>
@@ -623,6 +649,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   threeBlocksPush: function (v) {
@@ -672,6 +724,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   twoBlocksPush: function (v) {
@@ -715,6 +793,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   threeBlocksRope: function (v) {
@@ -774,6 +878,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   atwood: function (v) {
@@ -820,6 +950,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   halfAtwood: function (v) {
@@ -865,6 +1021,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   symmetricRopes: function (v) {
@@ -927,6 +1109,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   twoMenRopesRock: function (v) {
@@ -985,6 +1193,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   inclineAtwood: function (v) {
@@ -1027,6 +1261,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   incline: function (v) {
@@ -1056,6 +1316,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   inclinePull: function (v) {
@@ -1101,6 +1387,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   posTimeGraph: function (v) {
@@ -1152,6 +1464,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   elevatorVtGraph: function (v) {
@@ -1203,6 +1541,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   projBaseball: function (v) {
@@ -1234,6 +1598,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   projCannonElevated: function (v) {
@@ -1268,6 +1658,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   projPelican: function (v) {
@@ -1300,6 +1716,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   projSoccer: function (v) {
@@ -1333,6 +1775,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   projCliffDiver: function (v) {
@@ -1362,6 +1830,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   projAirplane: function (v) {
@@ -1396,6 +1890,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   stackedBlocks: function (v) {
@@ -1438,6 +1958,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   hangingBuckets: function (v) {
@@ -1484,6 +2030,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   boxPullUp: function (v) {
@@ -1513,6 +2085,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   cratePushDown: function (v) {
@@ -1543,6 +2141,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   wallBlockH: function (v) {
@@ -1572,6 +2196,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   wallBlockV: function (v) {
@@ -1601,6 +2251,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   inclineAtwoodKnown: function (v) {
@@ -1628,7 +2304,7 @@ const DIAGRAM_DRAWERS = {
         <line x1="${ax}" y1="${ay}" x2="${Tx}" y2="${Ty}" stroke="${O}" stroke-width="3"/>
         <path d="M ${Tx} ${Ty} A 13 13 0 0 1 ${bx} ${Cy}" fill="none" stroke="${O}" stroke-width="3"/>
         <line x1="${bx}" y1="${Cy}" x2="${bx}" y2="${bTop}" stroke="${O}" stroke-width="3"/>
-        <rect x="${bx - 30}" y="${bTop}" width="60" height="44" rx="5" fill="${boxFill}" stroke="${G}" stroke-width="2.5"/>
+        <rect x="${bx - 38}" y="${bTop}" width="76" height="44" rx="5" fill="${boxFill}" stroke="${G}" stroke-width="2.5"/>
         <text x="${bx}" y="${bTop + 22}" text-anchor="middle" dominant-baseline="central" fill="${G}" font-size="10.5" font-weight="800">m<tspan baseline-shift="sub" font-size="8">1</tspan> = ${v.m1} kg</text>
       </svg>`;
   };
@@ -1642,6 +2318,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   sphereTwoCables: function (v) {
@@ -1673,6 +2375,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   carMirror: function (v) {
@@ -1706,6 +2434,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   tableAndHanging: function (v) {
@@ -1735,6 +2489,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   lawnMower: function (v) {
@@ -1767,6 +2547,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   sprinter: function (v) {
@@ -1801,6 +2607,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   waterSkier: function (v) {
@@ -1836,6 +2668,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   twoMenRopesRockRightKnown: function (v) {
@@ -1894,6 +2752,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   boxSlidingStop: function (v) {
@@ -1920,6 +2804,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   craneTrolley: function (v) {
@@ -1955,6 +2865,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   highWire: function (v) {
@@ -1988,6 +2924,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   dragBlockChair: function (v) {
@@ -2014,6 +2976,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   dragBlockCrate: function (v) {
@@ -2040,6 +3028,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   dragBlockMoon: function (v) {
@@ -2066,6 +3080,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   dragBlockFridge: function (v) {
@@ -2092,6 +3132,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   dragBlockTable: function (v) {
@@ -2118,6 +3184,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   dragBlockBeam: function (v) {
@@ -2144,6 +3236,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   dragBlockForces: function (v) {
@@ -2170,6 +3288,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   slideMan: function (v) {
@@ -2196,6 +3340,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   slideSkater: function (v) {
@@ -2222,6 +3392,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   slideSkaterNoDist: function (v) {
@@ -2248,6 +3444,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   slideCarSkid: function (v) {
@@ -2274,6 +3496,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   slidePuck: function (v) {
@@ -2300,6 +3548,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   slideCarBrake: function (v) {
@@ -2326,6 +3600,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   slideCarStop: function (v) {
@@ -2352,6 +3652,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   slideTrain: function (v) {
@@ -2378,6 +3704,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   elevCable: function (v) {
@@ -2404,6 +3756,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   elevPersonDown: function (v) {
@@ -2430,6 +3808,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   elevBoxUnknown: function (v) {
@@ -2456,6 +3860,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   elevPersonUp: function (v) {
@@ -2482,6 +3912,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   bucketRope: function (v) {
@@ -2508,6 +3964,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   caveRope: function (v) {
@@ -2534,6 +4016,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   compass3: function (v) {
@@ -2560,6 +4068,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   compass2: function (v) {
@@ -2586,6 +4120,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   compassEquil: function (v) {
@@ -2612,6 +4172,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   dropRockMars: function (v) {
@@ -2638,6 +4224,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   dropRockPlanet: function (v) {
@@ -2664,6 +4276,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   airDragBall: function (v) {
@@ -2690,6 +4328,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   airDragSkydiver: function (v) {
@@ -2716,6 +4380,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   airDragSkydiverFrac: function (v) {
@@ -2742,6 +4432,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   towerDrop: function (v) {
@@ -2768,6 +4484,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   firePole: function (v) {
@@ -2794,6 +4536,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   planetWeight: function (v) {
@@ -2820,6 +4588,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   asteroidTug: function (v) {
@@ -2846,6 +4640,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   truckTrailer: function (v) {
@@ -2872,6 +4692,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   canoeDock: function (v) {
@@ -2898,6 +4744,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   astronautCrate: function (v) {
@@ -2924,6 +4796,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   iceTwo: function (v) {
@@ -2950,6 +4848,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   kayak: function (v) {
@@ -2976,6 +4900,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   boatForces: function (v) {
@@ -3002,6 +4952,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   crateInTruck: function (v) {
@@ -3028,6 +5004,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   ballCushion: function (v) {
@@ -3054,6 +5056,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   rocketTube: function (v) {
@@ -3080,6 +5108,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   tennisServe: function (v) {
@@ -3106,6 +5160,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   rollerCoaster: function (v) {
@@ -3143,6 +5223,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   carCrashTree: function (v) {
@@ -3169,6 +5275,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   crashDecel: function (v) {
@@ -3195,6 +5327,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   sledPulled: function (v) {
@@ -3222,6 +5380,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   boxPushedBelow: function (v) {
@@ -3249,6 +5433,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   wallBlockUp: function (v) {
@@ -3276,6 +5486,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   baseballGlove: function (v) {
@@ -3302,6 +5538,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   motCarUnknownV: function (v) {
@@ -3329,6 +5591,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   motPitch: function (v) {
@@ -3356,6 +5644,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   motCatapult: function (v) {
@@ -3383,6 +5697,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   motCarStop: function (v) {
@@ -3410,6 +5750,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   motCarKmh: function (v) {
@@ -3437,6 +5803,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   motCarTD: function (v) {
@@ -3464,6 +5856,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   motCarBrakeKmh: function (v) {
@@ -3491,6 +5909,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   motCarFromRest: function (v) {
@@ -3518,6 +5962,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   motTrainBrake: function (v) {
@@ -3545,6 +6015,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   reactionBrake: function (v) {
@@ -3559,7 +6055,7 @@ const DIAGRAM_DRAWERS = {
     const car = (x, y) => `<path d="M ${x} ${y} L ${x} ${y - 22} L ${x + 18} ${y - 26} L ${x + 34} ${y - 46} L ${x + 80} ${y - 46} L ${x + 98} ${y - 26} L ${x + 115} ${y - 22} L ${x + 115} ${y} Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/><circle cx="${x + 28}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/><circle cx="${x + 88}" cy="${y - 11}" r="11" fill="#475569" stroke="${S}" stroke-width="2"/>`;
     const dim = (x1, x2, y, lab) => `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${S}" stroke-width="1.5"/><line x1="${x1}" y1="${y - 6}" x2="${x1}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/><line x1="${x2}" y1="${y - 6}" x2="${x2}" y2="${y + 6}" stroke="${S}" stroke-width="1.5"/>` + tx((x1 + x2) / 2, y + 17, lab, "#475569", "middle", 12);
     const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
-    return svg(205, gnd(140) + car(30, 140) + `<g opacity="0.35">` + car(210, 140) + `</g>` + `<line x1="400" y1="40" x2="400" y2="140" stroke="${S}" stroke-width="2" stroke-dasharray="5 4"/>` + tx(88, 84, `v = ${v.v0} m/s`, A) + ar(150, 56, 210, 56, A) + tx(180, 46, `reaction time ${v.tRxn} s`, "#475569", "middle", 11) + dim(145, 270, 168, "reaction distance") + ar(285, 56, 395, 56, R) + tx(340, 46, `braking: a = ${v.decel} m/s&sup2;`, R, "middle", 11) + dim(270, 400, 168, "braking distance") + tx(220, 198, "total distance before stopping = ?", "#475569", "middle", 12));
+    return svg(205, gnd(140) + car(30, 140) + `<g opacity="0.35">` + car(210, 140) + `</g>` + `<line x1="400" y1="40" x2="400" y2="140" stroke="${S}" stroke-width="2" stroke-dasharray="5 4"/>` + tx(88, 84, `v = ${v.v0} m/s`, A) + ar(150, 56, 210, 56, A) + tx(180, 46, `reaction time ${v.tRxn} s`, "#475569", "middle", 11) + dim(145, 270, 168, "reaction distance") + ar(285, 56, 395, 56, R) + tx(340, 46, `braking: a = ${v.decel} m/s&sup2;`, R, "middle", 11) + dim(270, 400, 168, "braking distance") + tx(220, 207, "total distance before stopping = ?", "#475569", "middle", 12));
   };
     var s = __orig(v);
     var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
@@ -3571,6 +6067,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   crashBarrier: function (v) {
@@ -3597,6 +6119,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   racketBall: function (v) {
@@ -3623,6 +6171,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   dropSkyscraper: function (v) {
@@ -3649,6 +6223,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   dropCliffSound: function (v) {
@@ -3675,6 +6275,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   dropBalloon: function (v) {
@@ -3701,6 +6327,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   dropHelicopter: function (v) {
@@ -3729,6 +6381,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   throwFromCliff: function (v) {
@@ -3755,6 +6433,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   jumpAstronaut: function (v) {
@@ -3781,6 +6485,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   jumpKangaroo: function (v) {
@@ -3807,6 +6537,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   jumpFlea: function (v) {
@@ -3833,6 +6589,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   jumpBallTotalTime: function (v) {
@@ -3859,6 +6641,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   popUp: function (v) {
@@ -3889,6 +6697,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   tennisBounce: function (v) {
@@ -3915,6 +6749,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   rocketBurn: function (v) {
@@ -3941,6 +6801,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   projTableTime: function (v) {
@@ -3967,6 +6853,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   projTableHeight: function (v) {
@@ -3993,6 +6905,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   projTableSpeed: function (v) {
@@ -4019,6 +6957,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   projBridge: function (v) {
@@ -4045,6 +7009,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   projCliffDouble: function (v) {
@@ -4071,6 +7061,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   projMortar: function (v) {
@@ -4098,6 +7114,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   curveCar: function (v) {
@@ -4124,6 +7166,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   orbitSat: function (v) {
@@ -4150,6 +7218,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   curveBoats: function (v) {
@@ -4179,6 +7273,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   hillMotorcycle: function (v) {
@@ -4210,6 +7330,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   hotAirBalloon: function (v) {
@@ -4236,6 +7382,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   neutronStar: function (v) {
@@ -4262,6 +7434,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   inclineSkier: function (v) {
@@ -4300,6 +7498,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   inclineSnowboarder: function (v) {
@@ -4337,6 +7561,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   inclineBobsled: function (v) {
@@ -4374,6 +7624,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   inclineLog: function (v) {
@@ -4405,6 +7681,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   inclineCratePull: function (v) {
@@ -4436,6 +7738,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   },
   inclineSnowboarderFlat: function (v) {
@@ -4474,6 +7802,32 @@ const DIAGRAM_DRAWERS = {
     s = s.replace(/fill="rgba\([^"]*\)"/g, 'fill="none"');
     s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
     s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    // Labels are 2 points larger. Very long one-line captions keep their size so they still fit inside the picture.
+    // A thin white outline behind every label keeps it readable where it crosses a line or arrow.
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) {
+        t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      }
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    // Make sure nothing (especially the larger labels) is cut off at the edge of the picture: measure the drawing and widen its frame if needed.
+    try {
+      if (typeof document !== 'undefined' && document.body && /<svg[^>]*viewBox="/.test(s)) {
+        var host = document.createElement('div');
+        host.style.cssText = 'position:absolute;left:-9999px;top:0;width:600px;visibility:hidden;pointer-events:none';
+        host.innerHTML = s;
+        document.body.appendChild(host);
+        var sv = host.querySelector('svg');
+        var vb = sv.getAttribute('viewBox').split(/[ ,]+/).map(Number), bb = sv.getBBox();
+        document.body.removeChild(host);
+        var pad = 6, x0 = Math.min(vb[0], bb.x - pad), y0 = Math.min(vb[1], bb.y - pad);
+        var x1 = Math.max(vb[0] + vb[2], bb.x + bb.width + pad), y1 = Math.max(vb[1] + vb[3], bb.y + bb.height + pad);
+        if (x0 < vb[0] - 0.5 || y0 < vb[1] - 0.5 || x1 > vb[0] + vb[2] + 0.5 || y1 > vb[1] + vb[3] + 0.5) {
+          s = s.replace(/viewBox="[^"]*"/, 'viewBox="' + [x0, y0, x1 - x0, y1 - y0].map(function (n) { return Math.round(n * 10) / 10; }).join(' ') + '"');
+        }
+      }
+    } catch (e) { }
     return s;
   }
 };

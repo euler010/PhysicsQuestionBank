@@ -8030,7 +8030,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ hMax: rnd(b.hMax, 0.20, 1), v0: rnd(b.v0, 0.20, 2) }),
     renderPrompt: (v) => `An astronaut on a newly explored exoplanet finds that she can jump vertically to a maximum height of <strong>${v.hMax} meters</strong> when her initial takeoff speed is <strong>${v.v0} m/s</strong>. What is the magnitude of the acceleration due to gravity on the planet?`,
     parts: [
-      { label: "Gravity magnitude (<em>g</em>)", unit: "m/s²", acceptedUnits: ["m/s²", "N/kg"], solve: (v) => (v.v0 * v.v0) / (2 * v.hMax), steps: (v, ans) => guidedSteps(
+      { label: "Gravity magnitude (g)", unit: "m/s²", acceptedUnits: ["m/s²", "N/kg"], solve: (v) => (v.v0 * v.v0) / (2 * v.hMax), steps: (v, ans) => guidedSteps(
           `Known: takeoff speed <em>v</em><sub>0</sub> = ${v.v0} m/s and maximum height <em>h</em><sub>max</sub> = ${v.hMax} m. Unknown: the free-fall acceleration <em>g</em> on the planet. At the top of the jump the speed is momentarily zero (<em>v</em> = 0).`,
           `Use the constant-acceleration equation that has no time in it. Taking up as positive, gravity slows the jumper: <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; &minus; 2<em>g h</em><sub>max</sub>. With <em>v</em> = 0, solve for <em>g</em>: <em>g</em> = <em>v</em><sub>0</sub>&sup2; / (2 <em>h</em><sub>max</sub>).`,
           `Substitute: <em>g</em> = (${v.v0} m/s)&sup2; / (2 &times; ${v.hMax} m) = <strong>${ans.toFixed(3)} m/s²</strong>.`,
@@ -8045,13 +8045,13 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 2), accel: rnd(b.accel, 0.20, 2), dist: Math.round(rnd(b.dist, 0.20, 0)) }),
     renderPrompt: (v) => `An automobile accelerates from an initial velocity of <strong>${v.v0} m/s</strong> at a constant rate of <strong>${v.accel} m/s&sup2;</strong>. It travels a straight-line displacement of <strong>${v.dist} m</strong> while accelerating.<br/><strong>a.</strong> What is the car’s final speed at the end of that displacement?<br/><strong>b.</strong> How long did it take to travel <strong>${v.dist} m</strong>?`,
     parts: [
-      { label: "a. Final speed (<em>v</em>)", unit: "m/s", solve: (v) => Math.sqrt(v.v0 * v.v0 + 2 * v.accel * v.dist), steps: (v, ans) => guidedSteps(
+      { label: "a. Final speed (v)", unit: "m/s", solve: (v) => Math.sqrt(v.v0 * v.v0 + 2 * v.accel * v.dist), steps: (v, ans) => guidedSteps(
           `Known: initial velocity <em>v</em><sub>0</sub> = ${v.v0} m/s, acceleration <em>a</em> = ${v.accel} m/s², and displacement &Delta;<em>x</em> = ${v.dist} m. Unknown: the final speed <em>v</em>. The time is not given, so choose the equation without time.`,
           `Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; + 2<em>a</em>&Delta;<em>x</em> and solve for <em>v</em>.`,
           `Substitute: <em>v</em>&sup2; = (${v.v0})&sup2; + 2(${v.accel})(${v.dist}) = ${(v.v0 * v.v0 + 2 * v.accel * v.dist).toFixed(2)} m²/s².`,
           `Take the square root: <em>v</em> = <strong>${ans.toFixed(2)} m/s</strong>.`
         )},
-      { label: "b. Travel time (<em>t</em>)", unit: "s", solve: (v) => (Math.sqrt(v.v0 * v.v0 + 2 * v.accel * v.dist) - v.v0) / v.accel, steps: (v, ans) => {
+      { label: "b. Travel time (t)", unit: "s", solve: (v) => (Math.sqrt(v.v0 * v.v0 + 2 * v.accel * v.dist) - v.v0) / v.accel, steps: (v, ans) => {
           const vf = Math.sqrt(v.v0 * v.v0 + 2 * v.accel * v.dist);
           return guidedSteps(
             `Known: <em>v</em><sub>0</sub> = ${v.v0} m/s, <em>a</em> = ${v.accel} m/s², and from part a the final speed <em>v</em> = ${vf.toFixed(2)} m/s. Unknown: the time <em>t</em>.`,
@@ -8068,7 +8068,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 1), dist: rnd(b.dist, 0.20, 2) }),
     renderPrompt: (v) => `A baseball pitcher throws a fastball with a release speed of <strong>${v.v0} m/s</strong>. Estimate the magnitude of the average acceleration of the ball during the throwing motion if the ball accelerates from rest over a distance of <strong>${v.dist} m</strong> from the wind-up to release.`,
     parts: [
-      { label: "Average acceleration magnitude (<em>a</em>)", unit: "m/s²", solve: (v) => (v.v0 * v.v0) / (2 * v.dist), steps: (v, ans) => guidedSteps(
+      { label: "Average acceleration magnitude (a)", unit: "m/s²", solve: (v) => (v.v0 * v.v0) / (2 * v.dist), steps: (v, ans) => guidedSteps(
           `Known: the ball starts from rest (<em>v</em><sub>0</sub> = 0), reaches <em>v</em> = ${v.v0} m/s, and travels &Delta;<em>x</em> = ${v.dist} m while accelerating. Unknown: the average acceleration <em>a</em>. There is no time given, so use the equation without time.`,
           `<em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; + 2<em>a</em>&Delta;<em>x</em>. With <em>v</em><sub>0</sub> = 0 this gives <em>a</em> = <em>v</em>&sup2; / (2&Delta;<em>x</em>).`,
           `Substitute: <em>a</em> = (${v.v0} m/s)&sup2; / (2 &times; ${v.dist} m) = <strong>${ans.toFixed(1)} m/s²</strong>.`,
@@ -8083,7 +8083,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ aEngine: rnd(b.aEngine, 0.20, 1), tEngine: rnd(b.tEngine, 0.20, 2) }),
     renderPrompt: (v) => `A model rocket launches vertically from rest on the ground. Its engine produces a constant upward acceleration of <strong>${v.aEngine} m/s&sup2;</strong> for <strong>${v.tEngine} s</strong>. When fuel runs out, the rocket continues upward in unpowered free-fall under gravity.<br/><strong>a.</strong> What maximum altitude does the rocket reach?<br/><strong>b.</strong> What is the rocket’s velocity immediately before striking the ground?<br/><strong>c.</strong> What total distance does the rocket travel from launch to impact?<br/><strong>d.</strong> How long is the rocket in the air in total?`,
     parts: [
-      { label: "a. Maximum altitude (<em>h</em><sub>max</sub>)", unit: "m", solve: (v) => (0.5 * v.aEngine * v.tEngine * v.tEngine) + (Math.pow(v.aEngine * v.tEngine, 2) / (2 * G_ACCEL)), steps: (v, ans) => {
+      { label: "a. Maximum altitude (h<sub>max</sub>)", unit: "m", solve: (v) => (0.5 * v.aEngine * v.tEngine * v.tEngine) + (Math.pow(v.aEngine * v.tEngine, 2) / (2 * G_ACCEL)), steps: (v, ans) => {
           const y1 = 0.5 * v.aEngine * v.tEngine * v.tEngine;
           const v1 = v.aEngine * v.tEngine;
           const y2 = (v1 * v1) / (2 * G_ACCEL);
@@ -8094,7 +8094,7 @@ const PHYSICS_QUESTIONS = [
             `Add the two stages: <em>h</em><sub>max</sub> = <em>y</em><sub>1</sub> + <em>y</em><sub>2</sub> = ${y1.toFixed(2)} m + ${y2.toFixed(2)} m = <strong>${ans.toFixed(2)} m</strong>.`
           );
         }},
-      { label: "b. Landing velocity (<em>v</em><sub>land</sub>)", unit: "m/s", solve: (v) => -Math.sqrt(2 * G_ACCEL * ((0.5 * v.aEngine * v.tEngine * v.tEngine) + (Math.pow(v.aEngine * v.tEngine, 2) / (2 * G_ACCEL)))), steps: (v, ans) => {
+      { label: "b. Landing velocity (v<sub>land</sub>)", unit: "m/s", solve: (v) => -Math.sqrt(2 * G_ACCEL * ((0.5 * v.aEngine * v.tEngine * v.tEngine) + (Math.pow(v.aEngine * v.tEngine, 2) / (2 * G_ACCEL)))), steps: (v, ans) => {
           const hMax = (0.5 * v.aEngine * v.tEngine * v.tEngine) + (Math.pow(v.aEngine * v.tEngine, 2) / (2 * G_ACCEL));
           return guidedSteps(
             `At the top of its flight the rocket is momentarily at rest. From there it falls freely through the full height from part a, <em>h</em><sub>max</sub> = ${hMax.toFixed(2)} m, back to the ground.`,
@@ -8103,7 +8103,7 @@ const PHYSICS_QUESTIONS = [
             `The rocket is moving downward, so with up as positive the velocity is <strong>${ans.toFixed(2)} m/s</strong>.`
           );
         }},
-      { label: "c. Total distance traveled (<em>d</em><sub>total</sub>)", unit: "m", solve: (v) => 2 * ((0.5 * v.aEngine * v.tEngine * v.tEngine) + (Math.pow(v.aEngine * v.tEngine, 2) / (2 * G_ACCEL))), steps: (v, ans) => {
+      { label: "c. Total distance traveled (d<sub>total</sub>)", unit: "m", solve: (v) => 2 * ((0.5 * v.aEngine * v.tEngine * v.tEngine) + (Math.pow(v.aEngine * v.tEngine, 2) / (2 * G_ACCEL))), steps: (v, ans) => {
           const hMax = ans / 2;
           return guidedSteps(
             `Distance is the total length of the path, so it counts both the trip up and the trip down. (Displacement would be zero, because the rocket ends where it started.)`,
@@ -8111,7 +8111,7 @@ const PHYSICS_QUESTIONS = [
             `<em>d</em><sub>total</sub> = 2<em>h</em><sub>max</sub> = 2 &times; ${hMax.toFixed(2)} m = <strong>${ans.toFixed(2)} m</strong>.`
           );
         }},
-      { label: "d. Total flight time (<em>t</em><sub>total</sub>)", unit: "s", solve: (v) => { const hMax = (0.5 * v.aEngine * v.tEngine * v.tEngine) + (Math.pow(v.aEngine * v.tEngine, 2) / (2 * G_ACCEL)); return v.tEngine + ((v.aEngine * v.tEngine) / G_ACCEL) + Math.sqrt((2 * hMax) / G_ACCEL); }, steps: (v, ans) => {
+      { label: "d. Total flight time (t<sub>total</sub>)", unit: "s", solve: (v) => { const hMax = (0.5 * v.aEngine * v.tEngine * v.tEngine) + (Math.pow(v.aEngine * v.tEngine, 2) / (2 * G_ACCEL)); return v.tEngine + ((v.aEngine * v.tEngine) / G_ACCEL) + Math.sqrt((2 * hMax) / G_ACCEL); }, steps: (v, ans) => {
           const hMax = (0.5 * v.aEngine * v.tEngine * v.tEngine) + (Math.pow(v.aEngine * v.tEngine, 2) / (2 * G_ACCEL));
           const v1 = v.aEngine * v.tEngine;
           const tCoast = v1 / G_ACCEL;
@@ -8132,7 +8132,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 1), decel: rnd(b.decel, 0.20, 2), tRxn: rnd(b.tRxn, 0.20, 3) }),
     renderPrompt: (v) => `A driver is traveling at <strong>${v.v0} m/s</strong> when an obstacle appears in the roadway. The vehicle decelerates at a maximum rate of <strong>${v.decel} m/s&sup2;</strong>. If human reaction time is <strong>${v.tRxn} s</strong> before braking begins, what total distance does the car travel before stopping?`,
     parts: [
-      { label: "Total stopping distance (<em>d</em><sub>total</sub>)", unit: "m", solve: (v) => (v.v0 * v.tRxn) + (v.v0 * v.v0) / (2 * v.decel), steps: (v, ans) => {
+      { label: "Total stopping distance (d<sub>total</sub>)", unit: "m", solve: (v) => (v.v0 * v.tRxn) + (v.v0 * v.v0) / (2 * v.decel), steps: (v, ans) => {
           const dRxn = v.v0 * v.tRxn;
           const dBrake = (v.v0 * v.v0) / (2 * v.decel);
           return guidedSteps(
@@ -8151,7 +8151,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ vFinal: rnd(b.vFinal, 0.20, 1), tLaunch: rnd(b.tLaunch, 0.20, 2) }),
     renderPrompt: (v) => `A supersonic aircraft is launched from rest via a steam catapult on an aircraft carrier flight deck. It achieves a takeoff speed of <strong>${v.vFinal} m/s</strong> in <strong>${v.tLaunch} s</strong>. Assuming constant acceleration, what is the length of the catapult runway?`,
     parts: [
-      { label: "Catapult length (&Delta;<em>x</em>)", unit: "m", solve: (v) => 0.5 * v.vFinal * v.tLaunch, steps: (v, ans) => guidedSteps(
+      { label: "Catapult length (&Delta;x)", unit: "m", solve: (v) => 0.5 * v.vFinal * v.tLaunch, steps: (v, ans) => guidedSteps(
           `Known: the aircraft starts from rest (<em>v</em><sub>0</sub> = 0), reaches <em>v</em> = ${v.vFinal} m/s, and takes <em>t</em> = ${v.tLaunch} s. The acceleration is constant. Unknown: the distance &Delta;<em>x</em> covered along the catapult.`,
           `For constant acceleration the average velocity is the mean of the starting and ending velocities, so &Delta;<em>x</em> = &frac12;(<em>v</em><sub>0</sub> + <em>v</em>)<em>t</em>. With <em>v</em><sub>0</sub> = 0 this becomes &Delta;<em>x</em> = &frac12;<em>v</em><em>t</em>.`,
           `Substitute: &Delta;<em>x</em> = &frac12;(${v.vFinal} m/s)(${v.tLaunch} s) = <strong>${ans.toFixed(2)} m</strong>.`
@@ -8165,7 +8165,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 1), timeSec: rnd(b.timeSec, 0.20, 2) }),
     renderPrompt: (v) => `A vehicle slows down uniformly from an initial velocity of <strong>${v.v0} m/s</strong> to a full stop in <strong>${v.timeSec} seconds</strong>. What total distance does it cover during this stopping period?`,
     parts: [
-      { label: "Distance traveled (&Delta;<em>x</em>)", unit: "m", solve: (v) => 0.5 * v.v0 * v.timeSec, steps: (v, ans) => guidedSteps(
+      { label: "Distance traveled (&Delta;x)", unit: "m", solve: (v) => 0.5 * v.v0 * v.timeSec, steps: (v, ans) => guidedSteps(
           `Known: the vehicle slows uniformly from <em>v</em><sub>0</sub> = ${v.v0} m/s to a stop (<em>v</em> = 0) in <em>t</em> = ${v.timeSec} s. Unknown: the distance &Delta;<em>x</em>.`,
           `For uniform (constant) acceleration, the average velocity is the mean of the first and last velocities: <em>v</em><sub>avg</sub> = (<em>v</em><sub>0</sub> + <em>v</em>) / 2 = (${v.v0} + 0) / 2 = ${(v.v0 / 2).toFixed(2)} m/s.`,
           `Distance = average velocity &times; time: &Delta;<em>x</em> = <em>v</em><sub>avg</sub><em>t</em> = (${(v.v0 / 2).toFixed(2)} m/s)(${v.timeSec} s) = <strong>${ans.toFixed(2)} m</strong>.`
@@ -8185,7 +8185,7 @@ const PHYSICS_QUESTIONS = [
     },
     renderPrompt: (v) => `The velocity-time graph shown illustrates the motion of a vertical test freight elevator. The elevator accelerates uniformly from rest to a peak velocity of <strong>${v.vMax} m/s</strong> at <em>t</em><sub>1</sub> = <strong>${v.t1} s</strong>, cruises at constant velocity until <em>t</em><sub>2</sub> = <strong>${v.t2} s</strong>, then brakes uniformly to rest at <em>t</em><sub>3</sub> = <strong>${v.t3} s</strong>.<br/><strong>a.</strong> What is the magnitude of the elevator’s maximum acceleration?<br/><strong>b.</strong> What is the total vertical displacement of the elevator?`,
     parts: [
-      { label: "a. Maximum acceleration magnitude (|<em>a</em>|<sub>max</sub>)", unit: "m/s²", solve: (v) => Math.max(v.vMax / v.t1, v.vMax / (v.t3 - v.t2)), steps: (v, ans) => {
+      { label: "a. Maximum acceleration magnitude (|a|<sub>max</sub>)", unit: "m/s²", solve: (v) => Math.max(v.vMax / v.t1, v.vMax / (v.t3 - v.t2)), steps: (v, ans) => {
           const a1 = v.vMax / v.t1, a3 = v.vMax / (v.t3 - v.t2);
           return guidedSteps(
             `On a velocity-time graph, acceleration is the <strong>slope</strong>. The graph has three sections: a speed-up (0 to ${v.t1} s), a constant-velocity cruise (${v.t1} to ${v.t2} s, slope zero), and a slow-down (${v.t2} to ${v.t3} s). Only the speed-up and slow-down have acceleration.`,
@@ -8194,7 +8194,7 @@ const PHYSICS_QUESTIONS = [
             `The maximum magnitude is the larger of the two (the steeper line): <strong>${ans.toFixed(2)} m/s²</strong>.`
           );
         }},
-      { label: "b. Total vertical displacement (&Delta;<em>y</em>)", unit: "m", solve: (v) => 0.5 * (v.t3 + (v.t2 - v.t1)) * v.vMax, steps: (v, ans) => {
+      { label: "b. Total vertical displacement (&Delta;y)", unit: "m", solve: (v) => 0.5 * (v.t3 + (v.t2 - v.t1)) * v.vMax, steps: (v, ans) => {
           const A1 = 0.5 * v.t1 * v.vMax, A2 = (v.t2 - v.t1) * v.vMax, A3 = 0.5 * (v.t3 - v.t2) * v.vMax;
           return guidedSteps(
             `On a velocity-time graph, <strong>displacement is the area between the graph and the time axis</strong>. Split the shape into a triangle, a rectangle, and another triangle.`,
@@ -8211,7 +8211,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ vIn: rnd(b.vIn, 0.20, 1), vOut: rnd(b.vOut, 0.20, 1), tDur: rnd(b.tDur, 0.20, 3) }),
     renderPrompt: (v) => `A tennis ball travels horizontally toward a player at a speed of <strong>${v.vIn} m/s</strong>. The player strikes the ball directly back in the opposite direction, and <strong>${v.tDur} seconds</strong> later the ball departs the strings at <strong>${v.vOut} m/s</strong>. What is the magnitude of the average acceleration experienced by the ball during contact?`,
     parts: [
-      { label: "Average acceleration magnitude (|<em>a</em><sub>avg</sub>|)", unit: "m/s²", solve: (v) => (v.vOut + v.vIn) / v.tDur, steps: (v, ans) => guidedSteps(
+      { label: "Average acceleration magnitude (|a<sub>avg</sub>|)", unit: "m/s²", solve: (v) => (v.vOut + v.vIn) / v.tDur, steps: (v, ans) => guidedSteps(
           `Velocity is a vector, so choose a direction first. Take the direction the ball leaves the racket as <strong>positive</strong>. Then the ball arrives with velocity &minus;${v.vIn} m/s and leaves with velocity +${v.vOut} m/s.`,
           `Average acceleration is the change in velocity over the time: <em>a</em><sub>avg</sub> = (<em>v</em><sub>out</sub> &minus; <em>v</em><sub>in</sub>) / &Delta;<em>t</em>.`,
           `Substitute: <em>a</em><sub>avg</sub> = (${v.vOut} m/s &minus; (&minus;${v.vIn} m/s)) / ${v.tDur} s = (${(v.vOut + v.vIn).toFixed(1)} m/s) / ${v.tDur} s.`,
@@ -8226,12 +8226,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 1), dist: rnd(b.dist, 0.20, 2) }),
     renderPrompt: (v) => `A test vehicle traveling at <strong>+${v.v0} m/s</strong> crashes into a rigid barrier. The crumple zone compresses and the cabin stops in <strong>${v.dist} m</strong>.<br/><strong>a.</strong> What is the magnitude of the average acceleration during impact?<br/><strong>b.</strong> How many <em>g</em>’s of acceleration does the vehicle experience?`,
     parts: [
-      { label: "a. Average acceleration magnitude (|<em>a</em>|)", unit: "m/s²", solve: (v) => (v.v0 * v.v0) / (2 * v.dist), steps: (v, ans) => guidedSteps(
+      { label: "a. Average acceleration magnitude (|a|)", unit: "m/s²", solve: (v) => (v.v0 * v.v0) / (2 * v.dist), steps: (v, ans) => guidedSteps(
           `Known: initial velocity <em>v</em><sub>0</sub> = ${v.v0} m/s, final velocity <em>v</em> = 0 (the car stops), and stopping distance &Delta;<em>x</em> = ${v.dist} m. No time is given, so use the equation without time.`,
           `<em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; + 2<em>a</em>&Delta;<em>x</em>. With <em>v</em> = 0 this gives |<em>a</em>| = <em>v</em><sub>0</sub>&sup2; / (2&Delta;<em>x</em>).`,
           `Substitute: |<em>a</em>| = (${v.v0} m/s)&sup2; / (2 &times; ${v.dist} m) = <strong>${ans.toFixed(1)} m/s²</strong>. The acceleration is negative (opposite to the motion), and the question asks for its magnitude.`
         )},
-      { label: "b. Acceleration in <em>g</em>'s", unit: "g's", acceptedUnits: ["g's", "No units"], solve: (v) => ((v.v0 * v.v0) / (2 * v.dist)) / G_ACCEL, steps: (v, ans) => {
+      { label: "b. Acceleration in g's", unit: "g's", acceptedUnits: ["g's", "No units"], solve: (v) => ((v.v0 * v.v0) / (2 * v.dist)) / G_ACCEL, steps: (v, ans) => {
           const a = (v.v0 * v.v0) / (2 * v.dist);
           return guidedSteps(
             `A &ldquo;<em>g</em>&rdquo; is one unit of 9.80 m/s². To express an acceleration in <em>g</em>’s, divide it by 9.80 m/s².`,
@@ -8252,7 +8252,7 @@ const PHYSICS_QUESTIONS = [
     },
     renderPrompt: (v) => `A car traveling at <strong>${v.vInitKmh} km/h</strong> accelerates at a constant rate of <strong>${v.accel} m/s&sup2;</strong>. How much time is required to increase its speed to <strong>${v.vFinalKmh} km/h</strong>?`,
     parts: [
-      { label: "Required time (<em>t</em>)", unit: "s", solve: (v) => ((v.vFinalKmh / 3.6) - (v.vInitKmh / 3.6)) / v.accel, steps: (v, ans) => {
+      { label: "Required time (t)", unit: "s", solve: (v) => ((v.vFinalKmh / 3.6) - (v.vInitKmh / 3.6)) / v.accel, steps: (v, ans) => {
           const v0 = v.vInitKmh / 3.6, vf = v.vFinalKmh / 3.6;
           return guidedSteps(
             `The acceleration is in m/s², so first convert both speeds from km/h to m/s. Since 1 m/s = 3.6 km/h, divide by 3.6.`,
@@ -8270,7 +8270,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 2), timeSec: rnd(b.timeSec, 0.20, 1), dist: Math.round(rnd(b.dist, 0.20, 0)) }),
     renderPrompt: (v) => `A car with an initial velocity of <strong>${v.v0} m/s</strong> accelerates uniformly over <strong>${v.timeSec} s</strong>, traveling a displacement of <strong>${v.dist} m</strong>. What is the car’s velocity at the end of the <strong>${v.timeSec} s</strong> interval?`,
     parts: [
-      { label: "Final velocity (<em>v</em>)", unit: "m/s", solve: (v) => (2 * v.dist / v.timeSec) - v.v0, steps: (v, ans) => guidedSteps(
+      { label: "Final velocity (v)", unit: "m/s", solve: (v) => (2 * v.dist / v.timeSec) - v.v0, steps: (v, ans) => guidedSteps(
           `Known: initial velocity <em>v</em><sub>0</sub> = ${v.v0} m/s, time <em>t</em> = ${v.timeSec} s, and displacement &Delta;<em>x</em> = ${v.dist} m. Unknown: the final velocity <em>v</em>. The acceleration is constant, so average velocity = &Delta;<em>x</em> / <em>t</em> = (<em>v</em><sub>0</sub> + <em>v</em>) / 2.`,
           `Average velocity: &Delta;<em>x</em> / <em>t</em> = ${v.dist} m / ${v.timeSec} s = ${(v.dist / v.timeSec).toFixed(2)} m/s.`,
           `Solve for the final velocity: <em>v</em> = 2(&Delta;<em>x</em> / <em>t</em>) &minus; <em>v</em><sub>0</sub> = 2(${(v.dist / v.timeSec).toFixed(2)}) &minus; ${v.v0}.`,
@@ -8285,12 +8285,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ vImpact: -rnd(Math.abs(b.vImpact), 0.20, 1) }),
     renderPrompt: (v) => `A high-altitude weather balloon releases an instrument package from rest. The package strikes the ground below at a velocity of <strong>${v.vImpact} m/s</strong> (downward).<br/><strong>a.</strong> How far did the package fall (positive distance)?<br/><strong>b.</strong> How long was the package falling?`,
     parts: [
-      { label: "a. Fall distance (<em>h</em>)", unit: "m", solve: (v) => (v.vImpact * v.vImpact) / (2 * G_ACCEL), steps: (v, ans) => guidedSteps(
+      { label: "a. Fall distance (h)", unit: "m", solve: (v) => (v.vImpact * v.vImpact) / (2 * G_ACCEL), steps: (v, ans) => guidedSteps(
           `Known: the package starts from rest (<em>v</em><sub>0</sub> = 0) and hits the ground at |<em>v</em>| = ${Math.abs(v.vImpact)} m/s. The only acceleration is gravity, <em>g</em> = 9.80 m/s². Unknown: the fall distance <em>h</em>.`,
           `No time is given, so use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; + 2<em>g h</em>. With <em>v</em><sub>0</sub> = 0: <em>h</em> = <em>v</em>&sup2; / (2<em>g</em>).`,
           `Substitute: <em>h</em> = (${Math.abs(v.vImpact)} m/s)&sup2; / (2 &times; 9.80 m/s²) = <strong>${ans.toFixed(1)} m</strong>.`
         )},
-      { label: "b. Fall time (<em>t</em>)", unit: "s", solve: (v) => Math.abs(v.vImpact) / G_ACCEL, steps: (v, ans) => guidedSteps(
+      { label: "b. Fall time (t)", unit: "s", solve: (v) => Math.abs(v.vImpact) / G_ACCEL, steps: (v, ans) => guidedSteps(
           `Known: the package starts from rest, falls with acceleration <em>g</em> = 9.80 m/s², and reaches speed |<em>v</em>| = ${Math.abs(v.vImpact)} m/s. Unknown: the time <em>t</em>.`,
           `For free fall from rest, <em>v</em> = <em>g t</em>, so <em>t</em> = |<em>v</em>| / <em>g</em>.`,
           `Substitute: <em>t</em> = ${Math.abs(v.vImpact)} m/s / 9.80 m/s² = <strong>${ans.toFixed(2)} s</strong>.`
@@ -8304,7 +8304,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ tTotal: rnd(b.tTotal, 0.20, 2) }),
     renderPrompt: (v) => `A projectile launched vertically upward returns to its launch elevation after <strong>${v.tTotal} seconds</strong> in the air. Neglecting air drag, what was its initial launch speed?`,
     parts: [
-      { label: "Initial launch speed (<em>v</em><sub>0</sub>)", unit: "m/s", solve: (v) => G_ACCEL * (v.tTotal / 2), steps: (v, ans) => guidedSteps(
+      { label: "Initial launch speed (v<sub>0</sub>)", unit: "m/s", solve: (v) => G_ACCEL * (v.tTotal / 2), steps: (v, ans) => guidedSteps(
           `Without air drag, the trip up and the trip down take the same time. So the time to reach the top is half of the total: <em>t</em><sub>up</sub> = ${v.tTotal} s / 2 = ${(v.tTotal / 2).toFixed(2)} s.`,
           `At the top the velocity is zero, so <em>v</em> = <em>v</em><sub>0</sub> &minus; <em>g t</em><sub>up</sub> = 0, which gives <em>v</em><sub>0</sub> = <em>g t</em><sub>up</sub>.`,
           `Substitute: <em>v</em><sub>0</sub> = (9.80 m/s²)(${(v.tTotal / 2).toFixed(2)} s) = <strong>${ans.toFixed(2)} m/s</strong>.`
@@ -8318,7 +8318,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ tTotal: rnd(b.tTotal, 0.20, 2), dropDist: rnd(b.dropDist, 0.20, 2) }),
     renderPrompt: (v) => `During a baseball game, a batter pops a ball straight up into the air. The ball remains airborne for <strong>${v.tTotal} s</strong> before landing on the turf <strong>${v.dropDist} meters</strong> below the height where it made contact with the bat.<br/><strong>a.</strong> How high above the ground does the ball climb at its apex?<br/><strong>b.</strong> With what speed did the ball leave the bat?`,
     parts: [
-      { label: "a. Maximum height above ground (<em>H</em><sub>max</sub>)", unit: "m", solve: (v) => { const v0 = (0.5 * G_ACCEL * v.tTotal * v.tTotal - v.dropDist) / v.tTotal; return v.dropDist + (v0 * v0) / (2 * G_ACCEL); }, steps: (v, ans) => {
+      { label: "a. Maximum height above ground (H<sub>max</sub>)", unit: "m", solve: (v) => { const v0 = (0.5 * G_ACCEL * v.tTotal * v.tTotal - v.dropDist) / v.tTotal; return v.dropDist + (v0 * v0) / (2 * G_ACCEL); }, steps: (v, ans) => {
           const v0 = (0.5 * G_ACCEL * v.tTotal * v.tTotal - v.dropDist) / v.tTotal;
           const climb = (v0 * v0) / (2 * G_ACCEL);
           return guidedSteps(
@@ -8327,7 +8327,7 @@ const PHYSICS_QUESTIONS = [
             `The ground is ${v.dropDist} m <em>below</em> the bat, so add that height: <em>H</em><sub>max</sub> = ${v.dropDist} m + ${climb.toFixed(2)} m = <strong>${ans.toFixed(2)} m</strong>.`
           );
         }},
-      { label: "b. Initial speed from bat (<em>v</em><sub>0</sub>)", unit: "m/s", solve: (v) => (0.5 * G_ACCEL * v.tTotal * v.tTotal - v.dropDist) / v.tTotal, steps: (v, ans) => guidedSteps(
+      { label: "b. Initial speed from bat (v<sub>0</sub>)", unit: "m/s", solve: (v) => (0.5 * G_ACCEL * v.tTotal * v.tTotal - v.dropDist) / v.tTotal, steps: (v, ans) => guidedSteps(
           `Take up as positive and the bat as the starting point. The ball lands ${v.dropDist} m below the bat after <em>t</em> = ${v.tTotal} s, so &Delta;<em>y</em> = &minus;${v.dropDist} m, and the acceleration is &minus;<em>g</em>.`,
           `Use &Delta;<em>y</em> = <em>v</em><sub>0</sub><em>t</em> &minus; &frac12;<em>g</em><em>t</em>&sup2; and solve for <em>v</em><sub>0</sub>: <em>v</em><sub>0</sub> = (&Delta;<em>y</em> + &frac12;<em>g</em><em>t</em>&sup2;) / <em>t</em> = (&frac12;<em>g</em><em>t</em>&sup2; &minus; ${v.dropDist}) / <em>t</em>.`,
           `Substitute: <em>v</em><sub>0</sub> = (&frac12;(9.80)(${v.tTotal})&sup2; &minus; ${v.dropDist}) / ${v.tTotal} = (${(0.5 * G_ACCEL * v.tTotal * v.tTotal).toFixed(2)} &minus; ${v.dropDist}) / ${v.tTotal} = <strong>${ans.toFixed(2)} m/s</strong>.`
@@ -8341,17 +8341,17 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ hDrop: rnd(b.hDrop, 0.20, 2), hRebound: rnd(b.hRebound, 0.20, 2), tContact: rnd(b.tContact, 0.20, 3) }),
     renderPrompt: (v) => `A tennis ball is dropped from rest at an initial elevation of <strong>${v.hDrop} m</strong>, strikes the floor, and rebounds to a height of <strong>${v.hRebound} m</strong>.<br/><strong>a.</strong> What is its velocity as it strikes the floor?<br/><strong>b.</strong> What is its velocity as it leaves the floor?<br/><strong>c.</strong> If contact with the floor lasts <strong>${v.tContact} s</strong>, find the average acceleration during the bounce.`,
     parts: [
-      { label: "a. Impact velocity (<em>v</em><sub>1</sub>)", unit: "m/s", solve: (v) => -Math.sqrt(2 * G_ACCEL * v.hDrop), steps: (v, ans) => guidedSteps(
+      { label: "a. Impact velocity (v<sub>1</sub>)", unit: "m/s", solve: (v) => -Math.sqrt(2 * G_ACCEL * v.hDrop), steps: (v, ans) => guidedSteps(
           `Choose up as positive. The ball starts from rest at height ${v.hDrop} m and falls freely, so <em>v</em><sub>0</sub> = 0 and it falls a distance <em>h</em> = ${v.hDrop} m.`,
           `Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; + 2<em>g</em><em>h</em> (speed) = 2<em>g</em><em>h</em>, so the speed is &radic;(2<em>g</em><em>h</em>) = &radic;(2 &times; 9.80 &times; ${v.hDrop}) = ${Math.abs(ans).toFixed(2)} m/s.`,
           `The ball is moving <em>downward</em>, which is the negative direction: <em>v</em><sub>1</sub> = <strong>${ans.toFixed(2)} m/s</strong>.`
         )},
-      { label: "b. Rebound velocity (<em>v</em><sub>2</sub>)", unit: "m/s", solve: (v) => Math.sqrt(2 * G_ACCEL * v.hRebound), steps: (v, ans) => guidedSteps(
+      { label: "b. Rebound velocity (v<sub>2</sub>)", unit: "m/s", solve: (v) => Math.sqrt(2 * G_ACCEL * v.hRebound), steps: (v, ans) => guidedSteps(
           `Think of the rebound as the reverse of a free fall: the ball leaves the floor with just enough upward speed to rise to ${v.hRebound} m, where its velocity is momentarily zero.`,
           `Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; &minus; 2<em>g</em><em>h</em> with <em>v</em> = 0 at the top, so <em>v</em><sub>2</sub> = &radic;(2<em>g</em><em>h</em><sub>rebound</sub>) = &radic;(2 &times; 9.80 &times; ${v.hRebound}).`,
           `The ball is moving upward (positive): <em>v</em><sub>2</sub> = <strong>+${ans.toFixed(2)} m/s</strong>.`
         )},
-      { label: "c. Floor contact average acceleration (<em>a</em><sub>avg</sub>)", unit: "m/s²", solve: (v) => (Math.sqrt(2 * G_ACCEL * v.hRebound) - (-Math.sqrt(2 * G_ACCEL * v.hDrop))) / v.tContact, steps: (v, ans) => {
+      { label: "c. Floor contact average acceleration (a<sub>avg</sub>)", unit: "m/s²", solve: (v) => (Math.sqrt(2 * G_ACCEL * v.hRebound) - (-Math.sqrt(2 * G_ACCEL * v.hDrop))) / v.tContact, steps: (v, ans) => {
           const v1 = -Math.sqrt(2 * G_ACCEL * v.hDrop), v2 = Math.sqrt(2 * G_ACCEL * v.hRebound);
           return guidedSteps(
             `Average acceleration is the change in velocity divided by the time: <em>a</em><sub>avg</sub> = (<em>v</em><sub>2</sub> &minus; <em>v</em><sub>1</sub>) / &Delta;<em>t</em>.`,
@@ -8369,7 +8369,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ decel: rnd(b.decel, 0.20, 2), speedKmh: rnd(b.speedKmh, 0.20, 1) }),
     renderPrompt: (v) => `A high-performance vehicle brakes at <strong>${v.decel} m/s&sup2;</strong>. If its initial cruising speed is <strong>${v.speedKmh} km/h</strong>:<br/><strong>a.</strong> How long does it take to stop?<br/><strong>b.</strong> How far does it travel during braking?`,
     parts: [
-      { label: "a. Stopping time (<em>t</em>)", unit: "s", solve: (v) => (v.speedKmh / 3.6) / v.decel, steps: (v, ans) => {
+      { label: "a. Stopping time (t)", unit: "s", solve: (v) => (v.speedKmh / 3.6) / v.decel, steps: (v, ans) => {
           const v0 = v.speedKmh / 3.6;
           return guidedSteps(
             `Convert the speed to m/s first, because the deceleration is in m/s². Divide km/h by 3.6: <em>v</em><sub>0</sub> = ${v.speedKmh} / 3.6 = ${v0.toFixed(2)} m/s.`,
@@ -8377,7 +8377,7 @@ const PHYSICS_QUESTIONS = [
             `Substitute: <em>t</em> = ${v0.toFixed(2)} m/s / ${v.decel} m/s² = <strong>${ans.toFixed(2)} s</strong>.`
           );
         }},
-      { label: "b. Stopping distance (&Delta;<em>x</em>)", unit: "m", solve: (v) => Math.pow(v.speedKmh / 3.6, 2) / (2 * v.decel), steps: (v, ans) => {
+      { label: "b. Stopping distance (&Delta;x)", unit: "m", solve: (v) => Math.pow(v.speedKmh / 3.6, 2) / (2 * v.decel), steps: (v, ans) => {
           const v0 = v.speedKmh / 3.6;
           return guidedSteps(
             `Use the speed in m/s: <em>v</em><sub>0</sub> = ${v.speedKmh} km/h &divide; 3.6 = ${v0.toFixed(2)} m/s. Known: <em>a</em> = ${v.decel} m/s² (slowing) and the final speed is 0.`,
@@ -8394,12 +8394,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ aFlea: Math.round(rnd(b.aFlea, 0.20, 0)), hMm: rnd(b.hMm, 0.20, 1) }),
     renderPrompt: (v) => `A flea generates an explosive leg acceleration of <strong>${v.aFlea} m/s&sup2;</strong> during takeoff, allowing it to jump vertically to an apex of <strong>${v.hMm} mm</strong>.<br/><strong>a.</strong> What is the flea’s speed when leaving the ground?<br/><strong>b.</strong> How long did the takeoff acceleration phase last?`,
     parts: [
-      { label: "a. Takeoff speed (<em>v</em><sub>takeoff</sub>)", unit: "m/s", solve: (v) => Math.sqrt(2 * G_ACCEL * (v.hMm / 1000)), steps: (v, ans) => guidedSteps(
+      { label: "a. Takeoff speed (v<sub>takeoff</sub>)", unit: "m/s", solve: (v) => Math.sqrt(2 * G_ACCEL * (v.hMm / 1000)), steps: (v, ans) => guidedSteps(
           `After the flea leaves the ground, only gravity acts on it. At the top of the jump its velocity is zero, and the height is ${v.hMm} mm. Convert to meters first: <em>h</em> = ${v.hMm} mm &divide; 1000 = ${(v.hMm / 1000).toFixed(4)} m.`,
           `Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; &minus; 2<em>g</em><em>h</em> with <em>v</em> = 0 at the top, so the takeoff speed is <em>v</em><sub>takeoff</sub> = &radic;(2<em>g</em><em>h</em>).`,
           `Substitute: <em>v</em><sub>takeoff</sub> = &radic;(2 &times; 9.80 &times; ${(v.hMm / 1000).toFixed(4)}) = <strong>${ans.toFixed(3)} m/s</strong>.`
         )},
-      { label: "b. Takeoff acceleration duration (<em>t</em>)", unit: "s", solve: (v) => Math.sqrt(2 * G_ACCEL * (v.hMm / 1000)) / v.aFlea, steps: (v, ans) => {
+      { label: "b. Takeoff acceleration duration (t)", unit: "s", solve: (v) => Math.sqrt(2 * G_ACCEL * (v.hMm / 1000)) / v.aFlea, steps: (v, ans) => {
           const vt = Math.sqrt(2 * G_ACCEL * (v.hMm / 1000));
           return guidedSteps(
             `During takeoff the flea speeds up from rest (0) to the takeoff speed from part a, <em>v</em><sub>takeoff</sub> = ${vt.toFixed(3)} m/s, with the constant acceleration <em>a</em> = ${v.aFlea} m/s².`,
@@ -8416,12 +8416,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ vDescend: rnd(b.vDescend, 0.20, 2), hStart: Math.round(rnd(b.hStart, 0.20, 0)) }),
     renderPrompt: (v) => `A helicopter is descending vertically at a constant speed of <strong>${v.vDescend} m/s</strong>. When it is <strong>${v.hStart} m</strong> above ground level, a crate is released.<br/><strong>a.</strong> How long does it take for the crate to reach the ground?<br/><strong>b.</strong> What is the crate’s velocity immediately before touchdown?`,
     parts: [
-      { label: "a. Fall time (<em>t</em>)", unit: "s", solve: (v) => (-v.vDescend + Math.sqrt(v.vDescend * v.vDescend + 2 * G_ACCEL * v.hStart)) / G_ACCEL, steps: (v, ans) => guidedSteps(
+      { label: "a. Fall time (t)", unit: "s", solve: (v) => (-v.vDescend + Math.sqrt(v.vDescend * v.vDescend + 2 * G_ACCEL * v.hStart)) / G_ACCEL, steps: (v, ans) => guidedSteps(
           `Take up as positive. The crate is released <strong>while moving downward with the helicopter</strong>, so its initial velocity is <em>v</em><sub>0</sub> = &minus;${v.vDescend} m/s (not zero). It falls &Delta;<em>y</em> = &minus;${v.hStart} m with acceleration &minus;<em>g</em>.`,
           `Use &Delta;<em>y</em> = <em>v</em><sub>0</sub><em>t</em> &minus; &frac12;<em>g</em><em>t</em>&sup2;: &minus;${v.hStart} = &minus;${v.vDescend}<em>t</em> &minus; 4.90<em>t</em>&sup2;. Rearranged: 4.90<em>t</em>&sup2; + ${v.vDescend}<em>t</em> &minus; ${v.hStart} = 0.`,
           `Solve with the quadratic formula and keep the positive root: <em>t</em> = [&minus;${v.vDescend} + &radic;(${v.vDescend}&sup2; + 4(4.90)(${v.hStart}))] / (2 &times; 4.90) = <strong>${ans.toFixed(2)} s</strong>.`
         )},
-      { label: "b. Landing velocity (<em>v</em>)", unit: "m/s", solve: (v) => -Math.sqrt(v.vDescend * v.vDescend + 2 * G_ACCEL * v.hStart), steps: (v, ans) => guidedSteps(
+      { label: "b. Landing velocity (v)", unit: "m/s", solve: (v) => -Math.sqrt(v.vDescend * v.vDescend + 2 * G_ACCEL * v.hStart), steps: (v, ans) => guidedSteps(
           `Known: initial velocity <em>v</em><sub>0</sub> = &minus;${v.vDescend} m/s (downward), fall height ${v.hStart} m, and acceleration &minus;<em>g</em>. Unknown: the velocity just before the crate hits the ground.`,
           `Use the equation without time: <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; + 2<em>g</em><em>h</em>, where <em>h</em> = ${v.hStart} m is the distance fallen.`,
           `Substitute: <em>v</em>&sup2; = (${v.vDescend})&sup2; + 2(9.80)(${v.hStart}) = ${(v.vDescend * v.vDescend + 2 * G_ACCEL * v.hStart).toFixed(2)} m²/s², so the speed is ${Math.abs(ans).toFixed(2)} m/s.`,
@@ -8436,7 +8436,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ tTotal: rnd(b.tTotal, 0.20, 2) }),
     renderPrompt: (v) => `A stone is dropped from rest off an ocean cliff. The audible splash from striking the water is heard <strong>${v.tTotal} seconds</strong> later. Given that the speed of sound in air is <strong>343 m/s</strong>, determine the height of the cliff.`,
     parts: [
-      { label: "Cliff height (<em>h</em>)", unit: "m", solve: (v) => { const A = 1 / (343 * 343); const B = -((2 * v.tTotal / 343) + (2 / G_ACCEL)); const C = v.tTotal * v.tTotal; return (-B - Math.sqrt(B * B - 4 * A * C)) / (2 * A); }, steps: (v, ans) => {
+      { label: "Cliff height (h)", unit: "m", solve: (v) => { const A = 1 / (343 * 343); const B = -((2 * v.tTotal / 343) + (2 / G_ACCEL)); const C = v.tTotal * v.tTotal; return (-B - Math.sqrt(B * B - 4 * A * C)) / (2 * A); }, steps: (v, ans) => {
           const A = 1 / (343 * 343), B = -((2 * v.tTotal / 343) + (2 / G_ACCEL)), C = v.tTotal * v.tTotal;
           const tFall = Math.sqrt(2 * ans / G_ACCEL), tSound = ans / 343;
           return guidedSteps(
@@ -8455,12 +8455,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ hMax: rnd(b.hMax, 0.20, 2) }),
     renderPrompt: (v) => `A red kangaroo leaps vertically upward to a maximum clearance height of <strong>${v.hMax} m</strong>.<br/><strong>a.</strong> How long was the kangaroo in the air before landing back down?<br/><strong>b.</strong> What was its takeoff speed?`,
     parts: [
-      { label: "a. Total airborne time (<em>t</em><sub>total</sub>)", unit: "s", solve: (v) => 2 * Math.sqrt((2 * v.hMax) / G_ACCEL), steps: (v, ans) => guidedSteps(
+      { label: "a. Total airborne time (t<sub>total</sub>)", unit: "s", solve: (v) => 2 * Math.sqrt((2 * v.hMax) / G_ACCEL), steps: (v, ans) => guidedSteps(
           `Only gravity acts once the kangaroo leaves the ground. Known: maximum clearance <em>h</em><sub>max</sub> = ${v.hMax} m. Unknown: the total time in the air. By symmetry, the time up equals the time down.`,
           `Find the fall time from the top: <em>h</em><sub>max</sub> = &frac12;<em>g</em><em>t</em>&sup2;, so <em>t</em><sub>fall</sub> = &radic;(2<em>h</em><sub>max</sub> / <em>g</em>) = &radic;(2 &times; ${v.hMax} / 9.80) = ${Math.sqrt(2 * v.hMax / G_ACCEL).toFixed(3)} s.`,
           `Double it for the trip up and the trip down: <em>t</em><sub>total</sub> = 2 &times; ${Math.sqrt(2 * v.hMax / G_ACCEL).toFixed(3)} s = <strong>${ans.toFixed(2)} s</strong>.`
         )},
-      { label: "b. Takeoff speed (<em>v</em><sub>0</sub>)", unit: "m/s", solve: (v) => Math.sqrt(2 * G_ACCEL * v.hMax), steps: (v, ans) => guidedSteps(
+      { label: "b. Takeoff speed (v<sub>0</sub>)", unit: "m/s", solve: (v) => Math.sqrt(2 * G_ACCEL * v.hMax), steps: (v, ans) => guidedSteps(
           `At the top of the leap the vertical velocity is zero. Known: <em>h</em><sub>max</sub> = ${v.hMax} m, <em>v</em> = 0 at the top, and <em>a</em> = &minus;<em>g</em>. Unknown: the takeoff speed <em>v</em><sub>0</sub>.`,
           `Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; &minus; 2<em>g</em><em>h</em><sub>max</sub> with <em>v</em> = 0, so <em>v</em><sub>0</sub> = &radic;(2<em>g</em><em>h</em><sub>max</sub>).`,
           `Substitute: <em>v</em><sub>0</sub> = &radic;(2 &times; 9.80 &times; ${v.hMax}) = <strong>${ans.toFixed(2)} m/s</strong>.`
@@ -8474,12 +8474,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ accel: rnd(b.accel, 0.20, 2), timeSec: rnd(b.timeSec, 0.20, 2) }),
     renderPrompt: (v) => `A vehicle accelerates from rest with a constant acceleration of <strong>${v.accel} m/s&sup2;</strong> for <strong>${v.timeSec} seconds</strong>.<br/><strong>a.</strong> What distance does it cover during this period?<br/><strong>b.</strong> What is its final velocity?`,
     parts: [
-      { label: "a. Distance covered (&Delta;<em>x</em>)", unit: "m", solve: (v) => 0.5 * v.accel * v.timeSec * v.timeSec, steps: (v, ans) => guidedSteps(
+      { label: "a. Distance covered (&Delta;x)", unit: "m", solve: (v) => 0.5 * v.accel * v.timeSec * v.timeSec, steps: (v, ans) => guidedSteps(
           `Known: starts from rest (<em>v</em><sub>0</sub> = 0), <em>a</em> = ${v.accel} m/s², <em>t</em> = ${v.timeSec} s. Unknown: the distance &Delta;<em>x</em>.`,
           `Use &Delta;<em>x</em> = <em>v</em><sub>0</sub><em>t</em> + &frac12;<em>a</em><em>t</em>&sup2;. Since <em>v</em><sub>0</sub> = 0, this reduces to &Delta;<em>x</em> = &frac12;<em>a</em><em>t</em>&sup2;.`,
           `Substitute: &Delta;<em>x</em> = &frac12;(${v.accel} m/s²)(${v.timeSec} s)&sup2; = <strong>${ans.toFixed(2)} m</strong>.`
         )},
-      { label: "b. Final velocity (<em>v</em>)", unit: "m/s", solve: (v) => v.accel * v.timeSec, steps: (v, ans) => guidedSteps(
+      { label: "b. Final velocity (v)", unit: "m/s", solve: (v) => v.accel * v.timeSec, steps: (v, ans) => guidedSteps(
           `Known: starts from rest, <em>a</em> = ${v.accel} m/s², <em>t</em> = ${v.timeSec} s. Unknown: the final velocity <em>v</em>.`,
           `Use <em>v</em> = <em>v</em><sub>0</sub> + <em>a</em><em>t</em>. With <em>v</em><sub>0</sub> = 0, <em>v</em> = <em>a</em><em>t</em>.`,
           `Substitute: <em>v</em> = (${v.accel} m/s²)(${v.timeSec} s) = <strong>${ans.toFixed(2)} m/s</strong>.`
@@ -8493,12 +8493,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ timeSec: rnd(b.timeSec, 0.20, 2) }),
     renderPrompt: (v) => `A steel sphere is dropped from rest from the observation deck of a skyscraper and strikes the ground <strong>${v.timeSec} s</strong> later.<br/><strong>a.</strong> How tall is the observation deck?<br/><strong>b.</strong> With what speed does the sphere hit the pavement?`,
     parts: [
-      { label: "a. Deck height (<em>y</em>)", unit: "m", solve: (v) => 0.5 * G_ACCEL * v.timeSec * v.timeSec, steps: (v, ans) => guidedSteps(
+      { label: "a. Deck height (y)", unit: "m", solve: (v) => 0.5 * G_ACCEL * v.timeSec * v.timeSec, steps: (v, ans) => guidedSteps(
           `Take down as positive. The sphere is <em>dropped</em>, so <em>v</em><sub>0</sub> = 0, <em>a</em> = <em>g</em> = 9.80 m/s², and it falls for <em>t</em> = ${v.timeSec} s. The distance fallen equals the deck height.`,
           `Use <em>y</em> = <em>v</em><sub>0</sub><em>t</em> + &frac12;<em>g</em><em>t</em>&sup2;, which reduces to <em>y</em> = &frac12;<em>g</em><em>t</em>&sup2;.`,
           `Substitute: <em>y</em> = &frac12;(9.80)(${v.timeSec})&sup2; = <strong>${ans.toFixed(2)} m</strong>.`
         )},
-      { label: "b. Impact speed (<em>v</em>)", unit: "m/s", solve: (v) => G_ACCEL * v.timeSec, steps: (v, ans) => guidedSteps(
+      { label: "b. Impact speed (v)", unit: "m/s", solve: (v) => G_ACCEL * v.timeSec, steps: (v, ans) => guidedSteps(
           `Same motion as part a: dropped from rest, <em>a</em> = <em>g</em>, <em>t</em> = ${v.timeSec} s. Unknown: the speed at impact.`,
           `Use <em>v</em> = <em>v</em><sub>0</sub> + <em>g</em><em>t</em>, with <em>v</em><sub>0</sub> = 0, so <em>v</em> = <em>g</em><em>t</em>.`,
           `Substitute: <em>v</em> = (9.80 m/s²)(${v.timeSec} s) = <strong>${ans.toFixed(2)} m/s</strong>.`,
@@ -8513,7 +8513,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ vInit: rnd(b.vInit, 0.20, 1), decel: rnd(b.decel, 0.20, 2) }),
     renderPrompt: (v) => `A commuter train cruising at an initial speed of <strong>${v.vInit} m/s</strong> applies service brakes, producing a constant deceleration of <strong>${v.decel} m/s&sup2;</strong>. How far does the train travel before coming to a stop?`,
     parts: [
-      { label: "Stopping distance (&Delta;<em>x</em>)", unit: "m", solve: (v) => (v.vInit * v.vInit) / (2 * v.decel), steps: (v, ans) => guidedSteps(
+      { label: "Stopping distance (&Delta;x)", unit: "m", solve: (v) => (v.vInit * v.vInit) / (2 * v.decel), steps: (v, ans) => guidedSteps(
           `Known: initial speed <em>v</em><sub>0</sub> = ${v.vInit} m/s, final speed <em>v</em> = 0 (stops), and a deceleration of ${v.decel} m/s², so <em>a</em> = &minus;${v.decel} m/s² if forward is positive. No time is given.`,
           `Use the equation without time: <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; + 2<em>a</em>&Delta;<em>x</em>. With <em>v</em> = 0, &Delta;<em>x</em> = &minus;<em>v</em><sub>0</sub>&sup2; / (2<em>a</em>) = <em>v</em><sub>0</sub>&sup2; / (2 &times; ${v.decel}).`,
           `Substitute: &Delta;<em>x</em> = (${v.vInit} m/s)&sup2; / (2 &times; ${v.decel} m/s²) = <strong>${ans.toFixed(1)} m</strong>.`
@@ -8527,12 +8527,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 1), hCliff: rnd(b.hCliff, 0.20, 1) }),
     renderPrompt: (v) => `A stone is thrown vertically upward with an initial velocity of <strong>${v.v0} m/s</strong> from the edge of a sheer cliff <strong>${v.hCliff} m</strong> high.<br/><strong>a.</strong> What is the maximum height reached by the stone above the base of the cliff?<br/><strong>b.</strong> How long does it take for the stone to hit the canyon floor below?`,
     parts: [
-      { label: "a. Max height above cliff base (<em>H</em><sub>max</sub>)", unit: "m", solve: (v) => v.hCliff + (v.v0 * v.v0) / (2 * G_ACCEL), steps: (v, ans) => guidedSteps(
+      { label: "a. Max height above cliff base (H<sub>max</sub>)", unit: "m", solve: (v) => v.hCliff + (v.v0 * v.v0) / (2 * G_ACCEL), steps: (v, ans) => guidedSteps(
           `The stone rises until its velocity is zero. Known: <em>v</em><sub>0</sub> = ${v.v0} m/s upward, <em>a</em> = &minus;<em>g</em>. First find how far it rises above the cliff edge.`,
           `Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; &minus; 2<em>g</em>&Delta;<em>y</em> with <em>v</em> = 0: &Delta;<em>y</em> = <em>v</em><sub>0</sub>&sup2; / (2<em>g</em>) = (${v.v0})&sup2; / 19.6 = ${((v.v0 * v.v0) / (2 * G_ACCEL)).toFixed(2)} m.`,
           `The question asks for height above the <em>base</em> of the cliff, so add the cliff height: <em>H</em><sub>max</sub> = ${v.hCliff} m + ${((v.v0 * v.v0) / (2 * G_ACCEL)).toFixed(2)} m = <strong>${ans.toFixed(2)} m</strong>.`
         )},
-      { label: "b. Total flight time (<em>t</em>)", unit: "s", solve: (v) => (v.v0 + Math.sqrt(v.v0 * v.v0 + 2 * G_ACCEL * v.hCliff)) / G_ACCEL, steps: (v, ans) => guidedSteps(
+      { label: "b. Total flight time (t)", unit: "s", solve: (v) => (v.v0 + Math.sqrt(v.v0 * v.v0 + 2 * G_ACCEL * v.hCliff)) / G_ACCEL, steps: (v, ans) => guidedSteps(
           `Take up as positive with the origin at the cliff edge. The stone ends ${v.hCliff} m <em>below</em> the start, so &Delta;<em>y</em> = &minus;${v.hCliff} m, with <em>v</em><sub>0</sub> = +${v.v0} m/s and <em>a</em> = &minus;9.80 m/s².`,
           `Use &Delta;<em>y</em> = <em>v</em><sub>0</sub><em>t</em> &minus; &frac12;<em>g</em><em>t</em>&sup2;: &minus;${v.hCliff} = ${v.v0}<em>t</em> &minus; 4.90<em>t</em>&sup2;, or 4.90<em>t</em>&sup2; &minus; ${v.v0}<em>t</em> &minus; ${v.hCliff} = 0.`,
           `Quadratic formula, keeping the positive root: <em>t</em> = [${v.v0} + &radic;(${v.v0}&sup2; + 4(4.90)(${v.hCliff}))] / (2 &times; 4.90) = <strong>${ans.toFixed(2)} s</strong>.`,
@@ -8549,17 +8549,17 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 1), tFall: rnd(b.tFall, 0.20, 2) }),
     renderPrompt: (v) => `Paula throws a rock horizontally with a speed of <strong>${v.v0} m/s</strong> from a bridge, and it falls for <strong>${v.tFall} seconds</strong> before reaching the water below.<br/><strong>a.</strong> How high is the bridge from the water below?<br/><strong>b.</strong> How far horizontally does the rock travel before striking the water?<br/><strong>c.</strong> What is the rock’s speed as it reaches the water?<br/><strong>d.</strong> What is the rock’s direction just before hitting the water?`,
     parts: [
-      { label: "a. Bridge height (<em>h</em>)", unit: "m", solve: (v) => 0.5 * G_ACCEL * v.tFall * v.tFall, steps: (v, ans) => guidedSteps(
+      { label: "a. Bridge height (h)", unit: "m", solve: (v) => 0.5 * G_ACCEL * v.tFall * v.tFall, steps: (v, ans) => guidedSteps(
           `Split the motion into horizontal and vertical parts. The rock is thrown horizontally, so its initial <em>vertical</em> velocity is zero. Known: <em>t</em> = ${v.tFall} s, <em>v</em><sub>0y</sub> = 0, <em>a</em><sub>y</sub> = 9.80 m/s² (down). Unknown: the height <em>h</em>.`,
           `Use the vertical equation <em>h</em> = <em>v</em><sub>0y</sub><em>t</em> + &frac12;<em>g</em><em>t</em>&sup2;, which reduces to <em>h</em> = &frac12;<em>g</em><em>t</em>&sup2;.`,
           `Substitute: <em>h</em> = &frac12;(9.80)(${v.tFall})&sup2; = <strong>${ans.toFixed(2)} m</strong>.`
         )},
-      { label: "b. Horizontal distance (&Delta;<em>x</em>)", unit: "m", solve: (v) => v.v0 * v.tFall, steps: (v, ans) => guidedSteps(
+      { label: "b. Horizontal distance (&Delta;x)", unit: "m", solve: (v) => v.v0 * v.tFall, steps: (v, ans) => guidedSteps(
           `Horizontally there is no acceleration, so the horizontal velocity stays constant at <em>v</em><sub>x</sub> = ${v.v0} m/s. The time in the air (${v.tFall} s) is the same for both directions.`,
           `Use &Delta;<em>x</em> = <em>v</em><sub>x</sub><em>t</em>.`,
           `Substitute: &Delta;<em>x</em> = (${v.v0} m/s)(${v.tFall} s) = <strong>${ans.toFixed(2)} m</strong>.`
         )},
-      { label: "c. Impact speed (<em>v</em>)", unit: "m/s", solve: (v) => Math.sqrt(v.v0 * v.v0 + Math.pow(G_ACCEL * v.tFall, 2)), steps: (v, ans) => guidedSteps(
+      { label: "c. Impact speed (v)", unit: "m/s", solve: (v) => Math.sqrt(v.v0 * v.v0 + Math.pow(G_ACCEL * v.tFall, 2)), steps: (v, ans) => guidedSteps(
           `The speed at the water combines both velocity components. Horizontal: <em>v</em><sub>x</sub> = ${v.v0} m/s (unchanged).`,
           `Vertical: <em>v</em><sub>y</sub> = <em>v</em><sub>0y</sub> &minus; <em>g</em><em>t</em> = 0 &minus; (9.80)(${v.tFall}) = &minus;${(G_ACCEL * v.tFall).toFixed(2)} m/s (downward).`,
           `Combine with the Pythagorean theorem: <em>v</em> = &radic;(<em>v</em><sub>x</sub>&sup2; + <em>v</em><sub>y</sub>&sup2;) = &radic;(${v.v0}&sup2; + ${(G_ACCEL * v.tFall).toFixed(2)}&sup2;) = <strong>${ans.toFixed(2)} m/s</strong>.`
@@ -8578,7 +8578,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 2), tFall: rnd(b.tFall, 0.20, 2) }),
     renderPrompt: (v) => `A marble rolls off the edge of a tabletop with a horizontal speed of <strong>${v.v0} m/s</strong>. What is its speed <strong>${v.tFall} s</strong> later?`,
     parts: [
-      { label: "Speed after elapsed time (<em>v</em>)", unit: "m/s", solve: (v) => Math.sqrt(v.v0 * v.v0 + Math.pow(G_ACCEL * v.tFall, 2)), steps: (v, ans) => guidedSteps(
+      { label: "Speed after elapsed time (v)", unit: "m/s", solve: (v) => Math.sqrt(v.v0 * v.v0 + Math.pow(G_ACCEL * v.tFall, 2)), steps: (v, ans) => guidedSteps(
           `The marble leaves the table moving only horizontally, so its horizontal velocity stays <em>v</em><sub>x</sub> = ${v.v0} m/s, while gravity builds up a downward vertical velocity.`,
           `After ${v.tFall} s the vertical velocity is <em>v</em><sub>y</sub> = <em>g</em><em>t</em> = (9.80)(${v.tFall}) = ${(G_ACCEL * v.tFall).toFixed(2)} m/s downward.`,
           `The speed is the magnitude of the combined velocity: <em>v</em> = &radic;(<em>v</em><sub>x</sub>&sup2; + <em>v</em><sub>y</sub>&sup2;) = &radic;(${v.v0}&sup2; + ${(G_ACCEL * v.tFall).toFixed(2)}&sup2;) = <strong>${ans.toFixed(2)} m/s</strong>.`
@@ -8592,7 +8592,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ theta: rnd(b.theta, 0.18, 1), y0Cm: rnd(b.y0Cm, 0.18, 1), v0: rnd(b.v0, 0.18, 1) }),
     renderPrompt: (v) => `A baseball player hits a home run which leaves the bat at an angle of <strong>${v.theta}&deg;</strong> above the horizontal, a height of <strong>${v.y0Cm} cm</strong> above the ground, and an initial launch speed of <strong>${v.v0} m/s</strong>.<br/><strong>a.</strong> How high above the ground was the ball at its highest point?<br/><strong>b.</strong> How far did the ball land from where it was hit (horizontal distance along ground)?`,
     parts: [
-      { label: "a. Maximum height above ground (<em>H</em><sub>max</sub>)", unit: "m", solve: (v) => (v.y0Cm / 100) + Math.pow(v.v0 * Math.sin(v.theta * DEG2RAD), 2) / (2 * G_ACCEL), steps: (v, ans) => {
+      { label: "a. Maximum height above ground (H<sub>max</sub>)", unit: "m", solve: (v) => (v.y0Cm / 100) + Math.pow(v.v0 * Math.sin(v.theta * DEG2RAD), 2) / (2 * G_ACCEL), steps: (v, ans) => {
           const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD);
           const rise = vy0 * vy0 / (2 * G_ACCEL);
           return guidedSteps(
@@ -8601,7 +8601,7 @@ const PHYSICS_QUESTIONS = [
             `The ball started ${(v.y0Cm / 100).toFixed(2)} m above the ground (${v.y0Cm} cm), so <em>H</em><sub>max</sub> = ${(v.y0Cm / 100).toFixed(2)} m + ${rise.toFixed(2)} m = <strong>${ans.toFixed(2)} m</strong>.`
           );
         }},
-      { label: "b. Horizontal distance landed (&Delta;<em>x</em>)", unit: "m", solve: (v) => { const rad = v.theta * DEG2RAD; const vx = v.v0 * Math.cos(rad); const vy0 = v.v0 * Math.sin(rad); const y0 = v.y0Cm / 100; const tFlight = (vy0 + Math.sqrt(vy0 * vy0 + 2 * G_ACCEL * y0)) / G_ACCEL; return vx * tFlight; }, steps: (v, ans) => {
+      { label: "b. Horizontal distance landed (&Delta;x)", unit: "m", solve: (v) => { const rad = v.theta * DEG2RAD; const vx = v.v0 * Math.cos(rad); const vy0 = v.v0 * Math.sin(rad); const y0 = v.y0Cm / 100; const tFlight = (vy0 + Math.sqrt(vy0 * vy0 + 2 * G_ACCEL * y0)) / G_ACCEL; return vx * tFlight; }, steps: (v, ans) => {
           const rad = v.theta * DEG2RAD;
           const vx = v.v0 * Math.cos(rad), vy0 = v.v0 * Math.sin(rad), y0 = v.y0Cm / 100;
           const tf = (vy0 + Math.sqrt(vy0 * vy0 + 2 * G_ACCEL * y0)) / G_ACCEL;
@@ -8625,7 +8625,7 @@ const PHYSICS_QUESTIONS = [
     },
     renderPrompt: (v) => `A rock is thrown horizontally off of a cliff with a speed of <strong>${v.v0} m/s</strong>. How long would it take for the rock’s speed to <strong>${v.multWord}</strong>?`,
     parts: [
-      { label: "Time for speed to multiply (<em>t</em>)", unit: "s", solve: (v) => (v.v0 * Math.sqrt(v.multFactor * v.multFactor - 1)) / G_ACCEL, steps: (v, ans) => guidedSteps(
+      { label: "Time for speed to multiply (t)", unit: "s", solve: (v) => (v.v0 * Math.sqrt(v.multFactor * v.multFactor - 1)) / G_ACCEL, steps: (v, ans) => guidedSteps(
           `The horizontal velocity stays <em>v</em><sub>0</sub> = ${v.v0} m/s. The vertical velocity grows as <em>v</em><sub>y</sub> = <em>g</em><em>t</em>. The speed is <em>v</em> = &radic;(<em>v</em><sub>0</sub>&sup2; + (<em>g</em><em>t</em>)&sup2;).`,
           `We want the speed to ${v.multWord}, so <em>v</em> = ${v.multFactor}<em>v</em><sub>0</sub>. Square both sides: <em>v</em><sub>0</sub>&sup2; + (<em>g</em><em>t</em>)&sup2; = ${v.multFactor * v.multFactor}<em>v</em><sub>0</sub>&sup2;, so (<em>g</em><em>t</em>)&sup2; = ${v.multFactor * v.multFactor - 1}<em>v</em><sub>0</sub>&sup2;.`,
           `Take the square root and solve for time: <em>t</em> = <em>v</em><sub>0</sub>&radic;${v.multFactor * v.multFactor - 1} / <em>g</em> = (${v.v0})(${Math.sqrt(v.multFactor * v.multFactor - 1).toFixed(3)}) / 9.80 = <strong>${ans.toFixed(2)} s</strong>.`
@@ -8645,7 +8645,7 @@ const PHYSICS_QUESTIONS = [
     },
     renderPrompt: (v) => `A cannonball is fired from ground level with a velocity of <strong>${v.v0} m/s</strong> at an angle of <strong>${v.theta}&deg;</strong> above the horizontal, and it hits its target as it descends at an elevation of <strong>${v.hTarget} meters</strong> higher than the ground below.<br/><strong>a.</strong> How long does it take the cannonball to hit its target?<br/><strong>b.</strong> What is the cannonball’s speed when it hits its target?<br/><strong>c.</strong> What is the direction of the cannonball’s velocity when it hits its target?`,
     parts: [
-      { label: "a. Flight time to target (<em>t</em>)", unit: "s", solve: (v) => { const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD); return (vy0 + Math.sqrt(vy0 * vy0 - 2 * G_ACCEL * v.hTarget)) / G_ACCEL; }, steps: (v, ans) => {
+      { label: "a. Flight time to target (t)", unit: "s", solve: (v) => { const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD); return (vy0 + Math.sqrt(vy0 * vy0 - 2 * G_ACCEL * v.hTarget)) / G_ACCEL; }, steps: (v, ans) => {
           const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD);
           const disc = vy0 * vy0 - 2 * G_ACCEL * v.hTarget;
           const tUp = (vy0 - Math.sqrt(disc)) / G_ACCEL;
@@ -8656,7 +8656,7 @@ const PHYSICS_QUESTIONS = [
             `<em>t</em> = [${vy0.toFixed(2)} + &radic;(${vy0.toFixed(2)}&sup2; &minus; 4(4.90)(${v.hTarget}))] / (2 &times; 4.90) = <strong>${ans.toFixed(2)} s</strong>.`
           );
         }},
-      { label: "b. Impact speed (<em>v</em>)", unit: "m/s", solve: (v) => Math.sqrt(v.v0 * v.v0 - 2 * G_ACCEL * v.hTarget), steps: (v, ans) => guidedSteps(
+      { label: "b. Impact speed (v)", unit: "m/s", solve: (v) => Math.sqrt(v.v0 * v.v0 - 2 * G_ACCEL * v.hTarget), steps: (v, ans) => guidedSteps(
           `The speed at a given height depends only on the height change, since gravity does the same work whatever path is taken. Known: launch speed ${v.v0} m/s, target ${v.hTarget} m higher.`,
           `Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; &minus; 2<em>g</em>&Delta;<em>y</em> for the total speed (this works for the combined motion because the horizontal part does not change).`,
           `Substitute: <em>v</em> = &radic;(${v.v0}&sup2; &minus; 2 &times; 9.80 &times; ${v.hTarget}) = &radic;(${(v.v0 * v.v0 - 2 * G_ACCEL * v.hTarget).toFixed(1)}) = <strong>${ans.toFixed(2)} m/s</strong>.`
@@ -8680,7 +8680,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 2), distX: rnd(b.distX, 0.20, 2) }),
     renderPrompt: (v) => `A ball rolls off the edge of a table with a horizontal speed of <strong>${v.v0} m/s</strong>, and the ball lands <strong>${v.distX} meters</strong> from the bottom base of the table. How tall is the table?`,
     parts: [
-      { label: "Table height (<em>h</em>)", unit: "m", solve: (v) => 0.5 * G_ACCEL * Math.pow(v.distX / v.v0, 2), steps: (v, ans) => guidedSteps(
+      { label: "Table height (h)", unit: "m", solve: (v) => 0.5 * G_ACCEL * Math.pow(v.distX / v.v0, 2), steps: (v, ans) => guidedSteps(
           `The ball leaves the table horizontally, so it has no initial vertical velocity. Horizontally it moves at constant speed <em>v</em><sub>0</sub> = ${v.v0} m/s for ${v.distX} m, which sets the time in the air.`,
           `<em>t</em> = &Delta;<em>x</em> / <em>v</em><sub>0</sub> = ${v.distX} / ${v.v0} = ${(v.distX / v.v0).toFixed(3)} s.`,
           `That is also the time to fall the table height: <em>h</em> = &frac12;<em>g</em><em>t</em>&sup2; = &frac12;(9.80)(${(v.distX / v.v0).toFixed(3)})&sup2; = <strong>${ans.toFixed(2)} m</strong>.`
@@ -8694,7 +8694,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ hDrop: rnd(b.hDrop, 0.20, 2), distX: rnd(b.distX, 0.20, 2) }),
     renderPrompt: (v) => `A pelican flying along a horizontal path drops a fish from a height of <strong>${v.hDrop} meters</strong>. The fish travels <strong>${v.distX} meters</strong> horizontally before it hits the water below. What is the pelican’s speed?`,
     parts: [
-      { label: "Pelican speed (<em>v</em><sub>0</sub>)", unit: "m/s", solve: (v) => v.distX / Math.sqrt((2 * v.hDrop) / G_ACCEL), steps: (v, ans) => {
+      { label: "Pelican speed (v<sub>0</sub>)", unit: "m/s", solve: (v) => v.distX / Math.sqrt((2 * v.hDrop) / G_ACCEL), steps: (v, ans) => {
           const t = Math.sqrt((2 * v.hDrop) / G_ACCEL);
           return guidedSteps(
             `When the fish is released it shares the pelican's horizontal speed and has no vertical velocity. The fish's horizontal speed therefore equals the pelican's speed <em>v</em><sub>0</sub>. Known: drop height ${v.hDrop} m and horizontal distance ${v.distX} m.`,
@@ -8717,7 +8717,7 @@ const PHYSICS_QUESTIONS = [
     },
     renderPrompt: (v) => `A soccer ball is kicked from ground level with an initial speed of <strong>${v.v0} m/s</strong> at an angle of <strong>${v.theta}&deg;</strong> above the ground.<br/><strong>a.</strong> How high is the soccer ball at its highest point?<br/><strong>b.</strong> For how long is the soccer ball in the air?<br/><strong>c.</strong> What is the soccer ball’s horizontal range?<br/><strong>d.</strong> What is the soccer ball’s speed after <strong>${v.tCheck} seconds</strong>?`,
     parts: [
-      { label: "a. Maximum apex height (<em>h</em><sub>max</sub>)", unit: "m", solve: (v) => Math.pow(v.v0 * Math.sin(v.theta * DEG2RAD), 2) / (2 * G_ACCEL), steps: (v, ans) => {
+      { label: "a. Maximum apex height (h<sub>max</sub>)", unit: "m", solve: (v) => Math.pow(v.v0 * Math.sin(v.theta * DEG2RAD), 2) / (2 * G_ACCEL), steps: (v, ans) => {
           const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD);
           return guidedSteps(
             `Break the launch velocity into components. Vertical: <em>v</em><sub>0y</sub> = <em>v</em><sub>0</sub> sin &theta; = ${v.v0} sin(${v.theta}&deg;) = ${vy0.toFixed(2)} m/s.`,
@@ -8725,7 +8725,7 @@ const PHYSICS_QUESTIONS = [
             `Substitute: <em>h</em><sub>max</sub> = (${vy0.toFixed(2)})&sup2; / (2 &times; 9.80) = <strong>${ans.toFixed(2)} m</strong>.`
           );
         }},
-      { label: "b. Total airborne time (<em>t</em><sub>flight</sub>)", unit: "s", solve: (v) => (2 * v.v0 * Math.sin(v.theta * DEG2RAD)) / G_ACCEL, steps: (v, ans) => {
+      { label: "b. Total airborne time (t<sub>flight</sub>)", unit: "s", solve: (v) => (2 * v.v0 * Math.sin(v.theta * DEG2RAD)) / G_ACCEL, steps: (v, ans) => {
           const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD);
           return guidedSteps(
             `The ball starts and ends at ground level, so the net vertical displacement is zero. First, <em>v</em><sub>0y</sub> = ${v.v0} sin(${v.theta}&deg;) = ${vy0.toFixed(2)} m/s.`,
@@ -8733,7 +8733,7 @@ const PHYSICS_QUESTIONS = [
             `Substitute: <em>t</em> = 2(${vy0.toFixed(2)}) / 9.80 = <strong>${ans.toFixed(2)} s</strong>.`
           );
         }},
-      { label: "c. Horizontal range (<em>R</em>)", unit: "m", solve: (v) => (v.v0 * v.v0 * Math.sin(2 * v.theta * DEG2RAD)) / G_ACCEL, steps: (v, ans) => {
+      { label: "c. Horizontal range (R)", unit: "m", solve: (v) => (v.v0 * v.v0 * Math.sin(2 * v.theta * DEG2RAD)) / G_ACCEL, steps: (v, ans) => {
           const vx = v.v0 * Math.cos(v.theta * DEG2RAD);
           const tf = (2 * v.v0 * Math.sin(v.theta * DEG2RAD)) / G_ACCEL;
           return guidedSteps(
@@ -8742,7 +8742,7 @@ const PHYSICS_QUESTIONS = [
             `Substitute: <em>R</em> = (${vx.toFixed(2)})(${tf.toFixed(2)}) = <strong>${ans.toFixed(2)} m</strong>. (Equivalently, <em>R</em> = <em>v</em><sub>0</sub>&sup2; sin 2&theta; / <em>g</em>.)`
           );
         }},
-      { label: "d. Speed at specified time (<em>v</em>)", unit: "m/s", solve: (v) => { const rad = v.theta * DEG2RAD; const vx = v.v0 * Math.cos(rad); const vy = v.v0 * Math.sin(rad) - G_ACCEL * v.tCheck; return Math.sqrt(vx * vx + vy * vy); }, steps: (v, ans) => {
+      { label: "d. Speed at specified time (v)", unit: "m/s", solve: (v) => { const rad = v.theta * DEG2RAD; const vx = v.v0 * Math.cos(rad); const vy = v.v0 * Math.sin(rad) - G_ACCEL * v.tCheck; return Math.sqrt(vx * vx + vy * vy); }, steps: (v, ans) => {
           const rad = v.theta * DEG2RAD;
           const vx = v.v0 * Math.cos(rad), vy = v.v0 * Math.sin(rad) - G_ACCEL * v.tCheck;
           return guidedSteps(
@@ -8760,12 +8760,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ v0: rnd(b.v0, 0.20, 2), hCm: Math.round(rnd(b.hCm, 0.20, 0)) }),
     renderPrompt: (v) => `A marble moving at <strong>${v.v0} m/s</strong> rolls horizontally off the top edge of a <strong>${v.hCm} cm</strong> high table.<br/><strong>a.</strong> How long was the marble in flight?<br/><strong>b.</strong> How far from the base of the table did it strike the floor?`,
     parts: [
-      { label: "a. Flight time (<em>t</em>)", unit: "s", solve: (v) => Math.sqrt((2 * (v.hCm / 100)) / G_ACCEL), steps: (v, ans) => guidedSteps(
+      { label: "a. Flight time (t)", unit: "s", solve: (v) => Math.sqrt((2 * (v.hCm / 100)) / G_ACCEL), steps: (v, ans) => guidedSteps(
           `The marble leaves the table horizontally, so its initial vertical velocity is 0. Convert the height to meters: <em>h</em> = ${v.hCm} cm = ${v.hCm / 100} m.`,
           `Only vertical motion decides the flight time: <em>h</em> = &frac12;<em>g</em><em>t</em>&sup2;, so <em>t</em> = &radic;(2<em>h</em> / <em>g</em>).`,
           `Substitute: <em>t</em> = &radic;(2 &times; ${v.hCm / 100} / 9.80) = <strong>${ans.toFixed(2)} s</strong>.`
         )},
-      { label: "b. Horizontal distance (&Delta;<em>x</em>)", unit: "m", solve: (v) => v.v0 * Math.sqrt((2 * (v.hCm / 100)) / G_ACCEL), steps: (v, ans) => {
+      { label: "b. Horizontal distance (&Delta;x)", unit: "m", solve: (v) => v.v0 * Math.sqrt((2 * (v.hCm / 100)) / G_ACCEL), steps: (v, ans) => {
           const t = Math.sqrt((2 * (v.hCm / 100)) / G_ACCEL);
           return guidedSteps(
             `Horizontally the marble moves at a constant ${v.v0} m/s for the entire flight time found in part a, <em>t</em> = ${t.toFixed(2)} s.`,
@@ -8782,7 +8782,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ hCliff: rnd(b.hCliff, 0.20, 1), distRocks: rnd(b.distRocks, 0.20, 1) }),
     renderPrompt: (v) => `A cliff diver runs horizontally off a cliff with an initial height of <strong>${v.hCliff} meters</strong> and wants to clear rocks below. If the rocks extend <strong>${v.distRocks} meters</strong> past the cliff’s edge, what minimum initial horizontal speed must he have to safely clear the rocks below?`,
     parts: [
-      { label: "Minimum initial speed (<em>v</em><sub>x,min</sub>)", unit: "m/s", solve: (v) => v.distRocks / Math.sqrt((2 * v.hCliff) / G_ACCEL), steps: (v, ans) => {
+      { label: "Minimum initial speed (v<sub>x,min</sub>)", unit: "m/s", solve: (v) => v.distRocks / Math.sqrt((2 * v.hCliff) / G_ACCEL), steps: (v, ans) => {
           const t = Math.sqrt((2 * v.hCliff) / G_ACCEL);
           return guidedSteps(
             `To clear the rocks, the diver must travel at least ${v.distRocks} m horizontally in the time it takes him to fall ${v.hCliff} m. He leaves horizontally, so his initial vertical velocity is 0.`,
@@ -8799,7 +8799,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ v0: Math.round(rnd(b.v0, 0.18, 0)), theta: rnd(b.theta, 0.15, 1), hCliff: rnd(b.hCliff, 0.20, 1) }),
     renderPrompt: (v) => `A mortar shell is launched with an initial velocity of <strong>${v.v0} m/s</strong> at an angle of <strong>${v.theta}&deg;</strong> above the horizontal from a point on a cliff <strong>${v.hCliff} m</strong> above a level plain below.<br/><strong>a.</strong> How long is the shell in the air before landing?<br/><strong>b.</strong> How far from the base of the cliff does the mortar shell strike the ground?<br/><strong>c.</strong> What is the shell’s speed just before it lands?<br/><strong>d.</strong> What is the direction of the shell’s velocity just before it lands?<br/><strong>e.</strong> How high is the shell above the level plain at its highest point?`,
     parts: [
-      { label: "a. Airborne flight time (<em>t</em>)", unit: "s", solve: (v) => { const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD); return (vy0 + Math.sqrt(vy0 * vy0 + 2 * G_ACCEL * v.hCliff)) / G_ACCEL; }, steps: (v, ans) => {
+      { label: "a. Airborne flight time (t)", unit: "s", solve: (v) => { const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD); return (vy0 + Math.sqrt(vy0 * vy0 + 2 * G_ACCEL * v.hCliff)) / G_ACCEL; }, steps: (v, ans) => {
           const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD);
           return guidedSteps(
             `Take up as positive with the origin at the launch point. <em>v</em><sub>0y</sub> = ${v.v0} sin(${v.theta}&deg;) = ${vy0.toFixed(2)} m/s. The plain is ${v.hCliff} m below, so &Delta;<em>y</em> = &minus;${v.hCliff} m.`,
@@ -8807,7 +8807,7 @@ const PHYSICS_QUESTIONS = [
             `Quadratic formula, positive root: <em>t</em> = [${vy0.toFixed(2)} + &radic;(${vy0.toFixed(2)}&sup2; + 4(4.90)(${v.hCliff}))] / (2 &times; 4.90) = <strong>${ans.toFixed(2)} s</strong>.`
           );
         }},
-      { label: "b. Horizontal impact distance (&Delta;<em>x</em>)", unit: "m", solve: (v) => { const rad = v.theta * DEG2RAD; const vx = v.v0 * Math.cos(rad); const vy0 = v.v0 * Math.sin(rad); const t = (vy0 + Math.sqrt(vy0 * vy0 + 2 * G_ACCEL * v.hCliff)) / G_ACCEL; return vx * t; }, steps: (v, ans) => {
+      { label: "b. Horizontal impact distance (&Delta;x)", unit: "m", solve: (v) => { const rad = v.theta * DEG2RAD; const vx = v.v0 * Math.cos(rad); const vy0 = v.v0 * Math.sin(rad); const t = (vy0 + Math.sqrt(vy0 * vy0 + 2 * G_ACCEL * v.hCliff)) / G_ACCEL; return vx * t; }, steps: (v, ans) => {
           const rad = v.theta * DEG2RAD;
           const vx = v.v0 * Math.cos(rad), vy0 = v.v0 * Math.sin(rad);
           const t = (vy0 + Math.sqrt(vy0 * vy0 + 2 * G_ACCEL * v.hCliff)) / G_ACCEL;
@@ -8817,7 +8817,7 @@ const PHYSICS_QUESTIONS = [
             `&Delta;<em>x</em> = <em>v</em><sub>0x</sub><em>t</em> = (${vx.toFixed(2)})(${t.toFixed(2)}) = <strong>${ans.toFixed(1)} m</strong> from the base of the cliff.`
           );
         }},
-      { label: "c. Landing speed (<em>v</em>)", unit: "m/s", solve: (v) => Math.sqrt(v.v0 * v.v0 + 2 * G_ACCEL * v.hCliff), steps: (v, ans) => guidedSteps(
+      { label: "c. Landing speed (v)", unit: "m/s", solve: (v) => Math.sqrt(v.v0 * v.v0 + 2 * G_ACCEL * v.hCliff), steps: (v, ans) => guidedSteps(
           `The speed at the plain depends only on how far the shell has dropped relative to the launch point, not on the path or the angle. Known: <em>v</em><sub>0</sub> = ${v.v0} m/s, and the shell ends ${v.hCliff} m <em>below</em> the launch point.`,
           `Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; + 2<em>g</em>(drop), since a drop adds speed.`,
           `Substitute: <em>v</em> = &radic;(${v.v0}&sup2; + 2 &times; 9.80 &times; ${v.hCliff}) = &radic;(${(v.v0 * v.v0 + 2 * G_ACCEL * v.hCliff).toFixed(0)}) = <strong>${ans.toFixed(2)} m/s</strong>.`
@@ -8831,7 +8831,7 @@ const PHYSICS_QUESTIONS = [
             `tan &theta; = |<em>v</em><sub>y</sub>| / <em>v</em><sub>x</sub> = ${vy.toFixed(2)} / ${vx.toFixed(2)}, so &theta; = <strong>${ans.toFixed(1)}&deg; below the horizontal</strong>.`
           );
         }},
-      { label: "e. Maximum height above level plain (<em>H</em><sub>max</sub>)", unit: "m", solve: (v) => v.hCliff + Math.pow(v.v0 * Math.sin(v.theta * DEG2RAD), 2) / (2 * G_ACCEL), steps: (v, ans) => {
+      { label: "e. Maximum height above level plain (H<sub>max</sub>)", unit: "m", solve: (v) => v.hCliff + Math.pow(v.v0 * Math.sin(v.theta * DEG2RAD), 2) / (2 * G_ACCEL), steps: (v, ans) => {
           const vy0 = v.v0 * Math.sin(v.theta * DEG2RAD);
           const rise = vy0 * vy0 / (2 * G_ACCEL);
           return guidedSteps(
@@ -8849,7 +8849,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ v0: Math.round(rnd(b.v0, 0.18, 0)), hKm: rnd(b.hKm, 0.20, 2) }),
     renderPrompt: (v) => `An airplane is carrying emergency supplies which it is going to drop to people on an island below. The airplane is traveling horizontally at <strong>${v.v0} m/s</strong>, at an altitude of <strong>${v.hKm} km</strong> above the ground. What horizontal distance before the island should the plane release the supplies?`,
     parts: [
-      { label: "Release distance before island (&Delta;<em>x</em>)", unit: "m", solve: (v) => v.v0 * Math.sqrt((2 * (v.hKm * 1000)) / G_ACCEL), steps: (v, ans) => {
+      { label: "Release distance before island (&Delta;x)", unit: "m", solve: (v) => v.v0 * Math.sqrt((2 * (v.hKm * 1000)) / G_ACCEL), steps: (v, ans) => {
           const t = Math.sqrt((2 * v.hKm * 1000) / G_ACCEL);
           return guidedSteps(
             `The supplies leave the plane with the plane's horizontal speed (${v.v0} m/s) and no vertical velocity. Convert the altitude: <em>h</em> = ${v.hKm} km = ${v.hKm * 1000} m.`,
@@ -8867,7 +8867,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { muS: 0.91, muK: 0.76, v: 32.8 },
     randomize: (b) => { const muK = rnd(b.muK, 0.15, 2); return { muS: Number((muK + rnd(0.15, 0.2, 2)).toFixed(2)), muK, v: rnd(b.v, 0.20, 1) }; },
     renderPrompt: (v) => `A car is driving along a flat road with coefficients of static and kinetic friction of <strong>${v.muS}</strong> and <strong>${v.muK}</strong>, respectively. The fastest the car can drive along a circular path without skidding is <strong>${v.v} m/s</strong>. What is the radius of the car's path?`,
-    parts: [{ label: "Radius of circular path (<em>r</em>)", unit: "m", solve: (v) => (v.v * v.v) / (v.muS * G_ACCEL), steps: (v, ans) => guidedSteps(
+    parts: [{ label: "Radius of circular path (r)", unit: "m", solve: (v) => (v.v * v.v) / (v.muS * G_ACCEL), steps: (v, ans) => guidedSteps(
           `On a flat road the only horizontal force on the car is friction, so static friction supplies the centripetal force. At the maximum speed, friction is at its limit: <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>F</em><sub>N</sub> = &mu;<sub>s</sub><em>m</em><em>g</em> (the car is not accelerating vertically, so <em>F</em><sub>N</sub> = <em>m</em><em>g</em>). Use &mu;<sub>s</sub> = ${v.muS}, not &mu;<sub>k</sub>, because the car is not skidding.`,
           `Set the friction equal to the centripetal force: &mu;<sub>s</sub><em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>. The mass cancels, leaving <em>r</em> = <em>v</em>&sup2; / (&mu;<sub>s</sub><em>g</em>).`,
           `Substitute: <em>r</em> = (${v.v} m/s)&sup2; / (${v.muS} &times; 9.80 m/s²) = <strong>${ans.toFixed(2)} m</strong>.`
@@ -8879,7 +8879,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { rABcm: 28.3, rACcm: 66.8, mA: 53.7, mB: 82.9, mC: 49.3 },
     randomize: (b) => { const rAB = rnd(b.rABcm, 0.18, 1); return { rABcm: rAB, rACcm: Number((rAB + rnd(b.rACcm - b.rABcm, 0.18, 1)).toFixed(1)), mA: rnd(b.mA, 0.20, 1), mB: rnd(b.mB, 0.20, 1), mC: rnd(b.mC, 0.20, 1) }; },
     renderPrompt: (v) => `From center to center, the distance between mass A and B is <strong>${v.rABcm} cm</strong> and from A to C is <strong>${v.rACcm} cm</strong> (with A on the left, B in the middle, and C on the right). If <em>m</em><sub>A</sub> = <strong>${v.mA} kg</strong>, <em>m</em><sub>B</sub> = <strong>${v.mB} kg</strong>, and <em>m</em><sub>C</sub> = <strong>${v.mC} kg</strong>, what is the gravitational net force on mass B? Let the positive direction be to the right.`,
-    parts: [{ label: "Net gravitational force on B (<em>F</em><sub>net,B</sub>)", unit: "N", solve: (v) => (G_CONST * v.mC * v.mB) / Math.pow((v.rACcm - v.rABcm)/100, 2) - (G_CONST * v.mA * v.mB) / Math.pow(v.rABcm/100, 2), steps: (v, ans) => {
+    parts: [{ label: "Net gravitational force on B (F<sub>net,B</sub>)", unit: "N", solve: (v) => (G_CONST * v.mC * v.mB) / Math.pow((v.rACcm - v.rABcm)/100, 2) - (G_CONST * v.mA * v.mB) / Math.pow(v.rABcm/100, 2), steps: (v, ans) => {
           const rBC = (v.rACcm - v.rABcm) / 100, rAB = v.rABcm / 100;
           const fA = G_CONST * v.mA * v.mB / (rAB * rAB), fC = G_CONST * v.mC * v.mB / (rBC * rBC);
           return guidedSteps(
@@ -8896,7 +8896,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { hKm: 2089, MpExp26: 5.38, RpExp7: 8.33 },
     randomize: (b) => ({ hKm: Math.round(rnd(b.hKm, 0.20, 0)), MpExp26: rnd(b.MpExp26, 0.20, 2), RpExp7: rnd(b.RpExp7, 0.20, 2) }),
     renderPrompt: (v) => `A satellite is placed in a circular orbit <strong>${v.hKm.toLocaleString()} kilometers</strong> above the surface of a planet. The planet has a mass of <strong>${v.MpExp26} &times; 10<sup>26</sup> kg</strong> and a radius of <strong>${v.RpExp7} &times; 10<sup>7</sup> meters</strong>. Find the orbital speed of the satellite.`,
-    parts: [{ label: "Orbital speed (<em>v</em>)", unit: "m/s", solve: (v) => Math.sqrt((G_CONST * v.MpExp26 * 1e26) / (v.RpExp7 * 1e7 + v.hKm * 1e3)), steps: (v, ans) => {
+    parts: [{ label: "Orbital speed (v)", unit: "m/s", solve: (v) => Math.sqrt((G_CONST * v.MpExp26 * 1e26) / (v.RpExp7 * 1e7 + v.hKm * 1e3)), steps: (v, ans) => {
           const r = v.RpExp7 * 1e7 + v.hKm * 1e3;
           return guidedSteps(
             `For a circular orbit, gravity supplies the centripetal force: <em>G</em><em>M</em><em>m</em> / <em>r</em>&sup2; = <em>m</em><em>v</em>&sup2; / <em>r</em>, so <em>v</em> = &radic;(<em>G</em><em>M</em> / <em>r</em>). The satellite's mass cancels.`,
@@ -8911,7 +8911,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { rA: 173, rB: 259 },
     randomize: (b) => ({ rA: Math.round(rnd(b.rA, 0.20, 0)), rB: Math.round(rnd(b.rB, 0.20, 0)) }),
     renderPrompt: (v) => `Speedboat A negotiates a curve whose radius is <strong>${v.rA} m</strong>; Speedboat B negotiates a curve of radius <strong>${v.rB} m</strong> at identical centripetal acceleration. What is the ratio <em>v</em><sub>A</sub> / <em>v</em><sub>B</sub>?`,
-    parts: [{ label: "Speed ratio (<em>v</em><sub>A</sub> / <em>v</em><sub>B</sub>)", unit: "No units", solve: (v) => Math.sqrt(v.rA / v.rB), steps: (v, ans) => guidedSteps(
+    parts: [{ label: "Speed ratio (v<sub>A</sub> / v<sub>B</sub>)", unit: "No units", solve: (v) => Math.sqrt(v.rA / v.rB), steps: (v, ans) => guidedSteps(
           `Both boats have the same centripetal acceleration <em>a</em><sub>c</sub>. Centripetal acceleration is <em>a</em><sub>c</sub> = <em>v</em>&sup2; / <em>r</em>, so <em>v</em> = &radic;(<em>a</em><sub>c</sub><em>r</em>) for each boat.`,
           `Write the ratio: <em>v</em><sub>A</sub> / <em>v</em><sub>B</sub> = &radic;(<em>a</em><sub>c</sub><em>r</em><sub>A</sub>) / &radic;(<em>a</em><sub>c</sub><em>r</em><sub>B</sub>). The acceleration cancels, leaving &radic;(<em>r</em><sub>A</sub> / <em>r</em><sub>B</sub>).`,
           `Substitute: <em>v</em><sub>A</sub> / <em>v</em><sub>B</sub> = &radic;(${v.rA} / ${v.rB}) = &radic;${(v.rA / v.rB).toFixed(4)} = <strong>${ans.toFixed(3)}</strong>.`,
@@ -8924,7 +8924,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { v: 19.3, r: 116, m: 291 },
     randomize: (b) => ({ v: rnd(b.v, 0.18, 1), r: Math.round(rnd(b.r, 0.18, 0)), m: Math.round(rnd(b.m, 0.20, 0)) }),
     renderPrompt: (v) => `A motorcycle (total mass <strong>${v.m} kg</strong>) travels at <strong>${v.v} m/s</strong> over a hill of radius <strong>${v.r} m</strong>. Find the normal force.`,
-    parts: [{ label: "Normal force (<em>F</em><sub>N</sub>)", unit: "N", solve: (v) => v.m * (G_ACCEL - (v.v * v.v) / v.r), steps: (v, ans) => {
+    parts: [{ label: "Normal force (F<sub>N</sub>)", unit: "N", solve: (v) => v.m * (G_ACCEL - (v.v * v.v) / v.r), steps: (v, ans) => {
           const need = v.m * v.v * v.v / v.r;
           return guidedSteps(
             `At the top of the hill, the center of the circle is <em>below</em> the motorcycle, so the net force must point downward with magnitude <em>m</em><em>v</em>&sup2; / <em>r</em>. Forces: weight <em>m</em><em>g</em> (down) and normal force <em>F</em><sub>N</sub> (up).`,
@@ -8940,7 +8940,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { m: 17.4, t: 4.0, vf: 24.8 },
     randomize: (b) => { const m = rnd(b.m, 0.20, 1); const t = rnd(b.t, 0.20, 1); return { m, t, vf: Number((rnd(6.2, 0.25, 2) * t).toFixed(1)) }; },
     renderPrompt: (v) => `An object of mass <strong>${v.m} kg</strong> is released on a planet; its speed graph reaches <strong><em>v</em> = ${v.vf} m/s</strong> at <strong><em>t</em> = ${v.t} s</strong>. Find its weight on this planet.`,
-    parts: [{ label: "Weight on planet (<em>W</em>)", unit: "N", solve: (v) => v.m * (v.vf / v.t), steps: (v, ans) => guidedSteps(
+    parts: [{ label: "Weight on planet (W)", unit: "N", solve: (v) => v.m * (v.vf / v.t), steps: (v, ans) => guidedSteps(
           `The graph shows the object speeding up uniformly from rest, so the slope of the speed-time graph is the acceleration due to gravity on this planet: <em>g</em><sub>p</sub> = &Delta;<em>v</em> / &Delta;<em>t</em> = ${v.vf} m/s / ${v.t} s = ${(v.vf / v.t).toFixed(2)} m/s².`,
           `Weight is the gravitational force: <em>W</em> = <em>m</em><em>g</em><sub>p</sub>, using the local value of <em>g</em>, not 9.80.`,
           `Substitute: <em>W</em> = (${v.m} kg)(${(v.vf / v.t).toFixed(2)} m/s²) = <strong>${ans.toFixed(1)} N</strong>.`
@@ -8953,12 +8953,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ MExp30: rnd(b.MExp30, 0.20, 2), RExp3: rnd(b.RExp3, 0.20, 2), dCm: rnd(b.dCm, 0.20, 2) }),
     renderPrompt: (v) => `A neutron star has mass <strong>${v.MExp30} &times; 10<sup>30</sup> kg</strong> and radius <strong>${v.RExp3} &times; 10<sup>3</sup> m</strong>.<br/><strong>a.</strong> What is the gravitational field strength <em>g</em> on the star?<br/><strong>b.</strong> How fast would an object be moving after falling from rest a distance of <strong>${v.dCm} cm</strong>?`,
     parts: [
-      { label: "a. Gravitational field strength (<em>g</em>)", unit: "N/kg", acceptedUnits: ["N/kg", "m/s²"], solve: (v) => (G_CONST * v.MExp30 * 1e30) / Math.pow(v.RExp3 * 1e3, 2), steps: (v, ans) => guidedSteps(
+      { label: "a. Gravitational field strength (g)", unit: "N/kg", acceptedUnits: ["N/kg", "m/s²"], solve: (v) => (G_CONST * v.MExp30 * 1e30) / Math.pow(v.RExp3 * 1e3, 2), steps: (v, ans) => guidedSteps(
           `The gravitational field strength at the surface is <em>g</em> = <em>G</em><em>M</em> / <em>R</em>&sup2;. Write the mass and radius in plain units: <em>M</em> = ${v.MExp30} &times; 10<sup>30</sup> kg, <em>R</em> = ${v.RExp3} &times; 10<sup>3</sup> m.`,
           `Substitute: <em>g</em> = (6.67 &times; 10<sup>&minus;11</sup>)(${v.MExp30} &times; 10<sup>30</sup>) / (${v.RExp3} &times; 10<sup>3</sup>)&sup2;.`,
           `<em>g</em> = <strong>${ans.toExponential(3)} N/kg</strong> (the same as m/s²), which is about ${(ans / G_ACCEL).toExponential(1)} times Earth's.`
         )},
-      { label: "b. Final speed after falling (<em>v</em>)", unit: "m/s", solve: (v) => Math.sqrt(2 * ((G_CONST * v.MExp30 * 1e30) / Math.pow(v.RExp3 * 1e3, 2)) * (v.dCm / 100)), steps: (v, ans) => {
+      { label: "b. Final speed after falling (v)", unit: "m/s", solve: (v) => Math.sqrt(2 * ((G_CONST * v.MExp30 * 1e30) / Math.pow(v.RExp3 * 1e3, 2)) * (v.dCm / 100)), steps: (v, ans) => {
           const g = (G_CONST * v.MExp30 * 1e30) / Math.pow(v.RExp3 * 1e3, 2);
           return guidedSteps(
             `Treat <em>g</em> as constant over this tiny fall, using the value from part a: <em>g</em> = ${g.toExponential(3)} m/s². The object starts from rest and falls <em>d</em> = ${v.dCm} cm = ${(v.dCm / 100).toFixed(3)} m.`,
@@ -8975,12 +8975,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => { const m = rnd(b.m, 0.2, 2); const h = rnd(b.h, 0.2, 2); return { m, h, t: Number(Math.sqrt((2 * h) / 3.69).toFixed(3)) }; },
     renderPrompt: (v) => `A <strong>${v.m} kg</strong> rock falls <strong>${v.h} m</strong> on Mars in <strong>${v.t} s</strong>.<br/><strong>a.</strong> Mars gravity <em>g</em>?<br/><strong>b.</strong> Rock weight on Mars?`,
     parts: [
-      { label: "a. Acceleration due to gravity (<em>g</em><sub>Mars</sub>)", unit: "m/s²", acceptedUnits: ["m/s²", "N/kg"], solve: (v) => (2 * v.h) / (v.t * v.t), steps: (v, ans) => guidedSteps(
+      { label: "a. Acceleration due to gravity (g<sub>Mars</sub>)", unit: "m/s²", acceptedUnits: ["m/s²", "N/kg"], solve: (v) => (2 * v.h) / (v.t * v.t), steps: (v, ans) => guidedSteps(
           `The rock is dropped, so it starts from rest (<em>v</em><sub>0</sub> = 0) and falls <em>h</em> = ${v.h} m in <em>t</em> = ${v.t} s with constant acceleration. Unknown: that acceleration, which is Mars's gravity.`,
           `Use <em>h</em> = &frac12;<em>g</em><em>t</em>&sup2; and solve for <em>g</em>: <em>g</em> = 2<em>h</em> / <em>t</em>&sup2;.`,
           `Substitute: <em>g</em><sub>Mars</sub> = 2(${v.h}) / (${v.t})&sup2; = <strong>${ans.toFixed(2)} m/s²</strong>, which is about ${(ans / G_ACCEL * 100).toFixed(0)}% of Earth's gravity.`
         )},
-      { label: "b. Weight of rock (<em>W</em><sub>Mars</sub>)", unit: "N", solve: (v) => v.m * ((2 * v.h) / (v.t * v.t)), steps: (v, ans) => {
+      { label: "b. Weight of rock (W<sub>Mars</sub>)", unit: "N", solve: (v) => v.m * ((2 * v.h) / (v.t * v.t)), steps: (v, ans) => {
           const g = (2 * v.h) / (v.t * v.t);
           return guidedSteps(
             `Weight is the gravitational force on the rock, which depends on the local gravity. Use <em>g</em><sub>Mars</sub> = ${g.toFixed(2)} m/s² from part a, <em>not</em> 9.80.`,
@@ -9018,7 +9018,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: rnd(b.m, 0.2, 1), v0: rnd(b.v0, 0.2, 2), d: rnd(b.d, 0.2, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> baseball player runs towards home plate at <strong>${v.v0} m/s</strong>. He slides into home plate and comes to rest after <strong>${v.d} meters</strong>.<br/><strong>a.</strong> What is the magnitude of his acceleration?<br/><strong>b.</strong> What is the coefficient of kinetic friction between the player and the ground?`,
     parts: [
-      { label: "a. Magnitude of acceleration (|<em>a</em>|)", unit: "m/s²", solve: (v) => (v.v0 * v.v0) / (2 * v.d), steps: (v, ans) => guidedSteps(
+      { label: "a. Magnitude of acceleration (|a|)", unit: "m/s²", solve: (v) => (v.v0 * v.v0) / (2 * v.d), steps: (v, ans) => guidedSteps(
           `Known: initial speed <em>v</em><sub>0</sub> = ${v.v0} m/s, final speed 0, distance <em>d</em> = ${v.d} m. The time is not given, so use the equation without time.`,
           `<em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; + 2<em>a</em><em>d</em> with <em>v</em> = 0 gives <em>a</em> = &minus;<em>v</em><sub>0</sub>&sup2; / (2<em>d</em>). The magnitude is <em>v</em><sub>0</sub>&sup2; / (2<em>d</em>).`,
           `Substitute: |<em>a</em>| = (${v.v0})&sup2; / (2 &times; ${v.d}) = <strong>${ans.toFixed(2)} m/s²</strong> (directed opposite to his motion).`
@@ -9068,7 +9068,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { m: 76, a: 4, muS: 0.74, muK: 0.57 },
     randomize: (b) => { const muK = rnd(b.muK, 0.15, 2); return { m: rnd(b.m, 0.2, 1), a: rnd(b.a, 0.2, 2), muS: Number((muK + 0.17).toFixed(2)), muK }; },
     renderPrompt: (v) => `A rope accelerates a <strong>${v.m}-kg</strong> metal beam horizontally at <strong>${v.a} m/s&sup2;</strong> with &mu;<sub>s</sub> = <strong>${v.muS}</strong>, &mu;<sub>k</sub> = <strong>${v.muK}</strong>. What is the magnitude of the tension in the rope?`,
-    parts: [{ label: "Rope tension (<em>F</em><sub>T</sub>)", unit: "N", solve: (v) => v.m * (v.a + v.muK * G_ACCEL), steps: (v, ans) => guidedSteps(
+    parts: [{ label: "Rope tension (F<sub>T</sub>)", unit: "N", solve: (v) => v.m * (v.a + v.muK * G_ACCEL), steps: (v, ans) => guidedSteps(
           `The beam is already <em>moving</em> (it is accelerating), so the friction is kinetic, and &mu;<sub>k</sub> = ${v.muK} is the one to use (&mu;<sub>s</sub> is not needed). Forces along the motion: rope tension <em>F</em><sub>T</sub> forward, kinetic friction <em>f</em><sub>k</sub> backward. On a level floor <em>F</em><sub>N</sub> = <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N.`,
           `Kinetic friction: <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em><sub>N</sub> = ${v.muK} &times; ${(v.m * G_ACCEL).toFixed(1)} = ${(v.muK * v.m * G_ACCEL).toFixed(1)} N.`,
           `Newton's second law: <em>F</em><sub>T</sub> &minus; <em>f</em><sub>k</sub> = <em>m</em><em>a</em>, so <em>F</em><sub>T</sub> = <em>m</em><em>a</em> + <em>f</em><sub>k</sub> = (${v.m})(${v.a}) + ${(v.muK * v.m * G_ACCEL).toFixed(1)} = <strong>${ans.toFixed(1)} N</strong>.`
@@ -9080,7 +9080,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { d: 90, mu: 0.5 },
     randomize: (b) => ({ d: rnd(b.d, 0.2, 1), mu: rnd(b.mu, 0.2, 2) }),
     renderPrompt: (v) => `Police measure a car’s skid marks to be <strong>${v.d} m</strong> long, and the road’s coefficient of kinetic friction to be <strong>${v.mu}</strong>. What was the initial speed of the car?`,
-    parts: [{ label: "Initial speed (<em>v</em><sub>0</sub>)", unit: "m/s", solve: (v) => Math.sqrt(2 * v.mu * G_ACCEL * v.d), steps: (v, ans) => guidedSteps(
+    parts: [{ label: "Initial speed (v<sub>0</sub>)", unit: "m/s", solve: (v) => Math.sqrt(2 * v.mu * G_ACCEL * v.d), steps: (v, ans) => guidedSteps(
           `While skidding, the only horizontal force is kinetic friction, so <em>f</em><sub>k</sub> = &mu;<em>m</em><em>g</em> and the deceleration is <em>a</em> = &mu;<em>g</em> = ${v.mu} &times; 9.80 = ${(v.mu * G_ACCEL).toFixed(2)} m/s². The mass cancels, so it isn't needed.`,
           `The car skids to a stop (final speed 0) over <em>d</em> = ${v.d} m. Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; &minus; 2<em>a</em><em>d</em> = 0, so <em>v</em><sub>0</sub> = &radic;(2<em>a</em><em>d</em>) = &radic;(2&mu;<em>g</em><em>d</em>).`,
           `Substitute: <em>v</em><sub>0</sub> = &radic;(2 &times; ${v.mu} &times; 9.80 &times; ${v.d}) = <strong>${ans.toFixed(2)} m/s</strong> (about ${(ans * 3.6).toFixed(0)} km/h).`
@@ -9093,7 +9093,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => { const m = rnd(b.m, 0.15, 1); const fsMax = 0.50 * m * G_ACCEL; return { m, muS: 0.5, muK: 0.3, Fa: Math.round(fsMax * 0.77), Fb: Math.round(fsMax * 1.08), t: rnd(b.t, 0.15, 1) }; },
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> crate has &mu;<sub>s</sub> = <strong>${v.muS}</strong>, &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> What is the speed of the crate after <strong>${v.t} s</strong> with a <strong>${v.Fa} N</strong> push?<br/><strong>b.</strong> What is the speed of the crate after <strong>${v.t} s</strong> with a <strong>${v.Fb} N</strong> push?`,
     parts: [
-      { label: "a. Speed with <em>F</em><sub>a</sub>", unit: "m/s", solve: () => 0, steps: (v, ans) => {
+      { label: "a. Speed with F<sub>a</sub>", unit: "m/s", solve: () => 0, steps: (v, ans) => {
           const fs = v.muS * v.m * G_ACCEL;
           return guidedSteps(
             `First check whether the push is big enough to start the crate moving. The maximum static friction is <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>m</em><em>g</em> = ${v.muS} &times; ${v.m} &times; 9.80 = ${fs.toFixed(1)} N.`,
@@ -9101,7 +9101,7 @@ const PHYSICS_QUESTIONS = [
             `Since the crate never starts moving, its speed after ${v.t} s is <strong>${ans.toFixed(0)} m/s</strong>.`
           );
         }},
-      { label: "b. Speed with <em>F</em><sub>b</sub>", unit: "m/s", solve: (v) => ((v.Fb - v.muK * v.m * G_ACCEL) / v.m) * v.t, steps: (v, ans) => {
+      { label: "b. Speed with F<sub>b</sub>", unit: "m/s", solve: (v) => ((v.Fb - v.muK * v.m * G_ACCEL) / v.m) * v.t, steps: (v, ans) => {
           const fs = v.muS * v.m * G_ACCEL, fk = v.muK * v.m * G_ACCEL, a = (v.Fb - fk) / v.m;
           return guidedSteps(
             `Check the threshold: <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>m</em><em>g</em> = ${fs.toFixed(1)} N. The push ${v.Fb} N is larger, so the crate <em>does</em> start moving, and from then on the friction is kinetic.`,
@@ -9130,11 +9130,11 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => { const muK = rnd(b.muK, 0.15, 2); return { gMoon: 1.62, m: Math.round(rnd(b.m, 0.2, 0)), muS: Number((muK + 0.17).toFixed(2)), muK }; },
     renderPrompt: (v) => `On the moon (<em>g</em> = <strong>${v.gMoon} m/s&sup2;</strong>), a <strong>${v.m}-kg</strong> bin has coefficients of static and kinetic friction of <strong>${v.muS}</strong> and <strong>${v.muK}</strong>, respectively.<br/><strong>a.</strong> What force is required to start the bin in motion?<br/><strong>b.</strong> What force is required to slide it with a constant velocity?`,
     parts: [
-      { label: "a. Force to start moving (<em>f</em><sub>s,max</sub>)", unit: "N", solve: (v) => v.muS * v.m * v.gMoon, steps: (v, ans) => guidedSteps(
+      { label: "a. Force to start moving (f<sub>s,max</sub>)", unit: "N", solve: (v) => v.muS * v.m * v.gMoon, steps: (v, ans) => guidedSteps(
           `To <em>start</em> the bin moving, the push must equal the maximum static friction: <em>F</em> = <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>F</em><sub>N</sub>. On a level surface the normal force is <em>F</em><sub>N</sub> = <em>m</em><em>g</em><sub>moon</sub> = ${v.m} &times; ${v.gMoon} = ${(v.m * v.gMoon).toFixed(1)} N (use the Moon's gravity, not 9.80).`,
           `Substitute: <em>f</em><sub>s,max</sub> = ${v.muS} &times; ${(v.m * v.gMoon).toFixed(1)} = <strong>${ans.toFixed(1)} N</strong>.`
         )},
-      { label: "b. Force for constant velocity (<em>f</em><sub>k</sub>)", unit: "N", solve: (v) => v.muK * v.m * v.gMoon, steps: (v, ans) => guidedSteps(
+      { label: "b. Force for constant velocity (f<sub>k</sub>)", unit: "N", solve: (v) => v.muK * v.m * v.gMoon, steps: (v, ans) => guidedSteps(
           `For a constant velocity the net force is zero, so the push equals the kinetic friction: <em>F</em> = <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em><sub>N</sub>, with <em>F</em><sub>N</sub> = <em>m</em><em>g</em><sub>moon</sub> = ${(v.m * v.gMoon).toFixed(1)} N.`,
           `Substitute: <em>f</em><sub>k</sub> = ${v.muK} &times; ${(v.m * v.gMoon).toFixed(1)} = <strong>${ans.toFixed(1)} N</strong>. This is less than the force needed to start the bin moving in part a.`
         )}
@@ -9147,12 +9147,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => { const muK = rnd(b.muK, 0.15, 2); return { v0: rnd(b.v0, 0.15, 2), muS: Number((muK + 0.07).toFixed(2)), muK }; },
     renderPrompt: (v) => `An ice skater moving at <strong>${v.v0} m/s</strong> coasts to rest, and &mu;<sub>s</sub> = <strong>${v.muS}</strong> and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> What is the magnitude of her acceleration?<br/><strong>b.</strong> How much time does it take her to stop?`,
     parts: [
-      { label: "a. Magnitude of acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => v.muK * G_ACCEL, steps: (v, ans) => guidedSteps(
+      { label: "a. Magnitude of acceleration (a)", unit: "m/s²", solve: (v) => v.muK * G_ACCEL, steps: (v, ans) => guidedSteps(
           `Once the skater is coasting, the only horizontal force is kinetic friction (she is sliding, so use &mu;<sub>k</sub> = ${v.muK}; &mu;<sub>s</sub> is not needed). On level ice <em>F</em><sub>N</sub> = <em>m</em><em>g</em>.`,
           `Newton's second law: <em>m</em><em>a</em> = <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>m</em><em>g</em>, so |<em>a</em>| = &mu;<sub>k</sub><em>g</em>. The mass cancels.`,
           `Substitute: |<em>a</em>| = ${v.muK} &times; 9.80 = <strong>${ans.toFixed(3)} m/s²</strong> (directed opposite to her motion).`
         )},
-      { label: "b. Time to come to rest (<em>t</em>)", unit: "s", solve: (v) => v.v0 / (v.muK * G_ACCEL), steps: (v, ans) => {
+      { label: "b. Time to come to rest (t)", unit: "s", solve: (v) => v.v0 / (v.muK * G_ACCEL), steps: (v, ans) => {
           const a = v.muK * G_ACCEL;
           return guidedSteps(
             `She slows uniformly from <em>v</em><sub>0</sub> = ${v.v0} m/s to 0 with a deceleration of ${a.toFixed(3)} m/s² (from part a).`,
@@ -9169,7 +9169,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => { const m = rnd(b.m, 0.15, 1); return { m, muS: 0.83, muK: 0.64, Fpush: Math.round(0.83 * m * G_ACCEL * 0.93), aTarget: rnd(b.aTarget, 0.15, 2) }; },
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> refrigerator has &mu;<sub>s</sub> = <strong>${v.muS}</strong> and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> What would the friction force be on the refrigerator if pushed with <strong>${v.Fpush} N</strong> of force?<br/><strong>b.</strong> What force is needed to start moving the refrigerator?<br/><strong>c.</strong> What force is needed to accelerate the refrigerator at <strong>${v.aTarget} m/s&sup2;</strong>?`,
     parts: [
-      { label: "a. Friction acting during push (<em>f</em><sub>s</sub>)", unit: "N", solve: (v) => v.Fpush, steps: (v, ans) => {
+      { label: "a. Friction acting during push (f<sub>s</sub>)", unit: "N", solve: (v) => v.Fpush, steps: (v, ans) => {
           const fs = v.muS * v.m * G_ACCEL;
           return guidedSteps(
             `First decide whether the refrigerator moves. The most static friction can provide is <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>m</em><em>g</em> = ${v.muS} &times; ${v.m} &times; 9.80 = ${fs.toFixed(1)} N.`,
@@ -9177,7 +9177,7 @@ const PHYSICS_QUESTIONS = [
             `With no acceleration, static friction exactly balances the push: <em>f</em><sub>s</sub> = <strong>${ans.toFixed(1)} N</strong>. (Static friction adjusts to match the push, up to its maximum.)`
           );
         }},
-      { label: "b. Force to start moving (<em>f</em><sub>s,max</sub>)", unit: "N", solve: (v) => v.muS * v.m * G_ACCEL, steps: (v, ans) => guidedSteps(
+      { label: "b. Force to start moving (f<sub>s,max</sub>)", unit: "N", solve: (v) => v.muS * v.m * G_ACCEL, steps: (v, ans) => guidedSteps(
           `To start the refrigerator moving, the push must reach the maximum static friction. On a level floor, <em>F</em><sub>N</sub> = <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N.`,
           `<em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>F</em><sub>N</sub> = ${v.muS} &times; ${(v.m * G_ACCEL).toFixed(1)} = <strong>${ans.toFixed(1)} N</strong>.`,
           `Any push larger than this starts it moving.`
@@ -9203,12 +9203,12 @@ const PHYSICS_QUESTIONS = [
     },
     renderPrompt: (v) => `A block whose weight is <strong>${v.W} N</strong> rests on a horizontal table. The coefficients of static and kinetic friction are <strong>${v.muS}</strong> and <strong>${v.muK}</strong>, respectively.<br/><strong>a.</strong> How much force is required to start the block moving?<br/><strong>b.</strong> How much force is required to push it across the table with a constant velocity?`,
     parts: [
-      { label: "a. Force required to start moving (<em>f</em><sub>s,max</sub>)", unit: "N", solve: (v) => v.muS * v.W, steps: (v, ans) => guidedSteps(
+      { label: "a. Force required to start moving (f<sub>s,max</sub>)", unit: "N", solve: (v) => v.muS * v.W, steps: (v, ans) => guidedSteps(
           `The block is on a horizontal table, so the normal force equals its weight: <em>F</em><sub>N</sub> = <em>W</em> = ${v.W} N (the weight is given directly, so there is no need to multiply by <em>g</em>).`,
           `To start it moving, the push must equal the maximum static friction: <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>F</em><sub>N</sub>.`,
           `Substitute: <em>f</em><sub>s,max</sub> = ${v.muS} &times; ${v.W} = <strong>${ans.toFixed(2)} N</strong>.`
         )},
-      { label: "b. Force required for constant velocity (<em>f</em><sub>k</sub>)", unit: "N", solve: (v) => v.muK * v.W, steps: (v, ans) => guidedSteps(
+      { label: "b. Force required for constant velocity (f<sub>k</sub>)", unit: "N", solve: (v) => v.muK * v.W, steps: (v, ans) => guidedSteps(
           `For constant velocity the net force is zero, so the push equals the kinetic friction. The normal force is still <em>F</em><sub>N</sub> = <em>W</em> = ${v.W} N.`,
           `<em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em><sub>N</sub>.`,
           `Substitute: <em>f</em><sub>k</sub> = ${v.muK} &times; ${v.W} = <strong>${ans.toFixed(2)} N</strong>. This is less than the force needed to start it moving.`
@@ -9223,7 +9223,7 @@ const PHYSICS_QUESTIONS = [
     renderPrompt: (v) => `A <strong>${v.W}-N</strong> box is pushed across the floor with a force of <strong>${v.F} N</strong> in a direction <strong>${v.theta}&deg;</strong> below the horizontal. If the coefficient of kinetic friction between the box and floor is <strong>${v.muK}</strong>, what is the magnitude of the acceleration of the box?`,
     parts: [
       {
-        label: "Magnitude of acceleration (<em>a</em>)", unit: "m/s²",
+        label: "Magnitude of acceleration (a)", unit: "m/s²",
         solve: (v) => {
           const m = v.W / G_ACCEL;
           const FN = v.W + v.F * Math.sin(v.theta * DEG2RAD);
@@ -9296,7 +9296,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { L: 5.30, theta: 27, muK: 0.39 },
     randomize: (b) => ({ L: rnd(b.L, 0.2, 2), theta: Math.round(rnd(29, 0.12, 0)), muK: rnd(0.32, 0.15, 2) }),
     renderPrompt: (v) => `A mass is released from rest at the top of a <strong>${v.L}-m</strong> incline at <strong>${v.theta}&deg;</strong> with &mu;<sub>k</sub> = <strong>${v.muK}</strong>. How long does it take to reach the bottom?`,
-    parts: [{ label: "Time to reach bottom (<em>t</em>)", unit: "s", solve: (v) => Math.sqrt((2 * v.L) / (G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.muK * Math.cos(v.theta * DEG2RAD)))), steps: (v, ans) => {
+    parts: [{ label: "Time to reach bottom (t)", unit: "s", solve: (v) => Math.sqrt((2 * v.L) / (G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.muK * Math.cos(v.theta * DEG2RAD)))), steps: (v, ans) => {
           const th = v.theta * DEG2RAD;
           const a = G_ACCEL * (Math.sin(th) - v.muK * Math.cos(th));
           return guidedSteps(
@@ -9313,12 +9313,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ theta: rnd(b.theta, 0.15, 1), L: rnd(b.L, 0.2, 2) }),
     renderPrompt: (v) => `A block beginning at the top of a <strong>${v.L} m</strong> long ramp that forms a <strong>${v.theta}&deg;</strong> with the horizontal slides without friction to the bottom.<br/><strong>a.</strong> What is the acceleration of the block?<br/><strong>b.</strong> What is the speed of the block at the bottom?<br/><strong>c.</strong> What is the block’s travel time?`,
     parts: [
-      { label: "a. Acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => G_ACCEL * Math.sin(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
+      { label: "a. Acceleration (a)", unit: "m/s²", solve: (v) => G_ACCEL * Math.sin(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
           `On a frictionless incline only two forces act: weight and the normal force. The normal force cancels the part of the weight perpendicular to the ramp, so the net force is the weight component along the ramp: <em>m</em><em>g</em> sin &theta;.`,
           `Newton's second law along the ramp: <em>m</em><em>a</em> = <em>m</em><em>g</em> sin &theta;, so <em>a</em> = <em>g</em> sin &theta;. The mass cancels.`,
           `Substitute: <em>a</em> = 9.80 sin ${v.theta}&deg; = <strong>${ans.toFixed(2)} m/s²</strong> (down the ramp).`
         )},
-      { label: "b. Speed at bottom (<em>v</em>)", unit: "m/s", solve: (v) => Math.sqrt(2 * G_ACCEL * Math.sin(v.theta * DEG2RAD) * v.L), steps: (v, ans) => {
+      { label: "b. Speed at bottom (v)", unit: "m/s", solve: (v) => Math.sqrt(2 * G_ACCEL * Math.sin(v.theta * DEG2RAD) * v.L), steps: (v, ans) => {
           const a = G_ACCEL * Math.sin(v.theta * DEG2RAD);
           return guidedSteps(
             `The block starts from rest and slides <em>L</em> = ${v.L} m with the constant acceleration from part a, <em>a</em> = ${a.toFixed(2)} m/s².`,
@@ -9326,7 +9326,7 @@ const PHYSICS_QUESTIONS = [
             `<em>v</em> = &radic;(2 &times; ${a.toFixed(2)} &times; ${v.L}) = <strong>${ans.toFixed(2)} m/s</strong>.`
           );
         }},
-      { label: "c. Time to bottom (<em>t</em>)", unit: "s", solve: (v) => Math.sqrt((2 * v.L) / (G_ACCEL * Math.sin(v.theta * DEG2RAD))), steps: (v, ans) => {
+      { label: "c. Time to bottom (t)", unit: "s", solve: (v) => Math.sqrt((2 * v.L) / (G_ACCEL * Math.sin(v.theta * DEG2RAD))), steps: (v, ans) => {
           const a = G_ACCEL * Math.sin(v.theta * DEG2RAD);
           return guidedSteps(
             `Same motion: starts from rest, acceleration <em>a</em> = ${a.toFixed(2)} m/s², distance <em>L</em> = ${v.L} m.`,
@@ -9370,7 +9370,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.12, 1), Fwind: rnd(b.Fwind, 0.18, 1), muS: 0.25, muK: rnd(b.muK, 0.15, 2), L: Math.round(rnd(b.L, 0.15, 0)) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> skier goes down a <strong>${v.theta}&deg;</strong> slope aided by a wind force of <strong>${v.Fwind} N</strong> parallel to the slope. The skier’s motion is opposed by friction and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> Find the magnitude of the skier’s acceleration down hill.<br/><strong>b.</strong> If she begins at rest, determine the time it will take her to reach the bottom <strong>${v.L} m</strong> away.`,
     parts: [
-      { label: "a. Magnitude of acceleration down hill (<em>a</em>)", unit: "m/s²", solve: (v) => (v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) + v.Fwind - v.muK * v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)) / v.m, steps: (v, ans) => {
+      { label: "a. Magnitude of acceleration down hill (a)", unit: "m/s²", solve: (v) => (v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) + v.Fwind - v.muK * v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)) / v.m, steps: (v, ans) => {
           const th = v.theta * DEG2RAD;
           const w = v.m * G_ACCEL * Math.sin(th), fk = v.muK * v.m * G_ACCEL * Math.cos(th);
           return guidedSteps(
@@ -9379,7 +9379,7 @@ const PHYSICS_QUESTIONS = [
             `Newton's second law: <em>a</em> = (<em>m</em><em>g</em> sin &theta; + <em>F</em><sub>wind</sub> &minus; <em>f</em><sub>k</sub>) / <em>m</em> = (${w.toFixed(1)} + ${v.Fwind} &minus; ${fk.toFixed(1)}) / ${v.m} = <strong>${ans.toFixed(3)} m/s²</strong>.`
           );
         }},
-      { label: "b. Time to reach the bottom (<em>t</em>)", unit: "s", solve: (v) => Math.sqrt((2 * v.L) / ((v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) + v.Fwind - v.muK * v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)) / v.m)), steps: (v, ans) => {
+      { label: "b. Time to reach the bottom (t)", unit: "s", solve: (v) => Math.sqrt((2 * v.L) / ((v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) + v.Fwind - v.muK * v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)) / v.m)), steps: (v, ans) => {
           const th = v.theta * DEG2RAD;
           const a = (v.m * G_ACCEL * Math.sin(th) + v.Fwind - v.muK * v.m * G_ACCEL * Math.cos(th)) / v.m;
           return guidedSteps(
@@ -9396,7 +9396,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { m: 185, theta: 25.8, muK: 0.67, a: 0.48 },
     randomize: (b) => ({ m: Math.round(rnd(b.m, 0.15, 0)), theta: rnd(b.theta, 0.12, 1), muK: rnd(b.muK, 0.15, 2), a: rnd(b.a, 0.20, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> log is pulled up a <strong>${v.theta}&deg;</strong> ramp accelerating at <strong>${v.a} m/s&sup2;</strong> with &mu;<sub>k</sub> = <strong>${v.muK}</strong>. Find the tension in the rope.`,
-    parts: [{ label: "Tension in the rope (<em>F</em><sub>T</sub>)", unit: "N", solve: (v) => v.m * (v.a + G_ACCEL * Math.sin(v.theta * DEG2RAD) + v.muK * G_ACCEL * Math.cos(v.theta * DEG2RAD)), steps: (v, ans) => {
+    parts: [{ label: "Tension in the rope (F<sub>T</sub>)", unit: "N", solve: (v) => v.m * (v.a + G_ACCEL * Math.sin(v.theta * DEG2RAD) + v.muK * G_ACCEL * Math.cos(v.theta * DEG2RAD)), steps: (v, ans) => {
           const th = v.theta * DEG2RAD;
           const w = v.m * G_ACCEL * Math.sin(th), N = v.m * G_ACCEL * Math.cos(th);
           return guidedSteps(
@@ -9413,18 +9413,18 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.12, 1), muS: 0.16, muK: rnd(b.muK, 0.15, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> skier descends a <strong>${v.theta}&deg;</strong> hill with &mu;<sub>s</sub> = <strong>${v.muS}</strong> and &mu;<sub>k</sub> = <strong>${v.muK}</strong>.<br/><strong>a.</strong> What is the gravity component down hill?<br/><strong>b.</strong> What is the magnitude of the kinetic friction?<br/><strong>c.</strong> What is the skier’s acceleration?`,
     parts: [
-      { label: "a. Gravity component down hill (<em>F</em><sub>gx</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
+      { label: "a. Gravity component down hill (F<sub>gx</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
           `Tilt the axes so that <em>x</em> points down the hill. Only the component of the weight along the slope pulls the skier downhill: the weight <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N, and the angle between the weight and the perpendicular to the slope is &theta;, so the downhill component uses sine.`,
           `<em>F</em><sub>gx</sub> = <em>m</em><em>g</em> sin &theta; = ${(v.m * G_ACCEL).toFixed(1)} sin ${v.theta}&deg; = <strong>${ans.toFixed(1)} N</strong>.`
         )},
-      { label: "b. Kinetic friction force (<em>f</em><sub>k</sub>)", unit: "N", solve: (v) => v.muK * v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD), steps: (v, ans) => {
+      { label: "b. Kinetic friction force (f<sub>k</sub>)", unit: "N", solve: (v) => v.muK * v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD), steps: (v, ans) => {
           const N = v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD);
           return guidedSteps(
             `Kinetic friction depends on the normal force. Perpendicular to the slope the skier does not accelerate, so <em>F</em><sub>N</sub> = <em>m</em><em>g</em> cos &theta; = ${(v.m * G_ACCEL).toFixed(1)} cos ${v.theta}&deg; = ${N.toFixed(1)} N.`,
             `The skier is sliding, so use &mu;<sub>k</sub> = ${v.muK} (not &mu;<sub>s</sub>): <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em><sub>N</sub> = ${v.muK} &times; ${N.toFixed(1)} = <strong>${ans.toFixed(1)} N</strong>.`
           );
         }},
-      { label: "c. Magnitude of acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.muK * Math.cos(v.theta * DEG2RAD)), steps: (v, ans) => {
+      { label: "c. Magnitude of acceleration (a)", unit: "m/s²", solve: (v) => G_ACCEL * (Math.sin(v.theta * DEG2RAD) - v.muK * Math.cos(v.theta * DEG2RAD)), steps: (v, ans) => {
           const gx = v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD), fk = v.muK * v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD);
           return guidedSteps(
             `Net force along the slope (down is positive): <em>F</em><sub>net</sub> = <em>F</em><sub>gx</sub> &minus; <em>f</em><sub>k</sub> = ${gx.toFixed(1)} &minus; ${fk.toFixed(1)} = ${(gx - fk).toFixed(1)} N.`,
@@ -9441,22 +9441,22 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: rnd(b.m, 0.20, 1), theta: rnd(b.theta, 0.15, 1) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> skier skis down a <strong>${v.theta}&deg;</strong> hill without any friction.<br/><strong>a.</strong> What is the magnitude of her weight in the x-direction?<br/><strong>b.</strong> What is the magnitude of her weight in the y-direction?<br/><strong>c.</strong> What is the magnitude of the normal force acting on her?<br/><strong>d.</strong> What is the magnitude of her acceleration down the hill?`,
     parts: [
-      { label: "a. Magnitude of weight in x-direction (<em>F</em><sub>gx</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
+      { label: "a. Magnitude of weight in x-direction (F<sub>gx</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
           `Choose <em>x</em> along the slope (downhill) and <em>y</em> perpendicular to it. The weight <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N points straight down and is split into two components.`,
           `The component along the slope uses sine of the slope angle: <em>F</em><sub>gx</sub> = <em>m</em><em>g</em> sin &theta;.`,
           `Substitute: <em>F</em><sub>gx</sub> = ${(v.m * G_ACCEL).toFixed(1)} sin ${v.theta}&deg; = <strong>${ans.toFixed(1)} N</strong>.`
         )},
-      { label: "b. Magnitude of weight in y-direction (<em>F</em><sub>gy</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
+      { label: "b. Magnitude of weight in y-direction (F<sub>gy</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
           `The component of the weight perpendicular to the slope uses cosine of the slope angle (the other component from part a used sine).`,
           `<em>F</em><sub>gy</sub> = <em>m</em><em>g</em> cos &theta; = ${(v.m * G_ACCEL).toFixed(1)} cos ${v.theta}&deg;.`,
           `<em>F</em><sub>gy</sub> = <strong>${ans.toFixed(1)} N</strong>, directed into the slope.`
         )},
-      { label: "c. Magnitude of normal force (<em>F</em><sub>N</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
+      { label: "c. Magnitude of normal force (F<sub>N</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
           `The skier does not accelerate perpendicular to the slope (she stays on the surface), so the forces in that direction balance: the normal force <em>F</em><sub>N</sub> pushes out of the slope and the weight component <em>F</em><sub>gy</sub> pushes into it.`,
           `<em>F</em><sub>N</sub> = <em>F</em><sub>gy</sub> = <em>m</em><em>g</em> cos &theta;.`,
           `So <em>F</em><sub>N</sub> = <strong>${ans.toFixed(1)} N</strong>, which is less than her full weight ${(v.m * G_ACCEL).toFixed(1)} N because the surface is tilted.`
         )},
-      { label: "d. Magnitude of acceleration down hill (<em>a</em>)", unit: "m/s²", solve: (v) => G_ACCEL * Math.sin(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
+      { label: "d. Magnitude of acceleration down hill (a)", unit: "m/s²", solve: (v) => G_ACCEL * Math.sin(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
           `With no friction, the only force along the slope is the weight component <em>F</em><sub>gx</sub> = <em>m</em><em>g</em> sin &theta; = ${(v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD)).toFixed(1)} N (from part a).`,
           `Newton's second law along the slope: <em>m</em><em>a</em> = <em>m</em><em>g</em> sin &theta;, so <em>a</em> = <em>g</em> sin &theta;. The mass cancels.`,
           `Substitute: <em>a</em> = 9.80 sin ${v.theta}&deg; = <strong>${ans.toFixed(2)} m/s²</strong>.`
@@ -9476,7 +9476,7 @@ const PHYSICS_QUESTIONS = [
     },
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> snowboarder travels down a <strong>${v.theta}&deg;</strong> hill. There are <strong>${v.fk} N</strong> of friction opposing his motion.<br/><strong>a.</strong> What is the magnitude of his acceleration?<br/><strong>b.</strong> If he has an initial speed of <strong>${v.v0} m/s</strong>, what will his speed be after he travels an additional <strong>${v.d} meters</strong>?`,
     parts: [
-      { label: "a. Magnitude of acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => (v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) - v.fk) / v.m, steps: (v, ans) => {
+      { label: "a. Magnitude of acceleration (a)", unit: "m/s²", solve: (v) => (v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) - v.fk) / v.m, steps: (v, ans) => {
           const w = v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD);
           return guidedSteps(
             `Take down the hill as positive. Along the slope the snowboarder feels the weight component <em>m</em><em>g</em> sin &theta; = ${v.m} &times; 9.80 &times; sin ${v.theta}&deg; = ${w.toFixed(1)} N (down) and the ${v.fk} N of friction (up). The friction force is given, so there is no need to use &mu; or the normal force.`,
@@ -9484,7 +9484,7 @@ const PHYSICS_QUESTIONS = [
             `Newton's second law: <em>a</em> = <em>F</em><sub>net</sub> / <em>m</em> = ${(w - v.fk).toFixed(1)} / ${v.m} = <strong>${ans.toFixed(2)} m/s²</strong>.`
           );
         }},
-      { label: "b. Speed after additional distance (<em>v</em><sub>f</sub>)", unit: "m/s", solve: (v) => { const a = (v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) - v.fk) / v.m; return Math.sqrt(v.v0 * v.v0 + 2 * a * v.d); }, steps: (v, ans) => {
+      { label: "b. Speed after additional distance (v<sub>f</sub>)", unit: "m/s", solve: (v) => { const a = (v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) - v.fk) / v.m; return Math.sqrt(v.v0 * v.v0 + 2 * a * v.d); }, steps: (v, ans) => {
           const a = (v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) - v.fk) / v.m;
           return guidedSteps(
             `Known: initial speed <em>v</em><sub>0</sub> = ${v.v0} m/s, acceleration <em>a</em> = ${a.toFixed(2)} m/s² (from part a), distance <em>d</em> = ${v.d} m. No time is given.`,
@@ -9501,7 +9501,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: rnd(b.m, 0.20, 1), theta: rnd(b.theta, 0.15, 1), a: rnd(b.a, 0.20, 2) }),
     renderPrompt: (v) => `The man pictured pulls a <strong>${v.m}-kg</strong> crate up a frictionless <strong>${v.theta}&deg;</strong> incline. (There is friction where he’s standing, so he doesn’t move.) If he accelerates the crate at a rate of <strong>${v.a} m/s&sup2;</strong>, with how much force is he pulling on the rope?`,
     parts: [
-      { label: "Pulling force on rope (<em>F</em><sub>T</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) + v.m * v.a, steps: (v, ans) => {
+      { label: "Pulling force on rope (F<sub>T</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) + v.m * v.a, steps: (v, ans) => {
           const w = v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD);
           return guidedSteps(
             `Take up the incline as positive. The incline is frictionless, so the only forces along the slope on the crate are the rope tension <em>F</em><sub>T</sub> (up) and the weight component <em>m</em><em>g</em> sin &theta; = ${v.m} &times; 9.80 &times; sin ${v.theta}&deg; = ${w.toFixed(1)} N (down).`,
@@ -9520,12 +9520,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m1: Math.round(rnd(b.m1, 0.2, 0)), m2: Math.round(rnd(b.m2, 0.2, 0)), FkN: rnd(b.FkN, 0.2, 2) }),
     renderPrompt: (v) => `A <strong>${v.m1.toLocaleString()}-kg</strong> truck tows a <strong>${v.m2.toLocaleString()}-kg</strong> trailer with the ground pushing the truck with a force of <strong>${v.FkN} kN</strong>.<br/><strong>a.</strong> Determine the acceleration of the truck.<br/><strong>b.</strong> What net force is exerted on the trailer?<br/><strong>c.</strong> What force does the trailer pull on the truck with?`,
     parts: [
-      { label: "a. Acceleration of the truck (<em>a</em>)", unit: "m/s²", solve: (v) => (v.FkN * 1000) / (v.m1 + v.m2), steps: (v, ans) => guidedSteps(
+      { label: "a. Acceleration of the truck (a)", unit: "m/s²", solve: (v) => (v.FkN * 1000) / (v.m1 + v.m2), steps: (v, ans) => guidedSteps(
           `Treat the truck and trailer as one system moving together. The only external horizontal force is the ${v.FkN} kN (${v.FkN * 1000} N) push of the ground on the truck. The total mass is <em>m</em><sub>1</sub> + <em>m</em><sub>2</sub> = ${v.m1} + ${v.m2} = ${v.m1 + v.m2} kg.`,
           `Newton's second law for the system: <em>a</em> = <em>F</em> / (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>).`,
           `Substitute: <em>a</em> = ${v.FkN * 1000} N / ${v.m1 + v.m2} kg = <strong>${ans.toFixed(3)} m/s²</strong>. The trailer has the same acceleration.`
         )},
-      { label: "b. Net force exerted on the trailer (<em>F</em><sub>T</sub>)", unit: "N", solve: (v) => v.m2 * ((v.FkN * 1000) / (v.m1 + v.m2)), steps: (v, ans) => {
+      { label: "b. Net force exerted on the trailer (F<sub>T</sub>)", unit: "N", solve: (v) => v.m2 * ((v.FkN * 1000) / (v.m1 + v.m2)), steps: (v, ans) => {
           const a = (v.FkN * 1000) / (v.m1 + v.m2);
           return guidedSteps(
             `The trailer has the same acceleration as the truck, <em>a</em> = ${a.toFixed(3)} m/s² (from part a). Its mass is <em>m</em><sub>2</sub> = ${v.m2} kg.`,
@@ -9547,12 +9547,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ F23: rnd(b.F23, 0.2, 1), m1: rnd(b.m1, 0.2, 1), m2: rnd(b.m2, 0.2, 1), m3: rnd(b.m3, 0.2, 1) }),
     renderPrompt: (v) => `Force <em>F</em> acts on blocks <em>m</em><sub>1</sub> = <strong>${v.m1} kg</strong>, <em>m</em><sub>2</sub> = <strong>${v.m2} kg</strong>, <em>m</em><sub>3</sub> = <strong>${v.m3} kg</strong>. Blocks 2 and 3 push with <strong>${v.F23} N</strong>.<br/><strong>a.</strong> What is their acceleration?<br/><strong>b.</strong> What is the force between 1 and 2?<br/><strong>c.</strong> What is the magnitude of force <em>F</em>?`,
     parts: [
-      { label: "a. Acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => v.F23 / v.m3, steps: (v, ans) => guidedSteps(
+      { label: "a. Acceleration (a)", unit: "m/s²", solve: (v) => v.F23 / v.m3, steps: (v, ans) => guidedSteps(
           `Block 3 is the last in line, so the <em>only</em> horizontal force on it is the ${v.F23} N push from block 2. Newton's second law for block 3 alone: <em>F</em><sub>23</sub> = <em>m</em><sub>3</sub><em>a</em>.`,
           `Solve for the acceleration: <em>a</em> = <em>F</em><sub>23</sub> / <em>m</em><sub>3</sub>.`,
           `Substitute: <em>a</em> = ${v.F23} N / ${v.m3} kg = <strong>${ans.toFixed(2)} m/s²</strong>. All three blocks share this acceleration.`
         )},
-      { label: "b. Contact force <em>F</em><sub>12</sub>", unit: "N", solve: (v) => (v.m2 + v.m3) * (v.F23 / v.m3), steps: (v, ans) => {
+      { label: "b. Contact force F<sub>12</sub>", unit: "N", solve: (v) => (v.m2 + v.m3) * (v.F23 / v.m3), steps: (v, ans) => {
           const a = v.F23 / v.m3;
           return guidedSteps(
             `The force between blocks 1 and 2 must accelerate everything ahead of it, which is blocks 2 and 3 together. Their combined mass is ${v.m2} + ${v.m3} = ${v.m2 + v.m3} kg.`,
@@ -9560,7 +9560,7 @@ const PHYSICS_QUESTIONS = [
             `Substitute: <em>F</em><sub>12</sub> = (${v.m2 + v.m3} kg)(${a.toFixed(2)} m/s²) = <strong>${ans.toFixed(1)} N</strong>.`
           );
         }},
-      { label: "c. Applied force <em>F</em>", unit: "N", solve: (v) => (v.m1 + v.m2 + v.m3) * (v.F23 / v.m3), steps: (v, ans) => {
+      { label: "c. Applied force F", unit: "N", solve: (v) => (v.m1 + v.m2 + v.m3) * (v.F23 / v.m3), steps: (v, ans) => {
           const a = v.F23 / v.m3;
           return guidedSteps(
             `The applied force <em>F</em> acts on block 1 and must accelerate all three blocks together. Total mass: ${v.m1} + ${v.m2} + ${v.m3} = ${v.m1 + v.m2 + v.m3} kg.`,
@@ -9577,12 +9577,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => { const m2 = rnd(b.m2, 0.2, 1); return { m1: Number((m2 + rnd(b.m1 - b.m2, 0.2, 1)).toFixed(1)), m2 }; },
     renderPrompt: (v) => `An Atwood machine has masses <em>m</em><sub>1</sub> = <strong>${v.m1} kg</strong> and <em>m</em><sub>2</sub> = <strong>${v.m2} kg</strong>.<br/><strong>a.</strong> What is the acceleration of the masses?<br/><strong>b.</strong> What is the tension in the string?`,
     parts: [
-      { label: "a. Acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => ((v.m1 - v.m2) * G_ACCEL) / (v.m1 + v.m2), steps: (v, ans) => guidedSteps(
+      { label: "a. Acceleration (a)", unit: "m/s²", solve: (v) => ((v.m1 - v.m2) * G_ACCEL) / (v.m1 + v.m2), steps: (v, ans) => guidedSteps(
           `The heavier mass <em>m</em><sub>1</sub> = ${v.m1} kg accelerates downward and the lighter mass <em>m</em><sub>2</sub> = ${v.m2} kg accelerates upward, both with the same magnitude <em>a</em> since the string stays taut. Let each mass's direction of motion be positive.`,
           `Newton's second law for each mass: <em>m</em><sub>1</sub><em>g</em> &minus; <em>F</em><sub>T</sub> = <em>m</em><sub>1</sub><em>a</em> and <em>F</em><sub>T</sub> &minus; <em>m</em><sub>2</sub><em>g</em> = <em>m</em><sub>2</sub><em>a</em>. Add the two equations; the tension cancels: (<em>m</em><sub>1</sub> &minus; <em>m</em><sub>2</sub>)<em>g</em> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)<em>a</em>.`,
           `<em>a</em> = (<em>m</em><sub>1</sub> &minus; <em>m</em><sub>2</sub>)<em>g</em> / (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>) = (${v.m1} &minus; ${v.m2})(9.80) / (${v.m1} + ${v.m2}) = <strong>${ans.toFixed(2)} m/s²</strong>.`
         )},
-      { label: "b. Tension (<em>F</em><sub>T</sub>)", unit: "N", solve: (v) => (2 * v.m1 * v.m2 * G_ACCEL) / (v.m1 + v.m2), steps: (v, ans) => {
+      { label: "b. Tension (F<sub>T</sub>)", unit: "N", solve: (v) => (2 * v.m1 * v.m2 * G_ACCEL) / (v.m1 + v.m2), steps: (v, ans) => {
           const a = ((v.m1 - v.m2) * G_ACCEL) / (v.m1 + v.m2);
           return guidedSteps(
             `Use the acceleration from part a, <em>a</em> = ${a.toFixed(2)} m/s², and apply Newton's second law to just <em>one</em> of the masses. The lighter mass is easier: it moves up, so <em>F</em><sub>T</sub> &minus; <em>m</em><sub>2</sub><em>g</em> = <em>m</em><sub>2</sub><em>a</em>.`,
@@ -9599,7 +9599,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m1: rnd(b.m1, 0.2, 1), m2: rnd(b.m2, 0.2, 1), m3: rnd(b.m3, 0.2, 1), F: Math.round(rnd(b.F, 0.2, 0)) }),
     renderPrompt: (v) => `Masses <em>m</em><sub>1</sub> = <strong>${v.m1} kg</strong>, <em>m</em><sub>2</sub> = <strong>${v.m2} kg</strong>, <em>m</em><sub>3</sub> = <strong>${v.m3} kg</strong> are pulled by <strong>${v.F} N</strong>.<br/><strong>a.</strong> Tension <em>T</em><sub>12</sub>?<br/><strong>b.</strong> Tension <em>T</em><sub>23</sub>?`,
     parts: [
-      { label: "a. Tension <em>T</em><sub>12</sub>", unit: "N", solve: (v) => v.m1 * (v.F / (v.m1 + v.m2 + v.m3)), steps: (v, ans) => {
+      { label: "a. Tension T<sub>12</sub>", unit: "N", solve: (v) => v.m1 * (v.F / (v.m1 + v.m2 + v.m3)), steps: (v, ans) => {
           const a = v.F / (v.m1 + v.m2 + v.m3);
           return guidedSteps(
             `The surface is frictionless and the ropes stay taut, so all three masses have the same acceleration. Treat the whole system: <em>a</em> = <em>F</em> / (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub> + <em>m</em><sub>3</sub>) = ${v.F} / ${v.m1 + v.m2 + v.m3} = ${a.toFixed(3)} m/s².`,
@@ -9607,7 +9607,7 @@ const PHYSICS_QUESTIONS = [
             `Substitute: <em>T</em><sub>12</sub> = (${v.m1} kg)(${a.toFixed(3)} m/s²) = <strong>${ans.toFixed(1)} N</strong>.`
           );
         }},
-      { label: "b. Tension <em>T</em><sub>23</sub>", unit: "N", solve: (v) => (v.m1 + v.m2) * (v.F / (v.m1 + v.m2 + v.m3)), steps: (v, ans) => {
+      { label: "b. Tension T<sub>23</sub>", unit: "N", solve: (v) => (v.m1 + v.m2) * (v.F / (v.m1 + v.m2 + v.m3)), steps: (v, ans) => {
           const a = v.F / (v.m1 + v.m2 + v.m3);
           return guidedSteps(
             `Use the common acceleration <em>a</em> = ${v.F} / ${v.m1 + v.m2 + v.m3} = ${a.toFixed(3)} m/s². The rope between masses 2 and 3 must pull masses 1 and 2 together, so choose them as the system (mass ${v.m1 + v.m2} kg).`,
@@ -9624,12 +9624,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m2: rnd(b.m2, 0.2, 1), m1: rnd(b.m1, 0.2, 1) }),
     renderPrompt: (v) => `Mass 2 (<strong>${v.m2} kg</strong>) is on a frictionless table, and it’s connected to hanging mass 1 (<strong>${v.m1} kg</strong>).<br/><strong>a.</strong> What is the acceleration of the masses?<br/><strong>b.</strong> What is the tension in the string connecting them?`,
     parts: [
-      { label: "a. Acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => (v.m1 * G_ACCEL) / (v.m1 + v.m2), steps: (v, ans) => guidedSteps(
+      { label: "a. Acceleration (a)", unit: "m/s²", solve: (v) => (v.m1 * G_ACCEL) / (v.m1 + v.m2), steps: (v, ans) => guidedSteps(
           `The two masses are connected by a string, so they have the same acceleration size <em>a</em>. On the frictionless table, the only horizontal force on mass 2 is the tension: <em>F</em><sub>T</sub> = <em>m</em><sub>2</sub><em>a</em>. For the hanging mass 1 (down positive): <em>m</em><sub>1</sub><em>g</em> &minus; <em>F</em><sub>T</sub> = <em>m</em><sub>1</sub><em>a</em>.`,
           `Substitute the first equation into the second: <em>m</em><sub>1</sub><em>g</em> &minus; <em>m</em><sub>2</sub><em>a</em> = <em>m</em><sub>1</sub><em>a</em>, so <em>a</em> = <em>m</em><sub>1</sub><em>g</em> / (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>).`,
           `Substitute: <em>a</em> = (${v.m1})(9.80) / (${v.m1} + ${v.m2}) = <strong>${ans.toFixed(2)} m/s²</strong>.`
         )},
-      { label: "b. Tension (<em>F</em><sub>T</sub>)", unit: "N", solve: (v) => (v.m1 * v.m2 * G_ACCEL) / (v.m1 + v.m2), steps: (v, ans) => {
+      { label: "b. Tension (F<sub>T</sub>)", unit: "N", solve: (v) => (v.m1 * v.m2 * G_ACCEL) / (v.m1 + v.m2), steps: (v, ans) => {
           const a = (v.m1 * G_ACCEL) / (v.m1 + v.m2);
           return guidedSteps(
             `Only the string pulls mass 2 along the frictionless table, so the tension is the net force on it: <em>F</em><sub>T</sub> = <em>m</em><sub>2</sub><em>a</em>, using <em>a</em> = ${a.toFixed(2)} m/s² from part a.`,
@@ -9645,7 +9645,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { m1: 6.00, m2: 4.00, F: 27.0 },
     randomize: (b) => ({ m1: rnd(b.m1, 0.2, 2), m2: rnd(b.m2, 0.2, 2), F: rnd(b.F, 0.2, 1) }),
     renderPrompt: (v) => `A <strong>${v.m1}-kg</strong> block touches a <strong>${v.m2}-kg</strong> block on a frictionless table, pushed by <strong>${v.F} N</strong>. Find contact force on block 2.`,
-    parts: [{ label: "Contact force on block 2 (<em>F</em><sub>12</sub>)", unit: "N", solve: (v) => v.m2 * (v.F / (v.m1 + v.m2)), steps: (v, ans) => {
+    parts: [{ label: "Contact force on block 2 (F<sub>12</sub>)", unit: "N", solve: (v) => v.m2 * (v.F / (v.m1 + v.m2)), steps: (v, ans) => {
           const a = v.F / (v.m1 + v.m2);
           return guidedSteps(
             `The blocks move together, so first find their common acceleration by treating them as one ${v.m1 + v.m2} kg system pushed by ${v.F} N: <em>a</em> = <em>F</em> / (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>) = ${v.F} / ${v.m1 + v.m2} = ${a.toFixed(3)} m/s².`,
@@ -9662,7 +9662,7 @@ const PHYSICS_QUESTIONS = [
     renderPrompt: (v) => `Block two (<em>m</em><sub>2</sub> = <strong>${v.m2} kg</strong>) is on a frictionless incline that forms a <strong>${v.theta}&deg;</strong> angle with the horizontal. If the tension in the cable connecting the two blocks is <strong>${v.FT} N</strong>, what is the mass of block one?`,
     parts: [
       {
-        label: "Mass of block one (<em>m</em><sub>1</sub>)", unit: "kg",
+        label: "Mass of block one (m<sub>1</sub>)", unit: "kg",
         solve: (v) => {
           const a = G_ACCEL * Math.sin(v.theta * DEG2RAD) - (v.FT / v.m2);
           return v.FT / (G_ACCEL + a);
@@ -9685,7 +9685,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { WkN: 10, a: 3 },
     randomize: (b) => ({ WkN: rnd(b.WkN, 0.2, 1), a: rnd(b.a, 0.2, 2) }),
     renderPrompt: (v) => `An elevator weighing <strong>${v.WkN} kN</strong> accelerates upward at <strong>${v.a} m/s&sup2;</strong>. Find the tension in the cable supporting the elevator.`,
-    parts: [{ label: "Cable tension (<em>F</em><sub>T</sub>)", unit: "N", solve: (v) => (v.WkN * 1000) * (1 + v.a / G_ACCEL), steps: (v, ans) => {
+    parts: [{ label: "Cable tension (F<sub>T</sub>)", unit: "N", solve: (v) => (v.WkN * 1000) * (1 + v.a / G_ACCEL), steps: (v, ans) => {
           const W = v.WkN * 1000, m = W / G_ACCEL;
           return guidedSteps(
             `Take up as positive. The forces on the elevator are the cable tension <em>F</em><sub>T</sub> (up) and its weight <em>W</em> = ${W} N (down). The mass is <em>m</em> = <em>W</em> / <em>g</em> = ${W} / 9.80 = ${m.toFixed(1)} kg.`,
@@ -9715,7 +9715,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { pct: 113 },
     randomize: () => ({ pct: Math.round(rnd(115, 0.08, 0)) }),
     renderPrompt: (v) => `A box is on a scale in an elevator, and the scale reads <strong>${v.pct}%</strong> of the box’s usual weight. Find the magnitude and direction of the elevator’s acceleration.`,
-    parts: [{ label: "Acceleration magnitude (<em>a</em>)", unit: "m/s²", directionOptions: ["Upward", "Downward"], expectedDirection: "Upward", solve: (v) => ((v.pct / 100) - 1) * G_ACCEL, steps: (v, ans) => guidedSteps(
+    parts: [{ label: "Acceleration magnitude (a)", unit: "m/s²", directionOptions: ["Upward", "Downward"], expectedDirection: "Upward", solve: (v) => ((v.pct / 100) - 1) * G_ACCEL, steps: (v, ans) => guidedSteps(
           `The scale reads the normal force: <em>F</em><sub>N</sub> = ${v.pct}% of the weight = ${(v.pct / 100).toFixed(2)}<em>m</em><em>g</em>. Because this is <em>more</em> than the weight, the net force must point upward.`,
           `Take up as positive. Newton's second law: <em>F</em><sub>N</sub> &minus; <em>m</em><em>g</em> = <em>m</em><em>a</em>, so ${(v.pct / 100).toFixed(2)}<em>m</em><em>g</em> &minus; <em>m</em><em>g</em> = <em>m</em><em>a</em>. The mass cancels: <em>a</em> = (${(v.pct / 100).toFixed(2)} &minus; 1)<em>g</em>.`,
           `Substitute: <em>a</em> = ${((v.pct / 100) - 1).toFixed(2)} &times; 9.80 = <strong>${ans.toFixed(2)} m/s², upward</strong>. (The elevator could be speeding up while rising, or slowing down while descending.)`
@@ -9727,7 +9727,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { W: 706, v: 1.2, t: 0.80 },
     randomize: (b) => ({ W: Math.round(rnd(b.W, 0.2, 0)), v: rnd(b.v, 0.2, 2), t: rnd(b.t, 0.2, 2) }),
     renderPrompt: (v) => `A scale reads <strong>${v.W} N</strong> at rest. If the elevator reaches upward speed <strong>${v.v} m/s</strong> in <strong>${v.t} s</strong>, what does the scale read?`,
-    parts: [{ label: "Scale reading (<em>F</em><sub>N</sub>)", unit: "N", solve: (v) => v.W + (v.W / G_ACCEL) * (v.v / v.t), steps: (v, ans) => {
+    parts: [{ label: "Scale reading (F<sub>N</sub>)", unit: "N", solve: (v) => v.W + (v.W / G_ACCEL) * (v.v / v.t), steps: (v, ans) => {
           const m = v.W / G_ACCEL, a = v.v / v.t;
           return guidedSteps(
             `At rest the scale reads the person's weight, so <em>W</em> = ${v.W} N and the mass is <em>m</em> = <em>W</em> / <em>g</em> = ${v.W} / 9.80 = ${m.toFixed(1)} kg. The acceleration is <em>a</em> = &Delta;<em>v</em> / &Delta;<em>t</em> = ${v.v} / ${v.t} = ${a.toFixed(2)} m/s² upward.`,
@@ -9742,7 +9742,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { W: 519.4, d: 29.6, Tmax: 588 },
     randomize: (b) => { const W = rnd(b.W, 0.15, 1); return { W, d: rnd(b.d, 0.15, 1), Tmax: Number((W + rnd(70, 0.20, 1)).toFixed(1)) }; },
     renderPrompt: (v) => `A boy who weighs <strong>${v.W} N</strong> is pulled up vertically from a <strong>${v.d}-m</strong> cave. The maximum tension the rope can withstand is <strong>${v.Tmax} N</strong>. Find the shortest time the boy can exit the cave.`,
-    parts: [{ label: "Shortest time (<em>t</em>)", unit: "s", solve: (v) => Math.sqrt((2 * v.d) / ((v.Tmax - v.W) / (v.W / G_ACCEL))), steps: (v, ans) => {
+    parts: [{ label: "Shortest time (t)", unit: "s", solve: (v) => Math.sqrt((2 * v.d) / ((v.Tmax - v.W) / (v.W / G_ACCEL))), steps: (v, ans) => {
           const m = v.W / G_ACCEL, a = (v.Tmax - v.W) / m;
           return guidedSteps(
             `The shortest time comes from the largest acceleration, which occurs when the rope tension is at its limit <em>T</em><sub>max</sub> = ${v.Tmax} N. The boy's mass is <em>m</em> = <em>W</em> / <em>g</em> = ${v.W} / 9.80 = ${m.toFixed(1)} kg.`,
@@ -9760,7 +9760,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => { const Fw = rnd(b.Fw, 0.2, 1); return { Fw, Fs: rnd(b.Fs, 0.2, 1), Fe: Number((Fw + rnd(b.Fe - b.Fw, 0.2, 1)).toFixed(1)), m: rnd(b.m, 0.2, 1) }; },
     renderPrompt: (v) => `Forces of <strong>${v.Fw} N west</strong>, <strong>${v.Fs} N south</strong>, and <strong>${v.Fe} N east</strong> act on a <strong>${v.m}-kg</strong> mass. Find the magnitude and direction of the acceleration.`,
     parts: [
-      { label: "Magnitude of acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => Math.hypot(v.Fe - v.Fw, v.Fs) / v.m, steps: (v, ans) => {
+      { label: "Magnitude of acceleration (a)", unit: "m/s²", solve: (v) => Math.hypot(v.Fe - v.Fw, v.Fs) / v.m, steps: (v, ans) => {
           const fx = v.Fe - v.Fw;
           return guidedSteps(
             `Treat east as +x and north as +y. East-west forces: ${v.Fe} N east and ${v.Fw} N west, so <em>F</em><sub>x</sub> = ${v.Fe} &minus; ${v.Fw} = ${fx.toFixed(1)} N. North-south: only ${v.Fs} N south, so <em>F</em><sub>y</sub> = &minus;${v.Fs} N.`,
@@ -9785,12 +9785,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ Fw: rnd(b.Fw, 0.2, 2), Fn: rnd(b.Fn, 0.2, 1), m: rnd(b.m, 0.2, 2) }),
     renderPrompt: (v) => `Forces of <strong>${v.Fw} N west</strong> and <strong>${v.Fn} N north</strong> act on a <strong>${v.m}-kg</strong> mass.<br/><strong>a.</strong> What is the net force on the mass?<br/><strong>b.</strong> What is the magnitude of the mass’s acceleration?<br/><strong>c.</strong> What is the direction of the mass’s acceleration?`,
     parts: [
-      { label: "a. Net force (<em>F</em><sub>net</sub>)", unit: "N", solve: (v) => Math.hypot(v.Fw, v.Fn), steps: (v, ans) => guidedSteps(
+      { label: "a. Net force (F<sub>net</sub>)", unit: "N", solve: (v) => Math.hypot(v.Fw, v.Fn), steps: (v, ans) => guidedSteps(
           `The two forces are perpendicular (west and north), so they form the legs of a right triangle and the net force is the hypotenuse.`,
           `Pythagorean theorem: <em>F</em><sub>net</sub> = &radic;(<em>F</em><sub>w</sub>&sup2; + <em>F</em><sub>n</sub>&sup2;).`,
           `Substitute: <em>F</em><sub>net</sub> = &radic;(${v.Fw}&sup2; + ${v.Fn}&sup2;) = <strong>${ans.toFixed(2)} N</strong>.`
         )},
-      { label: "b. Acceleration (<em>a</em>)", unit: "m/s²", solve: (v) => Math.hypot(v.Fw, v.Fn) / v.m, steps: (v, ans) => guidedSteps(
+      { label: "b. Acceleration (a)", unit: "m/s²", solve: (v) => Math.hypot(v.Fw, v.Fn) / v.m, steps: (v, ans) => guidedSteps(
           `Apply Newton's second law to the net force from part a, <em>F</em><sub>net</sub> = ${Math.hypot(v.Fw, v.Fn).toFixed(2)} N, and the mass ${v.m} kg.`,
           `<em>a</em> = <em>F</em><sub>net</sub> / <em>m</em>.`,
           `Substitute: <em>a</em> = ${Math.hypot(v.Fw, v.Fn).toFixed(2)} N / ${v.m} kg = <strong>${ans.toFixed(2)} m/s²</strong>.`
@@ -9809,7 +9809,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ A: rnd(b.A, 0.15, 2), thetaA: rnd(b.thetaA, 0.15, 1), B: rnd(b.B, 0.15, 2) }),
     renderPrompt: (v) => `Force A = <strong>${v.A} N @ ${v.thetaA}&deg; south of west</strong> and Force B = <strong>${v.B} N north</strong>. Find the equilibrant force.`,
     parts: [
-      { label: "Equilibrant magnitude (<em>E</em>)", unit: "N", solve: (v) => Math.hypot(-v.A * Math.cos(v.thetaA * DEG2RAD), -v.A * Math.sin(v.thetaA * DEG2RAD) + v.B), steps: (v, ans) => {
+      { label: "Equilibrant magnitude (E)", unit: "N", solve: (v) => Math.hypot(-v.A * Math.cos(v.thetaA * DEG2RAD), -v.A * Math.sin(v.thetaA * DEG2RAD) + v.B), steps: (v, ans) => {
           const rad = v.thetaA * DEG2RAD;
           const Ax = -v.A * Math.cos(rad), Ay = -v.A * Math.sin(rad);
           const Rx = Ax, Ry = Ay + v.B;
@@ -9853,7 +9853,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { m1: 52, m2: 27, v: 0.30, t: 0.75 },
     randomize: (b) => ({ m1: Math.round(rnd(b.m1, 0.2, 0)), m2: Math.round(rnd(b.m2, 0.2, 0)), v: rnd(b.v, 0.2, 2), t: rnd(b.t, 0.2, 2) }),
     renderPrompt: (v) => `A <strong>${v.m1}-kg</strong> girl in a <strong>${v.m2}-kg</strong> canoe pushes from a dock to <strong>${v.v} m/s</strong> in <strong>${v.t} s</strong>. Find average force on the canoe.`,
-    parts: [{ label: "Average force on canoe (<em>F</em><sub>avg</sub>)", unit: "N", solve: (v) => ((v.m1 + v.m2) * v.v) / v.t, steps: (v, ans) => {
+    parts: [{ label: "Average force on canoe (F<sub>avg</sub>)", unit: "N", solve: (v) => ((v.m1 + v.m2) * v.v) / v.t, steps: (v, ans) => {
           const M = v.m1 + v.m2;
           return guidedSteps(
             `Treat the girl and canoe as one object, since they speed up together. Total mass: <em>M</em> = ${v.m1} + ${v.m2} = ${M} kg. They start at rest and reach ${v.v} m/s in ${v.t} s.`,
@@ -9869,17 +9869,17 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ mA: Math.round(rnd(b.mA, 0.2, 0)), mC: rnd(b.mC, 0.2, 1), aA: rnd(b.aA, 0.2, 2), t: rnd(b.t, 0.2, 2) }),
     renderPrompt: (v) => `A <strong>${v.mA}-kg</strong> astronaut pushes a <strong>${v.mC}-kg</strong> crate, and he accelerates at <strong>${v.aA} m/s&sup2;</strong> for <strong>${v.t} s</strong>.<br/><strong>a.</strong> What is the force on the crate?<br/><strong>b.</strong> What is the force on the astronaut?<br/><strong>c.</strong> What is the crate’s acceleration?<br/><strong>d.</strong> What is the astronaut’s speed as he floats away?<br/><strong>e.</strong> What is the crate’s speed as it floats away?`,
     parts: [
-      { label: "a. Force on crate (<em>F</em>)", unit: "N", solve: (v) => v.mA * v.aA, steps: (v, ans) => guidedSteps(
+      { label: "a. Force on crate (F)", unit: "N", solve: (v) => v.mA * v.aA, steps: (v, ans) => guidedSteps(
           `The astronaut accelerates at ${v.aA} m/s², so the net force on him is <em>F</em> = <em>m</em><sub>A</sub><em>a</em><sub>A</sub> = (${v.mA})(${v.aA}) = ${ans.toFixed(1)} N. In deep space the crate pushes back on him, and that is the only force.`,
           `Newton's third law: the astronaut pushes the crate with a force equal in size to the force the crate pushes on him.`,
           `So the force on the crate is <strong>${ans.toFixed(1)} N</strong>, directed away from the astronaut.`
         )},
-      { label: "b. Force on astronaut (<em>F</em>)", unit: "N", solve: (v) => v.mA * v.aA, steps: (v, ans) => guidedSteps(
+      { label: "b. Force on astronaut (F)", unit: "N", solve: (v) => v.mA * v.aA, steps: (v, ans) => guidedSteps(
           `Newton's second law for the astronaut: <em>F</em> = <em>m</em><sub>A</sub><em>a</em><sub>A</sub>.`,
           `Substitute: <em>F</em> = (${v.mA} kg)(${v.aA} m/s²) = <strong>${ans.toFixed(1)} N</strong>.`,
           `This matches the force he exerts on the crate (part a), as Newton's third law requires, but it is directed the opposite way.`
         )},
-      { label: "c. Crate acceleration (<em>a</em><sub>C</sub>)", unit: "m/s²", solve: (v) => (v.mA * v.aA) / v.mC, steps: (v, ans) => {
+      { label: "c. Crate acceleration (a<sub>C</sub>)", unit: "m/s²", solve: (v) => (v.mA * v.aA) / v.mC, steps: (v, ans) => {
           const F = v.mA * v.aA;
           return guidedSteps(
             `The crate feels the same force found in parts a and b: <em>F</em> = ${F.toFixed(1)} N. Its mass is <em>m</em><sub>C</sub> = ${v.mC} kg, which is smaller than the astronaut's.`,
@@ -9887,12 +9887,12 @@ const PHYSICS_QUESTIONS = [
             `Substitute: <em>a</em><sub>C</sub> = ${F.toFixed(1)} N / ${v.mC} kg = <strong>${ans.toFixed(2)} m/s²</strong>. The lighter object accelerates more.`
           );
         }},
-      { label: "d. Astronaut final speed (<em>v</em><sub>A</sub>)", unit: "m/s", solve: (v) => v.aA * v.t, steps: (v, ans) => guidedSteps(
+      { label: "d. Astronaut final speed (v<sub>A</sub>)", unit: "m/s", solve: (v) => v.aA * v.t, steps: (v, ans) => guidedSteps(
           `The astronaut starts at rest and accelerates at a constant ${v.aA} m/s² for ${v.t} s while he is pushing.`,
           `Use <em>v</em> = <em>v</em><sub>0</sub> + <em>a</em><em>t</em> with <em>v</em><sub>0</sub> = 0.`,
           `Substitute: <em>v</em><sub>A</sub> = (${v.aA} m/s²)(${v.t} s) = <strong>${ans.toFixed(2)} m/s</strong>. After the push ends there is no force, so he floats away at this constant speed.`
         )},
-      { label: "e. Crate final speed (<em>v</em><sub>C</sub>)", unit: "m/s", solve: (v) => ((v.mA * v.aA) / v.mC) * v.t, steps: (v, ans) => {
+      { label: "e. Crate final speed (v<sub>C</sub>)", unit: "m/s", solve: (v) => ((v.mA * v.aA) / v.mC) * v.t, steps: (v, ans) => {
           const aC = (v.mA * v.aA) / v.mC;
           return guidedSteps(
             `The crate also starts at rest and accelerates for the same ${v.t} s, but with its own acceleration <em>a</em><sub>C</sub> = ${aC.toFixed(2)} m/s² from part c.`,
@@ -9908,7 +9908,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { mB: 64, mG: 49, aB: 3.2, t: 2.1 },
     randomize: (b) => ({ mB: Math.round(rnd(b.mB, 0.2, 0)), mG: Math.round(rnd(b.mG, 0.2, 0)), aB: rnd(b.aB, 0.2, 1), t: rnd(b.t, 0.2, 1) }),
     renderPrompt: (v) => `A <strong>${v.mB}-kg</strong> boy and <strong>${v.mG}-kg</strong> girl initially at rest on frictionless ice push off of each other. The boy accelerates at <strong>${v.aB} m/s&sup2;</strong> for <strong>${v.t} s</strong>. Find the girl's speed.`,
-    parts: [{ label: "Girl's speed (<em>v</em><sub>G</sub>)", unit: "m/s", solve: (v) => ((v.mB * v.aB) / v.mG) * v.t, steps: (v, ans) => {
+    parts: [{ label: "Girl's speed (v<sub>G</sub>)", unit: "m/s", solve: (v) => ((v.mB * v.aB) / v.mG) * v.t, steps: (v, ans) => {
           const F = v.mB * v.aB;
           return guidedSteps(
             `On frictionless ice the only horizontal force on each skater is the push from the other. The boy's net force is <em>F</em> = <em>m</em><sub>B</sub><em>a</em><sub>B</sub> = (${v.mB})(${v.aB}) = ${F.toFixed(1)} N.`,
@@ -9924,12 +9924,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ vi: rnd(b.vi, 0.15, 2), vf: rnd(b.vf, 0.15, 2), dtMs: rnd(b.dtMs, 0.15, 2), m: rnd(b.m, 0.15, 3) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> ball hits a cushion at <strong>&minus;${v.vi} m/s</strong> and rebounds at <strong>+${v.vf} m/s</strong> in <strong>${v.dtMs} ms</strong>.<br/><strong>a.</strong> What is the ball’s average acceleration?<br/><strong>b.</strong> What is the average net force on the ball?`,
     parts: [
-      { label: "a. Average acceleration (<em>a</em><sub>avg</sub>)", unit: "m/s²", acceptNegative: true, solve: (v) => (v.vi + v.vf) / (v.dtMs * 1e-3), steps: (v, ans) => guidedSteps(
+      { label: "a. Average acceleration (a<sub>avg</sub>)", unit: "m/s²", acceptNegative: true, solve: (v) => (v.vi + v.vf) / (v.dtMs * 1e-3), steps: (v, ans) => guidedSteps(
           `Choose the direction of the rebound as positive. The ball's velocity changes from <em>v</em><sub>i</sub> = &minus;${v.vi} m/s to <em>v</em><sub>f</sub> = +${v.vf} m/s. Convert the time: ${v.dtMs} ms = ${v.dtMs} &times; 10<sup>&minus;3</sup> s.`,
           `Average acceleration: <em>a</em><sub>avg</sub> = &Delta;<em>v</em> / &Delta;<em>t</em> = (<em>v</em><sub>f</sub> &minus; <em>v</em><sub>i</sub>) / &Delta;<em>t</em>. The change in velocity is +${v.vf} &minus; (&minus;${v.vi}) = +${(v.vf + v.vi).toFixed(2)} m/s, because the velocity reverses direction.`,
           `Substitute: <em>a</em><sub>avg</sub> = ${(v.vf + v.vi).toFixed(2)} / (${v.dtMs} &times; 10<sup>&minus;3</sup>) = <strong>${ans.toFixed(1)} m/s²</strong>, directed away from the cushion.`
         )},
-      { label: "b. Average net force (<em>F</em><sub>avg</sub>)", unit: "N", acceptNegative: true, solve: (v) => v.m * ((v.vi + v.vf) / (v.dtMs * 1e-3)), steps: (v, ans) => {
+      { label: "b. Average net force (F<sub>avg</sub>)", unit: "N", acceptNegative: true, solve: (v) => v.m * ((v.vi + v.vf) / (v.dtMs * 1e-3)), steps: (v, ans) => {
           const a = (v.vi + v.vf) / (v.dtMs * 1e-3);
           return guidedSteps(
             `Use Newton's second law with the average acceleration from part a, <em>a</em><sub>avg</sub> = ${a.toFixed(1)} m/s², and the ball's mass ${v.m} kg.`,
@@ -9947,7 +9947,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { M: 372, a: 0.21 },
     randomize: (b) => ({ M: Math.round(rnd(b.M, 0.20, 0)), a: rnd(b.a, 0.20, 3) }),
     renderPrompt: (v) => `A hot-air balloon with a mass of <strong>${v.M} kg</strong> is floating in equilibrium. How much mass must be dropped overboard so it accelerates upward at <strong>${v.a} m/s&sup2;</strong>?`,
-    parts: [{ label: "Mass dropped overboard (&Delta;<em>m</em>)", unit: "kg", solve: (v) => (v.M * v.a) / (G_ACCEL + v.a), steps: (v, ans) => guidedSteps(
+    parts: [{ label: "Mass dropped overboard (&Delta;m)", unit: "kg", solve: (v) => (v.M * v.a) / (G_ACCEL + v.a), steps: (v, ans) => guidedSteps(
           `In equilibrium the upward buoyant force on the balloon equals its weight: <em>F</em><sub>up</sub> = <em>M</em><em>g</em> = ${v.M} &times; 9.80 = ${(v.M * G_ACCEL).toFixed(1)} N. Dropping ballast does not change this upward force, only the mass left to lift: <em>m</em><sub>new</sub> = <em>M</em> &minus; &Delta;<em>m</em>.`,
           `Newton's second law with up positive: <em>F</em><sub>up</sub> &minus; <em>m</em><sub>new</sub><em>g</em> = <em>m</em><sub>new</sub><em>a</em>. Substitute <em>F</em><sub>up</sub> = <em>M</em><em>g</em> and <em>m</em><sub>new</sub> = <em>M</em> &minus; &Delta;<em>m</em>: <em>M</em><em>g</em> = (<em>M</em> &minus; &Delta;<em>m</em>)(<em>g</em> + <em>a</em>).`,
           `Solve for &Delta;<em>m</em>: &Delta;<em>m</em> = <em>M</em><em>a</em> / (<em>g</em> + <em>a</em>) = (${v.M})(${v.a}) / (9.80 + ${v.a}) = <strong>${ans.toFixed(2)} kg</strong>.`
@@ -9959,7 +9959,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { m: 2.7, v: 50, dCm: 90 },
     randomize: (b) => ({ m: rnd(b.m, 0.2, 2), v: rnd(b.v, 0.2, 1), dCm: rnd(b.dCm, 0.2, 1) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> rocket beginning at rest reaches <strong>${v.v} m/s</strong> while accelerating through a <strong>${v.dCm}-cm</strong> tube. Find the net force on the rocket.`,
-    parts: [{ label: "Net force (<em>F</em><sub>net</sub>)", unit: "N", solve: (v) => (v.m * v.v * v.v) / (2 * (v.dCm / 100)), steps: (v, ans) => {
+    parts: [{ label: "Net force (F<sub>net</sub>)", unit: "N", solve: (v) => (v.m * v.v * v.v) / (2 * (v.dCm / 100)), steps: (v, ans) => {
           const d = v.dCm / 100, a = (v.v * v.v) / (2 * d);
           return guidedSteps(
             `First find the acceleration inside the tube. Known: starts at rest, final speed ${v.v} m/s, distance <em>d</em> = ${v.dCm} cm = ${d.toFixed(2)} m. No time is given.`,
@@ -9974,7 +9974,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { m: 0.23, a: 9.6 },
     randomize: (b) => ({ m: rnd(b.m, 0.2, 2), a: rnd(9.20, 0.04, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> tennis ball is released from rest, and it falls downward at <strong>${v.a} m/s&sup2;</strong>. Find the air resistance force on the tennis ball.`,
-    parts: [{ label: "Air resistance force (<em>F</em><sub>air</sub>)", unit: "N", acceptNegative: true, solve: (v) => v.m * (G_ACCEL - v.a), steps: (v, ans) => guidedSteps(
+    parts: [{ label: "Air resistance force (F<sub>air</sub>)", unit: "N", acceptNegative: true, solve: (v) => v.m * (G_ACCEL - v.a), steps: (v, ans) => guidedSteps(
           `Two forces act on the falling ball: weight <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(4)} N downward, and air resistance <em>F</em><sub>air</sub> upward. Take down as positive. The ball accelerates at only ${v.a} m/s², which is less than <em>g</em>, so something is holding it back.`,
           `Newton's second law: <em>m</em><em>g</em> &minus; <em>F</em><sub>air</sub> = <em>m</em><em>a</em>, so <em>F</em><sub>air</sub> = <em>m</em>(<em>g</em> &minus; <em>a</em>).`,
           `Substitute: <em>F</em><sub>air</sub> = ${v.m}(9.80 &minus; ${v.a}) = <strong>${ans.toFixed(4)} N</strong>, directed upward (opposing the motion).`
@@ -9986,7 +9986,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { m: 1950, v0: 24.6, vf: 11.2, d: 55.0 },
     randomize: (b) => { const vf = rnd(b.vf, 0.15, 1); return { m: Math.round(rnd(b.m, 0.2, 0)), v0: Number((vf + rnd(b.v0 - b.vf, 0.2, 1)).toFixed(1)), vf, d: rnd(b.d, 0.2, 1) }; },
     renderPrompt: (v) => `A <strong>${v.m.toLocaleString()}-kg</strong> car slows from <strong>${v.v0} m/s</strong> to <strong>${v.vf} m/s</strong> over <strong>${v.d} m</strong>. What braking force is required?`,
-    parts: [{ label: "Braking force (<em>F</em>)", unit: "N", acceptNegative: true, solve: (v) => v.m * ((v.v0 * v.v0 - v.vf * v.vf) / (2 * v.d)), steps: (v, ans) => {
+    parts: [{ label: "Braking force (F)", unit: "N", acceptNegative: true, solve: (v) => v.m * ((v.v0 * v.v0 - v.vf * v.vf) / (2 * v.d)), steps: (v, ans) => {
           const a = (v.v0 * v.v0 - v.vf * v.vf) / (2 * v.d);
           return guidedSteps(
             `Find the deceleration with the kinematic equation that has no time: <em>v</em><sub>f</sub>&sup2; = <em>v</em><sub>0</sub>&sup2; &minus; 2<em>a</em><em>d</em>, where <em>a</em> is the size of the deceleration.`,
@@ -10001,7 +10001,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { m: 0.14, v0: 45, dCm: 11 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 3), v0: rnd(b.v0, 0.2, 1), dCm: rnd(b.dCm, 0.2, 1) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> baseball moving at <strong>${v.v0} m/s</strong> pushes a baseball glove back <strong>${v.dCm} cm</strong> as it comes to rest. Find the magnitude of the average net force acting on the ball.`,
-    parts: [{ label: "Average net force (<em>F</em><sub>avg</sub>)", unit: "N", solve: (v) => (v.m * v.v0 * v.v0) / (2 * (v.dCm / 100)), steps: (v, ans) => {
+    parts: [{ label: "Average net force (F<sub>avg</sub>)", unit: "N", solve: (v) => (v.m * v.v0 * v.v0) / (2 * (v.dCm / 100)), steps: (v, ans) => {
           const d = v.dCm / 100, a = (v.v0 * v.v0) / (2 * d);
           return guidedSteps(
             `The ball stops (final speed 0) while moving ${v.dCm} cm = ${d.toFixed(2)} m, so first find its average deceleration. No time is given.`,
@@ -10016,7 +10016,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { F1: 18.3, F2: 6.70, a: 2.32 },
     randomize: (b) => { const F2 = rnd(b.F2, 0.2, 2); return { F1: Number((F2 + rnd(b.F1 - b.F2, 0.2, 1)).toFixed(1)), F2, a: rnd(b.a, 0.2, 2) }; },
     renderPrompt: (v) => `A mass has forward force <strong>+${v.F1} N</strong> and resistance <strong>&minus;${v.F2} N</strong>, accelerating at <strong>${v.a} m/s&sup2;</strong>. Find its mass.`,
-    parts: [{ label: "Mass (<em>m</em>)", unit: "kg", solve: (v) => (v.F1 - v.F2) / v.a, steps: (v, ans) => guidedSteps(
+    parts: [{ label: "Mass (m)", unit: "kg", solve: (v) => (v.F1 - v.F2) / v.a, steps: (v, ans) => guidedSteps(
           `The forward force is +${v.F1} N and the resistance is &minus;${v.F2} N, so the net force is <em>F</em><sub>net</sub> = ${v.F1} &minus; ${v.F2} = ${(v.F1 - v.F2).toFixed(2)} N.`,
           `Newton's second law: <em>F</em><sub>net</sub> = <em>m</em><em>a</em>, so <em>m</em> = <em>F</em><sub>net</sub> / <em>a</em>.`,
           `Substitute: <em>m</em> = ${(v.F1 - v.F2).toFixed(2)} N / ${v.a} m/s² = <strong>${ans.toFixed(2)} kg</strong>.`
@@ -10028,7 +10028,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { W: 793.8, a: 8.40 },
     randomize: (b) => ({ W: rnd(b.W, 0.2, 1), a: rnd(b.a, 0.1, 2) }),
     renderPrompt: (v) => `A skydiver weighing <strong>${v.W} N</strong> accelerates downward at <strong>${v.a} m/s&sup2;</strong>. Find the air resistance force.`,
-    parts: [{ label: "Force of air resistance (<em>F</em><sub>air</sub>)", unit: "N", solve: (v) => v.W - (v.W / G_ACCEL) * v.a, steps: (v, ans) => {
+    parts: [{ label: "Force of air resistance (F<sub>air</sub>)", unit: "N", solve: (v) => v.W - (v.W / G_ACCEL) * v.a, steps: (v, ans) => {
           const m = v.W / G_ACCEL;
           return guidedSteps(
             `Take down as positive. The skydiver's weight <em>W</em> = ${v.W} N acts down and air resistance <em>F</em><sub>air</sub> acts up. The mass is <em>m</em> = <em>W</em> / <em>g</em> = ${v.W} / 9.80 = ${m.toFixed(1)} kg.`,
@@ -10044,12 +10044,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: Math.round(rnd(b.m, 0.18, 0)), v0: rnd(b.v0, 0.18, 1), d: rnd(b.d, 0.18, 1) }),
     renderPrompt: (v) => `A <strong>${v.m.toLocaleString()}-kg</strong> car is traveling at a velocity of <strong>${v.v0} m/s</strong>. The car slows down and comes to rest over a distance of <strong>${v.d} meters</strong>.<br/><strong>a.</strong> What is the acceleration of the car?<br/><strong>b.</strong> What is the net force required to bring the car to a rest?`,
     parts: [
-      { label: "a. Acceleration of the car (<em>a</em>)", unit: "m/s²", acceptNegative: true, solve: (v) => -(v.v0 * v.v0) / (2 * v.d), steps: (v, ans) => guidedSteps(
+      { label: "a. Acceleration of the car (a)", unit: "m/s²", acceptNegative: true, solve: (v) => -(v.v0 * v.v0) / (2 * v.d), steps: (v, ans) => guidedSteps(
           `Known: initial velocity <em>v</em><sub>0</sub> = ${v.v0} m/s, final velocity 0, distance <em>d</em> = ${v.d} m. No time is given, so use the equation without time. Take the car's direction of motion as positive.`,
           `<em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; + 2<em>a</em><em>d</em> with <em>v</em> = 0 gives <em>a</em> = &minus;<em>v</em><sub>0</sub>&sup2; / (2<em>d</em>).`,
           `Substitute: <em>a</em> = &minus;(${v.v0})&sup2; / (2 &times; ${v.d}) = <strong>${ans.toFixed(2)} m/s²</strong>. The negative sign means the acceleration points opposite to the car's motion.`
         )},
-      { label: "b. Net braking force (<em>F</em><sub>net</sub>)", unit: "N", acceptNegative: true, solve: (v) => -v.m * ((v.v0 * v.v0) / (2 * v.d)), steps: (v, ans) => {
+      { label: "b. Net braking force (F<sub>net</sub>)", unit: "N", acceptNegative: true, solve: (v) => -v.m * ((v.v0 * v.v0) / (2 * v.d)), steps: (v, ans) => {
           const a = -(v.v0 * v.v0) / (2 * v.d);
           return guidedSteps(
             `The net force on the car is found with Newton's second law, using the acceleration from part a: <em>a</em> = ${a.toFixed(2)} m/s². The mass is ${v.m} kg.`,
@@ -10066,7 +10066,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ mG: rnd(b.mG, 0.15, 1), vf: rnd(b.vf, 0.18, 1), dCm: rnd(b.dCm, 0.18, 1) }),
     renderPrompt: (v) => `When a <strong>${v.mG}-gram</strong> tennis ball is served, it accelerates from rest to a speed of <strong>${v.vf} m/s</strong>. The impact with the racket gives the ball a constant acceleration over a distance of <strong>${v.dCm} cm</strong>. What is the magnitude of the net force acting on the ball?`,
     parts: [
-      { label: "Magnitude of net force (<em>F</em><sub>net</sub>)", unit: "N", solve: (v) => ((v.mG / 1000) * v.vf * v.vf) / (2 * (v.dCm / 100)), steps: (v, ans) => {
+      { label: "Magnitude of net force (F<sub>net</sub>)", unit: "N", solve: (v) => ((v.mG / 1000) * v.vf * v.vf) / (2 * (v.dCm / 100)), steps: (v, ans) => {
           const m = v.mG / 1000, d = v.dCm / 100, a = (v.vf * v.vf) / (2 * d);
           return guidedSteps(
             `Convert to SI units first: <em>m</em> = ${v.mG} g = ${m.toFixed(4)} kg and <em>d</em> = ${v.dCm} cm = ${d.toFixed(3)} m.`,
@@ -10082,7 +10082,7 @@ const PHYSICS_QUESTIONS = [
     baseVars: { m: 91.7, h: 4.92, vf: 1.48 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), h: rnd(b.h, 0.15, 2), vf: rnd(b.vf, 0.15, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> fireman slides down a pole <strong>${v.h} m</strong>, beginning from rest, and he lands with a speed of <strong>${v.vf} m/s</strong>. Find the friction force acting on the fireman.`,
-    parts: [{ label: "Friction force (<em>f</em>)", unit: "N", solve: (v) => v.m * (G_ACCEL - (v.vf * v.vf) / (2 * v.h)), steps: (v, ans) => {
+    parts: [{ label: "Friction force (f)", unit: "N", solve: (v) => v.m * (G_ACCEL - (v.vf * v.vf) / (2 * v.h)), steps: (v, ans) => {
           const a = (v.vf * v.vf) / (2 * v.h);
           return guidedSteps(
             `First find the fireman's acceleration down the pole. He starts at rest, slides <em>h</em> = ${v.h} m, and lands at ${v.vf} m/s: <em>a</em> = <em>v</em><sub>f</sub>&sup2; / (2<em>h</em>) = ${v.vf}&sup2; / (2 &times; ${v.h}) = ${a.toFixed(3)} m/s². This is far less than <em>g</em>, so friction must be large.`,
@@ -10103,7 +10103,7 @@ const PHYSICS_QUESTIONS = [
     },
     renderPrompt: (v) => `A boat has a mass of <strong>${v.m.toLocaleString()} kg</strong>. Its engines generate a drive force of <strong>${v.Fdrive.toLocaleString()} N due west</strong>, while the wind exerts a force of <strong>${v.Fwind} N due east</strong> and the water exerts a resistive force of <strong>${v.Fwater.toLocaleString()} N due east</strong>. Take west to be the negative direction. What is the boat’s acceleration, with the correct sign?`,
     parts: [
-      { label: "Boat acceleration (<em>a</em>)", unit: "m/s²", acceptNegative: true, solve: (v) => (-v.Fdrive + v.Fwind + v.Fwater) / v.m, steps: (v, ans) => {
+      { label: "Boat acceleration (a)", unit: "m/s²", acceptNegative: true, solve: (v) => (-v.Fdrive + v.Fwind + v.Fwater) / v.m, steps: (v, ans) => {
           const Fnet = -v.Fdrive + v.Fwind + v.Fwater;
           return guidedSteps(
             `Take west as negative, so east is positive. The drive force points west: &minus;${v.Fdrive} N. The wind and the water both push east: +${v.Fwind} N and +${v.Fwater} N.`,
@@ -10120,7 +10120,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: Math.round(rnd(b.m, 0.15, 0)), vf: rnd(b.vf, 0.15, 1), t: rnd(b.t, 0.15, 2) }),
     renderPrompt: (v) => `An amusement park roller coaster accelerates its riders from rest to <strong>${v.vf} m/s</strong> in a time of <strong>${v.t} seconds</strong>. The mass of the car and all of its riders is <strong>${v.m.toLocaleString()} kg</strong>. Find the magnitude of the net force exerted on the car and the riders.`,
     parts: [
-      { label: "Magnitude of net force (<em>F</em><sub>net</sub>)", unit: "N", altUnitSolutions: [{ unit: "kN", solve: (v) => (v.m * (v.vf / v.t)) / 1000 }], solve: (v) => v.m * (v.vf / v.t), steps: (v, ans) => {
+      { label: "Magnitude of net force (F<sub>net</sub>)", unit: "N", altUnitSolutions: [{ unit: "kN", solve: (v) => (v.m * (v.vf / v.t)) / 1000 }], solve: (v) => v.m * (v.vf / v.t), steps: (v, ans) => {
           const a = v.vf / v.t, F = v.m * a;
           return guidedSteps(
             `The coaster starts from rest and reaches ${v.vf} m/s in ${v.t} s, so its average acceleration is <em>a</em> = &Delta;<em>v</em> / &Delta;<em>t</em> = ${v.vf} / ${v.t} = ${a.toFixed(3)} m/s².`,
@@ -10137,12 +10137,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: rnd(b.m, 0.20, 1), den: randInt(2, 5) }),
     renderPrompt: (v) => `<strong>a.</strong> What is the acceleration of a <strong>${v.m}-kg</strong> skydiver, when the force of air resistance acting on her is ${({2:"one-half",3:"one-third",4:"one-fourth",5:"one-fifth"})[v.den]} of her weight?<br/><strong>b.</strong> After opening the parachute, she descends to the ground at a constant speed. What is the force of air resistance now?`,
     parts: [
-      { label: "a. Acceleration of skydiver (<em>a</em>)", unit: "m/s²", acceptNegative: true, solve: (v) => (1 - 1 / v.den) * G_ACCEL, steps: (v, ans) => guidedSteps(
+      { label: "a. Acceleration of skydiver (a)", unit: "m/s²", acceptNegative: true, solve: (v) => (1 - 1 / v.den) * G_ACCEL, steps: (v, ans) => guidedSteps(
           `Take down as positive. Two forces act on the skydiver: her weight <em>m</em><em>g</em> (down) and air resistance, which is ${({2:"one-half",3:"one-third",4:"one-fourth",5:"one-fifth"})[v.den]} of her weight, <em>m</em><em>g</em>/${v.den} = ${(1 / v.den).toFixed(3)}<em>m</em><em>g</em> (up).`,
           `Net force: <em>F</em><sub>net</sub> = <em>m</em><em>g</em> &minus; ${(1 / v.den).toFixed(3)}<em>m</em><em>g</em> = ${(1 - 1 / v.den).toFixed(3)}<em>m</em><em>g</em>. Newton's second law: <em>a</em> = <em>F</em><sub>net</sub> / <em>m</em> = ${(1 - 1 / v.den).toFixed(3)}<em>g</em>. The mass (${v.m} kg) cancels.`,
           `Substitute: <em>a</em> = ${(1 - 1 / v.den).toFixed(3)} &times; 9.80 = <strong>${ans.toFixed(2)} m/s²</strong>, directed downward.`
         )},
-      { label: "b. Force of air resistance at constant speed (<em>F</em><sub>air</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL, steps: (v, ans) => guidedSteps(
+      { label: "b. Force of air resistance at constant speed (F<sub>air</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL, steps: (v, ans) => guidedSteps(
           `A constant speed means zero acceleration, so the net force is zero. Only two vertical forces act: her weight (down) and air resistance (up).`,
           `So the air resistance must equal the weight: <em>F</em><sub>air</sub> = <em>m</em><em>g</em>.`,
           `Substitute: <em>F</em><sub>air</sub> = ${v.m} &times; 9.80 = <strong>${ans.toFixed(1)} N</strong>, directed upward. (This is the idea of terminal velocity.)`
@@ -10162,7 +10162,7 @@ const PHYSICS_QUESTIONS = [
     },
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> purse is dropped from the top of the Leaning Tower of Pisa, and it falls <strong>${v.h} m</strong> before reaching the ground with a speed of <strong>${v.vf} m/s</strong>. What was the average force of air resistance on the purse?`,
     parts: [
-      { label: "Average force of air resistance (<em>F</em><sub>air</sub>)", unit: "N", acceptNegative: true, solve: (v) => v.m * (G_ACCEL - (v.vf * v.vf) / (2 * v.h)), steps: (v, ans) => {
+      { label: "Average force of air resistance (F<sub>air</sub>)", unit: "N", acceptNegative: true, solve: (v) => v.m * (G_ACCEL - (v.vf * v.vf) / (2 * v.h)), steps: (v, ans) => {
           const a = (v.vf * v.vf) / (2 * v.h);
           return guidedSteps(
             `The purse falls slower than free fall would allow, so air resistance acts upward. First find its real acceleration from kinematics: it starts from rest, falls <em>h</em> = ${v.h} m, and hits at ${v.vf} m/s. <em>a</em> = <em>v</em><sub>f</sub>&sup2; / (2<em>h</em>) = ${v.vf}&sup2; / (2 &times; ${v.h}) = ${a.toFixed(2)} m/s².`,
@@ -10179,7 +10179,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: Math.round(rnd(b.m, 0.20, 0)), vKmh: Math.round(rnd(b.vKmh, 0.20, 0)), t: rnd(b.t, 0.20, 2) }),
     renderPrompt: (v) => `An <strong>${v.m}-kg</strong> child is riding in a child-restraint chair, securely fastened to the seat of a car. Assume the car has a speed of <strong>${v.vKmh} km/hr</strong> when it hits a tree and is brought to rest in <strong>${v.t} s</strong>. Assuming constant deceleration during the collision, estimate the net horizontal force that the straps of the restraint chair exert on the child to hold her in the chair.`,
     parts: [
-      { label: "Net horizontal restraining force (<em>F</em><sub>net</sub>)", unit: "N", acceptNegative: true, altUnitSolutions: [{ unit: "kN", solve: (v) => (v.m * ((v.vKmh / 3.6) / v.t)) / 1000 }], solve: (v) => v.m * ((v.vKmh / 3.6) / v.t), steps: (v, ans) => {
+      { label: "Net horizontal restraining force (F<sub>net</sub>)", unit: "N", acceptNegative: true, altUnitSolutions: [{ unit: "kN", solve: (v) => (v.m * ((v.vKmh / 3.6) / v.t)) / 1000 }], solve: (v) => v.m * ((v.vKmh / 3.6) / v.t), steps: (v, ans) => {
           const v0 = v.vKmh / 3.6, a = v0 / v.t, F = v.m * a;
           return guidedSteps(
             `Convert the speed to m/s: <em>v</em><sub>0</sub> = ${v.vKmh} km/h &divide; 3.6 = ${v0.toFixed(2)} m/s. The child, fastened to the car, also goes from this speed to rest in ${v.t} s.`,
@@ -10196,12 +10196,12 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: rnd(b.m, 0.20, 2), h: rnd(b.h, 0.20, 2), t: rnd(b.t, 0.18, 2) }),
     renderPrompt: (v) => `An astronaut drops a <strong>${v.m.toFixed(2)} kg</strong> rock from a height of <strong>${v.h.toFixed(2)} meter</strong> above the surface of a new planet. It takes the rock <strong>${v.t} seconds</strong> to hit the ground.<br/><strong>a.</strong> What is the acceleration due to gravity on the planet?<br/><strong>b.</strong> What is the rock’s weight on the planet?`,
     parts: [
-      { label: "a. Acceleration due to gravity (<em>g</em><sub>planet</sub>)", unit: "m/s²", acceptedUnits: ["m/s²", "N/kg"], solve: (v) => (2 * v.h) / (v.t * v.t), steps: (v, ans) => guidedSteps(
+      { label: "a. Acceleration due to gravity (g<sub>planet</sub>)", unit: "m/s²", acceptedUnits: ["m/s²", "N/kg"], solve: (v) => (2 * v.h) / (v.t * v.t), steps: (v, ans) => guidedSteps(
           `The rock is dropped, so it starts from rest and falls <em>h</em> = ${v.h.toFixed(2)} m in <em>t</em> = ${v.t} s with a constant acceleration, which is the planet's gravity <em>g</em><sub>planet</sub>.`,
           `Use <em>h</em> = &frac12;<em>g</em><em>t</em>&sup2; and solve for <em>g</em>: <em>g</em> = 2<em>h</em> / <em>t</em>&sup2;.`,
           `Substitute: <em>g</em><sub>planet</sub> = 2(${v.h.toFixed(2)}) / (${v.t})&sup2; = <strong>${ans.toFixed(2)} m/s²</strong>.`
         )},
-      { label: "b. Rock's weight on the planet (<em>W</em>)", unit: "N", solve: (v) => v.m * ((2 * v.h) / (v.t * v.t)), steps: (v, ans) => {
+      { label: "b. Rock's weight on the planet (W)", unit: "N", solve: (v) => v.m * ((2 * v.h) / (v.t * v.t)), steps: (v, ans) => {
           const g = (2 * v.h) / (v.t * v.t);
           return guidedSteps(
             `Weight depends on the local gravity. Use the planet's value from part a, <em>g</em><sub>planet</sub> = ${g.toFixed(2)} m/s², and the rock's mass ${v.m.toFixed(2)} kg.`,
@@ -10558,7 +10558,7 @@ const PHYSICS_QUESTIONS = [
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> block is pushed against a vertical wall by a force <em>F</em> that makes a <strong>${v.theta}&deg;</strong> angle above the horizontal (so it pushes the block into the wall and upward). The coefficients of friction between the block and the wall are &mu;<sub>s</sub> = <strong>${v.mus}</strong> and &mu;<sub>k</sub> = <strong>${v.muk}</strong>.`,
     parts: [
       {
-        label: "a. Force needed to slide the block up the wall at constant velocity (<em>F</em>)", unit: "N",
+        label: "a. Force needed to slide the block up the wall at constant velocity (F)", unit: "N",
         solve: (v) => v.m * G_ACCEL / (Math.sin(v.theta * DEG2RAD) - v.muk * Math.cos(v.theta * DEG2RAD)),
         steps: (v, ans) => guidedSteps(
           `Resolve <em>F</em>: the horizontal part <em>F</em> cos &theta; pushes the block into the wall; the vertical part <em>F</em> sin &theta; points up. The wall's normal force pushes back horizontally, and the block is sliding <em>up</em>, so kinetic friction points <em>down</em>. Weight points down.`,
@@ -10568,7 +10568,7 @@ const PHYSICS_QUESTIONS = [
         )
       },
       {
-        label: "b. Minimum force needed to hold the block at rest on the wall (<em>F</em>)", unit: "N",
+        label: "b. Minimum force needed to hold the block at rest on the wall (F)", unit: "N",
         solve: (v) => v.m * G_ACCEL / (Math.sin(v.theta * DEG2RAD) + v.mus * Math.cos(v.theta * DEG2RAD)),
         steps: (v, ans) => guidedSteps(
           `Now the block is at rest and tends to slip <em>down</em>, so static friction points <em>up</em> and helps hold it. The <em>minimum</em> force corresponds to static friction at its maximum value, <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>F</em><sub>N</sub>.`,
@@ -10601,7 +10601,7 @@ const PHYSICS_QUESTIONS = [
         )
       },
       {
-        label: "b. Tension in the cable (<em>F</em><sub>T</sub>)", unit: "N",
+        label: "b. Tension in the cable (F<sub>T</sub>)", unit: "N",
         solve: (v) => {
           const a = (v.m1 * G_ACCEL - v.m2 * G_ACCEL * Math.sin(v.theta * DEG2RAD)) / (v.m1 + v.m2);
           return v.m1 * (G_ACCEL - a);
@@ -10624,7 +10624,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.12, 1), a: rnd(b.a, 0.15, 1), mu: rnd(b.mu, 0.15, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> crate is pushed across a horizontal floor by a force directed <strong>${v.theta}&deg;</strong> <em>below</em> the horizontal. The coefficient of kinetic friction between the crate and the floor is <strong>${v.mu}</strong>, and the crate accelerates at <strong>${v.a} m/s&sup2;</strong>. What is the magnitude of the pushing force?`,
     parts: [{
-      label: "Pushing force (<em>F</em>)", unit: "N",
+      label: "Pushing force (F)", unit: "N",
       solve: (v) => v.m * (v.a + v.mu * G_ACCEL) / (Math.cos(v.theta * DEG2RAD) - v.mu * Math.sin(v.theta * DEG2RAD)),
       steps: (v, ans) => guidedSteps(
         `The push has a horizontal part <em>F</em> cos &theta; (forward) and a vertical part <em>F</em> sin &theta; pointing <em>down</em> into the floor. Forces: weight <em>m</em><em>g</em> down, normal force up, friction backward.`,
@@ -10641,7 +10641,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: rnd(b.m, 0.15, 2), theta: rnd(b.theta, 0.10, 1), mus: rnd(b.mus, 0.10, 2), muk: rnd(b.muk, 0.10, 2) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> block is pressed against a vertical wall by a force <em>F</em> that is directed upward and into the wall, <strong>${v.theta}&deg;</strong> from the vertical. The coefficients of friction between the block and the wall are &mu;<sub>s</sub> = <strong>${v.mus}</strong> and &mu;<sub>k</sub> = <strong>${v.muk}</strong>. What magnitude of <em>F</em> makes the block slide <em>down</em> the wall at constant velocity?`,
     parts: [{
-      label: "Force (<em>F</em>)", unit: "N",
+      label: "Force (F)", unit: "N",
       solve: (v) => v.m * G_ACCEL / (Math.cos(v.theta * DEG2RAD) + v.muk * Math.sin(v.theta * DEG2RAD)),
       steps: (v, ans) => guidedSteps(
         `Because the angle is measured from the <em>vertical</em>, the vertical part of the force is <em>F</em> cos &theta; (up) and the horizontal part, pushing into the wall, is <em>F</em> sin &theta;. The block slides <em>down</em>, so kinetic friction points <em>up</em>.`,
@@ -10659,7 +10659,7 @@ const PHYSICS_QUESTIONS = [
     renderPrompt: (v) => `A sphere weighing <strong>${v.W} N</strong> hangs at rest from two cables. The left cable is horizontal, and the right cable makes a <strong>${v.theta}&deg;</strong> angle with the horizontal. Find the tension <em>T</em><sub>1</sub> in the left cable and the tension <em>T</em><sub>2</sub> in the right cable.`,
     parts: [
       {
-        label: "a. Tension in the left (horizontal) cable (<em>T</em><sub>1</sub>)", unit: "N",
+        label: "a. Tension in the left (horizontal) cable (T<sub>1</sub>)", unit: "N",
         solve: (v) => v.W / Math.tan(v.theta * DEG2RAD),
         steps: (v, ans) => guidedSteps(
           `The sphere is at rest, so the net force is zero in both directions. Three forces act: weight ${v.W} N down, <em>T</em><sub>1</sub> pulling horizontally to the left, and <em>T</em><sub>2</sub> pulling up and to the right at ${v.theta}&deg; above the horizontal.`,
@@ -10668,7 +10668,7 @@ const PHYSICS_QUESTIONS = [
         )
       },
       {
-        label: "b. Tension in the right (angled) cable (<em>T</em><sub>2</sub>)", unit: "N",
+        label: "b. Tension in the right (angled) cable (T<sub>2</sub>)", unit: "N",
         solve: (v) => v.W / Math.sin(v.theta * DEG2RAD),
         steps: (v, ans) => guidedSteps(
           `Use the vertical balance from part a: the only upward force is the vertical part of the right cable's tension.`,
@@ -10686,7 +10686,7 @@ const PHYSICS_QUESTIONS = [
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> lawn mower is pushed across level grass at constant speed with a <strong>${v.F}-N</strong> force directed along the handle, which makes a <strong>${v.theta}&deg;</strong> angle below the horizontal. In part (c), the mower is instead to accelerate from rest to <strong>${v.v} m/s</strong> in <strong>${v.t} s</strong>, with the same friction force as in part (a).`,
     parts: [
       {
-        label: "a. Horizontal friction force on the mower (<em>f</em>)", unit: "N",
+        label: "a. Horizontal friction force on the mower (f)", unit: "N",
         solve: (v) => v.F * Math.cos(v.theta * DEG2RAD),
         steps: (v, ans) => guidedSteps(
           `Constant speed means zero acceleration. Horizontally, only the push component <em>F</em> cos &theta; (forward) and friction (backward) act.`,
@@ -10694,7 +10694,7 @@ const PHYSICS_QUESTIONS = [
         )
       },
       {
-        label: "b. Normal force from the ground (<em>F</em><sub>N</sub>)", unit: "N",
+        label: "b. Normal force from the ground (F<sub>N</sub>)", unit: "N",
         solve: (v) => v.m * G_ACCEL + v.F * Math.sin(v.theta * DEG2RAD),
         steps: (v, ans) => guidedSteps(
           `Vertically there is no acceleration. The push is directed <em>downward</em> at ${v.theta}&deg;, so its vertical component <em>F</em> sin &theta; adds to the weight, both pointing down; the ground pushes up with <em>F</em><sub>N</sub>.`,
@@ -10702,7 +10702,7 @@ const PHYSICS_QUESTIONS = [
         )
       },
       {
-        label: "c. Pushing force needed to accelerate the mower from rest to the speed and time given below (<em>F</em>)", unit: "N",
+        label: "c. Pushing force needed to accelerate the mower from rest to the speed and time given below (F)", unit: "N",
         solve: (v) => (v.m * (v.v / v.t) + v.F * Math.cos(v.theta * DEG2RAD)) / Math.cos(v.theta * DEG2RAD),
         steps: (v, ans) => {
           const a = v.v / v.t, f = v.F * Math.cos(v.theta * DEG2RAD);
@@ -10722,7 +10722,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), mu: rnd(b.mu, 0.15, 2), theta: rnd(b.theta, 0.15, 1), v: rnd(b.v, 0.10, 1), d: Math.round(rnd(b.d, 0.10, 0)) }),
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> bobsled starts from rest at the top of a <strong>${v.theta}&deg;</strong> incline. The coefficient of kinetic friction between the runners and the ice is <strong>${v.mu}</strong>. A pusher applies a constant force parallel to the incline, down the slope, so that the sled reaches <strong>${v.v} m/s</strong> at the end of a <strong>${v.d}-m</strong> run. How large is the pushing force?`,
     parts: [{
-      label: "Pushing force (<em>F</em>)", unit: "N",
+      label: "Pushing force (F)", unit: "N",
       solve: (v) => v.m * (v.v * v.v / (2 * v.d) - G_ACCEL * Math.sin(v.theta * DEG2RAD) + v.mu * G_ACCEL * Math.cos(v.theta * DEG2RAD)),
       steps: (v, ans) => {
         const a = v.v * v.v / (2 * v.d);
@@ -10881,7 +10881,7 @@ const PHYSICS_QUESTIONS = [
         )
       },
       {
-        label: "b. Tension in the cord (<em>T</em>)", unit: "N",
+        label: "b. Tension in the cord (T)", unit: "N",
         solve: (v) => v.m1 * v.m2 * G_ACCEL / (v.m1 + v.m2),
         steps: (v, ans) => {
           const a = v.m2 * G_ACCEL / (v.m1 + v.m2);
@@ -10892,7 +10892,7 @@ const PHYSICS_QUESTIONS = [
         }
       },
       {
-        label: "c. Mass of a new block that, replacing block one, makes the acceleration a = 0.100<em>g</em> (<em>M</em>)", unit: "kg",
+        label: "c. Mass of a new block that, replacing block one, makes the acceleration a = 0.100g (M)", unit: "kg",
         solve: (v) => 9 * v.m2,
         steps: (v, ans) => guidedSteps(
           `The same equation applies with the new mass <em>M</em> in place of <em>m</em><sub>1</sub>: <em>a</em> = <em>m</em><sub>2</sub><em>g</em> / (<em>M</em> + <em>m</em><sub>2</sub>). Set <em>a</em> = 0.100<em>g</em>.`,
@@ -10911,7 +10911,7 @@ const PHYSICS_QUESTIONS = [
     renderPrompt: (v) => `The men pictured hold the <strong>${v.m}-kg</strong> rock at rest. The right rope forms a <strong>${v.theta2}&deg;</strong> angle with the horizontal and applies a <strong>${v.T2}-N</strong> tension force. Find the size of the tension in the rope held by the man on the <em>left</em>, and the angle his rope makes with the horizontal.`,
     parts: [
       {
-        label: "a. Tension in the left rope (<em>T</em><sub>1</sub>)", unit: "N",
+        label: "a. Tension in the left rope (T<sub>1</sub>)", unit: "N",
         solve: (v) => Math.hypot(v.T2 * Math.cos(v.theta2 * DEG2RAD), v.m * G_ACCEL - v.T2 * Math.sin(v.theta2 * DEG2RAD)),
         steps: (v, ans) => {
           const T1x = v.T2 * Math.cos(v.theta2 * DEG2RAD), T1y = v.m * G_ACCEL - v.T2 * Math.sin(v.theta2 * DEG2RAD);
@@ -10977,7 +10977,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.20, 1) }),
     renderPrompt: (v) => `Karissa walks across a "high wire" strung horizontally between two buildings. When she is at rest at the midpoint of the wire, the angle of the rope is &theta; = <strong>${v.theta}&deg;</strong>. If her mass is <strong>${v.m} kg</strong>, what is the tension in the wire?`,
     parts: [{
-      label: "Tension in the wire (<em>T</em>)", unit: "N",
+      label: "Tension in the wire (T)", unit: "N",
       solve: (v) => v.m * G_ACCEL / (2 * Math.sin(v.theta * DEG2RAD)),
       steps: (v, ans) => guidedSteps(
         `Karissa is at rest at the midpoint, so the forces balance. Her weight is <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N, pulling down. Each half of the wire pulls on her with the same tension <em>T</em>, at ${v.theta}&deg; above the horizontal.`,

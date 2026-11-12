@@ -1,0 +1,2490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Physics Question Library and Constructor</title>
+  <!-- DIRECT GITHUB SCRIPT LOADER -->
+  <!-- QUESTION DATA VERSION: after you update physics_questions_data.js on GitHub, change the number after "?v=" below (for example 2 -> 3).
+       That makes every browser download the new file right away instead of using an old saved copy. -->
+  <!-- The question data is fetched fresh from GitHub when the page opens (see loadExternalGitHubQuestions), so a new upload shows up right away. This inert tag is only a marker so Export knows where to put a review app's own copy of the questions; the browser does not load it. -->
+  <script type="text/plain" src="https://raw.githubusercontent.com/euler010/PhysicsQuestionBank/main/physics_questions_data.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    /* Review app answer cards: two across on wider screens, one across on narrow ones. */
+    .parts-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; align-items: start; }
+    @media (min-width: 1000px) {
+      .parts-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .parts-grid > .part-wide { grid-column: span 2; }
+    }
+    /* Question navigation: always a single row. Long lists collapse into group buttons with a pop-up. */
+    #questionNavPills { display: flex; align-items: center; gap: 0.375rem; flex-wrap: nowrap; }
+    .qgroup { position: relative; flex: 0 0 auto; }
+    .qgroup-pop { display: none; position: absolute; top: 100%; left: 0; padding-top: 6px; z-index: 40; }
+    .qgroup-pop.right { left: auto; right: 0; }
+    .qgroup:hover .qgroup-pop, .qgroup.open .qgroup-pop { display: block; }
+    .qgroup-pop-inner { display: flex; flex-wrap: wrap; gap: 0.375rem; width: max-content; max-width: min(22rem, 88vw); padding: 0.5rem; background: #fff; border: 1px solid #cbd5e1; border-radius: 0.75rem; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18); }
+    select.part-unit-select { width: 7rem; padding: 0.5rem 0.5rem; font-size: 0.8rem; }
+    select.part-dir-select { max-width: 11rem; padding: 0.5rem 0.5rem; font-size: 0.8rem; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .dragging-card { opacity: 0.45; border-style: dashed !important; }
+    .drag-over-card { border-color: #2563eb !important; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2); }
+    .no-select { user-select: none; -webkit-user-select: none; }
+    .graph-handle { cursor: grab; touch-action: none; }
+    .graph-handle:active { cursor: grabbing; }
+    .graph-handle:hover circle.handle-halo { fill: rgba(0, 0, 0, 0.16); }
+  </style>
+  <style id="utility-styles">
+*,::before,::after{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}
+::before,::after{--tw-content:''}
+html,:host{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif,system-ui,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}
+body{margin:0;line-height:inherit}
+hr{height:0;color:inherit;border-top-width:1px}
+abbr:where([title]){text-decoration:underline dotted}
+h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}
+a{color:inherit;text-decoration:inherit}
+b,strong{font-weight:bolder}
+code,kbd,samp,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}
+small{font-size:80%}
+sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}
+sub{bottom:-0.25em}
+sup{top:-0.5em}
+table{text-indent:0;border-color:inherit;border-collapse:collapse}
+button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}
+button,select{text-transform:none}
+button,input:where([type='button']),input:where([type='reset']),input:where([type='submit']){-webkit-appearance:button;background-color:transparent;background-image:none}
+:-moz-focusring{outline:auto}
+:-moz-ui-invalid{box-shadow:none}
+progress{vertical-align:baseline}
+::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}
+[type='search']{-webkit-appearance:textfield;outline-offset:-2px}
+::-webkit-search-decoration{-webkit-appearance:none}
+::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}
+summary{display:list-item}
+blockquote,dl,dd,h1,h2,h3,h4,h5,h6,hr,figure,p,pre{margin:0}
+fieldset{margin:0;padding:0}
+legend{padding:0}
+ol,ul,menu{list-style:none;margin:0;padding:0}
+dialog{padding:0}
+textarea{resize:vertical}
+input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}
+button,[role="button"]{cursor:pointer}
+:disabled{cursor:default}
+img,svg,video,canvas,audio,iframe,embed,object{display:block;vertical-align:middle}
+img,video{max-width:100%;height:auto}
+[hidden]{display:none}
+*,::before,::after{--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000}
+@keyframes spin{to{transform:rotate(360deg)}}
+.absolute{position:absolute}
+.fixed{position:fixed}
+.relative{position:relative}
+.static{position:static}
+.sticky{position:sticky}
+.inset-0{top:0px;right:0px;bottom:0px;left:0px}
+.bottom-4{bottom:1rem}
+.left-3\.5{left:0.875rem}
+.right-4{right:1rem}
+.top-0{top:0px}
+.top-1\/2{top:50.0%}
+.z-30{z-index:30}
+.z-40{z-index:40}
+.z-50{z-index:50}
+.mx-auto{margin-left:auto;margin-right:auto}
+.my-3{margin-top:0.75rem;margin-bottom:0.75rem}
+.my-4{margin-top:1rem;margin-bottom:1rem}
+.mt-0\.5{margin-top:0.125rem}
+.mt-1{margin-top:0.25rem}
+.mt-1\.5{margin-top:0.375rem}
+.mt-2{margin-top:0.5rem}
+.mt-2\.5{margin-top:0.625rem}
+.mt-3{margin-top:0.75rem}
+.mt-5{margin-top:1.25rem}
+.mt-6{margin-top:1.5rem}
+.mr-1{margin-right:0.25rem}
+.mb-1{margin-bottom:0.25rem}
+.mb-1\.5{margin-bottom:0.375rem}
+.mb-2{margin-bottom:0.5rem}
+.mb-3{margin-bottom:0.75rem}
+.mb-4{margin-bottom:1rem}
+.mb-5{margin-bottom:1.25rem}
+.mb-6{margin-bottom:1.5rem}
+.-ml-1{margin-left:-0.25rem}
+.block{display:block}
+.inline-block{display:inline-block}
+.inline{display:inline}
+.flex{display:flex}
+.inline-flex{display:inline-flex}
+.grid{display:grid}
+.hidden{display:none}
+.w-12{width:3rem}
+.w-2{width:0.5rem}
+.w-2\.5{width:0.625rem}
+.w-3{width:0.75rem}
+.w-3\.5{width:0.875rem}
+.w-36{width:9rem}
+.w-4{width:1rem}
+.w-5{width:1.25rem}
+.w-6{width:1.5rem}
+.w-7{width:1.75rem}
+.w-8{width:2rem}
+.w-\[360px\]{width:360px}
+.w-full{width:100%}
+.min-w-0{min-width:0px}
+.min-w-\[120px\]{min-width:120px}
+.max-w-2xl{max-width:42rem}
+.max-w-3xl{max-width:48rem}
+.max-w-6xl{max-width:72rem}
+.max-w-7xl{max-width:80rem}
+.max-w-lg{max-width:32rem}
+.max-w-md{max-width:28rem}
+.max-w-sm{max-width:24rem}
+.max-w-xl{max-width:36rem}
+.max-w-xs{max-width:20rem}
+.h-2{height:0.5rem}
+.h-2\.5{height:0.625rem}
+.h-3{height:0.75rem}
+.h-3\.5{height:0.875rem}
+.h-4{height:1rem}
+.h-40{height:10rem}
+.h-44{height:11rem}
+.h-48{height:12rem}
+.h-5{height:1.25rem}
+.h-52{height:13rem}
+.h-56{height:14rem}
+.h-6{height:1.5rem}
+.h-60{height:15rem}
+.h-7{height:1.75rem}
+.h-8{height:2rem}
+.h-auto{height:auto}
+.min-h-screen{min-height:100vh}
+.max-h-\[90vh\]{max-height:90vh}
+.flex-1{flex:1 1 0%}
+.shrink-0{flex-shrink:0}
+.-translate-y-1\/2{transform:translateY(-50.0%)}
+.rotate-90{transform:rotate(90deg)}
+.animate-spin{animation:spin 1s linear infinite}
+.cursor-crosshair{cursor:crosshair}
+.cursor-default{cursor:default}
+.cursor-grab{cursor:grab}
+.cursor-pointer{cursor:pointer}
+.select-none{-webkit-user-select:none;user-select:none}
+.touch-none{touch-action:none}
+.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}
+.grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}
+.flex-col{flex-direction:column}
+.flex-wrap{flex-wrap:wrap}
+.items-baseline{align-items:baseline}
+.items-center{align-items:center}
+.items-start{align-items:flex-start}
+.justify-between{justify-content:space-between}
+.justify-center{justify-content:center}
+.justify-end{justify-content:flex-end}
+.gap-0\.5{gap:0.125rem}
+.gap-1{gap:0.25rem}
+.gap-1\.5{gap:0.375rem}
+.gap-2{gap:0.5rem}
+.gap-2\.5{gap:0.625rem}
+.gap-3{gap:0.75rem}
+.gap-4{gap:1rem}
+.gap-5{gap:1.25rem}
+.overflow-hidden{overflow:hidden}
+.overflow-y-auto{overflow-y:auto}
+.whitespace-nowrap{white-space:nowrap}
+.rounded{border-radius:0.25rem}
+.rounded-2xl{border-radius:1rem}
+.rounded-full{border-radius:9999px}
+.rounded-lg{border-radius:0.5rem}
+.rounded-md{border-radius:0.375rem}
+.rounded-xl{border-radius:0.75rem}
+.border{border-width:1px}
+.border-0{border-width:0px}
+.border-2{border-width:2px}
+.border-b{border-bottom-width:1px}
+.border-t{border-top-width:1px}
+.border-amber-200{border-color:#fde68a}
+.border-blue-200{border-color:#bfdbfe}
+.border-blue-500{border-color:#3b82f6}
+.border-blue-600{border-color:#2563eb}
+.border-emerald-200{border-color:#a7f3d0}
+.border-emerald-300{border-color:#6ee7b7}
+.border-indigo-200{border-color:#c7d2fe}
+.border-purple-200{border-color:#e9d5ff}
+.border-purple-600{border-color:#9333ea}
+.border-rose-200{border-color:#fecdd3}
+.border-slate-100{border-color:#f1f5f9}
+.border-slate-200{border-color:#e2e8f0}
+.border-slate-200\/90{border-color:rgb(226 232 240 / 0.9)}
+.border-slate-300{border-color:#cbd5e1}
+.border-violet-200{border-color:#ddd6fe}
+.border-t-transparent{border-top-color:transparent}
+.bg-\[\#f8fafc\]{background-color:#f8fafc}
+.bg-amber-50{background-color:#fffbeb}
+.bg-blue-100{background-color:#dbeafe}
+.bg-blue-50{background-color:#eff6ff}
+.bg-blue-50\/40{background-color:rgb(239 246 255 / 0.4)}
+.bg-blue-50\/50{background-color:rgb(239 246 255 / 0.5)}
+.bg-blue-50\/70{background-color:rgb(239 246 255 / 0.7)}
+.bg-blue-600{background-color:#2563eb}
+.bg-emerald-50{background-color:#ecfdf5}
+.bg-emerald-600{background-color:#059669}
+.bg-indigo-50{background-color:#eef2ff}
+.bg-purple-50{background-color:#faf5ff}
+.bg-purple-600{background-color:#9333ea}
+.bg-rose-50{background-color:#fff1f2}
+.bg-rose-600{background-color:#e11d48}
+.bg-slate-100{background-color:#f1f5f9}
+.bg-slate-100\/70{background-color:rgb(241 245 249 / 0.7)}
+.bg-slate-200\/80{background-color:rgb(226 232 240 / 0.8)}
+.bg-slate-50{background-color:#f8fafc}
+.bg-slate-50\/50{background-color:rgb(248 250 252 / 0.5)}
+.bg-slate-900\/40{background-color:rgb(15 23 42 / 0.4)}
+.bg-transparent{background-color:transparent}
+.bg-violet-50{background-color:#f5f3ff}
+.bg-violet-600{background-color:#7c3aed}
+.bg-white{background-color:#ffffff}
+.bg-white\/95{background-color:rgb(255 255 255 / 0.95)}
+.accent-emerald-600{accent-color:#059669}
+.accent-rose-600{accent-color:#e11d48}
+.p-1\.5{padding:0.375rem}
+.p-2{padding:0.5rem}
+.p-3{padding:0.75rem}
+.p-3\.5{padding:0.875rem}
+.p-4{padding:1rem}
+.p-5{padding:1.25rem}
+.p-6{padding:1.5rem}
+.p-8{padding:2rem}
+.px-1{padding-left:0.25rem;padding-right:0.25rem}
+.px-1\.5{padding-left:0.375rem;padding-right:0.375rem}
+.px-2{padding-left:0.5rem;padding-right:0.5rem}
+.px-2\.5{padding-left:0.625rem;padding-right:0.625rem}
+.px-3{padding-left:0.75rem;padding-right:0.75rem}
+.px-3\.5{padding-left:0.875rem;padding-right:0.875rem}
+.px-4{padding-left:1rem;padding-right:1rem}
+.px-5{padding-left:1.25rem;padding-right:1.25rem}
+.py-0\.5{padding-top:0.125rem;padding-bottom:0.125rem}
+.py-1{padding-top:0.25rem;padding-bottom:0.25rem}
+.py-1\.5{padding-top:0.375rem;padding-bottom:0.375rem}
+.py-2{padding-top:0.5rem;padding-bottom:0.5rem}
+.py-2\.5{padding-top:0.625rem;padding-bottom:0.625rem}
+.py-3{padding-top:0.75rem;padding-bottom:0.75rem}
+.py-3\.5{padding-top:0.875rem;padding-bottom:0.875rem}
+.py-4{padding-top:1rem;padding-bottom:1rem}
+.py-5{padding-top:1.25rem;padding-bottom:1.25rem}
+.py-6{padding-top:1.5rem;padding-bottom:1.5rem}
+.pt-0\.5{padding-top:0.125rem}
+.pt-1{padding-top:0.25rem}
+.pt-2{padding-top:0.5rem}
+.pt-3{padding-top:0.75rem}
+.pt-4{padding-top:1rem}
+.pr-4{padding-right:1rem}
+.pb-3{padding-bottom:0.75rem}
+.pb-4{padding-bottom:1rem}
+.pl-10{padding-left:2.5rem}
+.text-center{text-align:center}
+.text-3xl{font-size:1.875rem;line-height:2.25rem}
+.text-base{font-size:1rem;line-height:1.5rem}
+.text-lg{font-size:1.125rem;line-height:1.75rem}
+.text-sm{font-size:0.875rem;line-height:1.25rem}
+.text-xl{font-size:1.25rem;line-height:1.75rem}
+.text-xs{font-size:0.75rem;line-height:1rem}
+.text-\[10px\]{font-size:10px}
+.text-\[11px\]{font-size:11px}
+.font-bold{font-weight:700}
+.font-extrabold{font-weight:800}
+.font-medium{font-weight:500}
+.font-semibold{font-weight:600}
+.leading-none{line-height:1}
+.leading-relaxed{line-height:1.625}
+.tracking-tight{letter-spacing:-0.025em}
+.tracking-wider{letter-spacing:0.05em}
+.uppercase{text-transform:uppercase}
+.text-amber-600{color:#d97706}
+.text-amber-700{color:#b45309}
+.text-blue-600{color:#2563eb}
+.text-blue-700{color:#1d4ed8}
+.text-blue-800{color:#1e40af}
+.text-emerald-600{color:#059669}
+.text-emerald-700{color:#047857}
+.text-indigo-700{color:#4338ca}
+.text-purple-700{color:#7e22ce}
+.text-rose-600{color:#e11d48}
+.text-rose-700{color:#be123c}
+.text-slate-300{color:#cbd5e1}
+.text-slate-400{color:#94a3b8}
+.text-slate-500{color:#64748b}
+.text-slate-600{color:#475569}
+.text-slate-700{color:#334155}
+.text-slate-800{color:#1e293b}
+.text-slate-900{color:#0f172a}
+.text-violet-700{color:#6d28d9}
+.text-white{color:#ffffff}
+.tabular-nums{font-variant-numeric:tabular-nums}
+.opacity-75{opacity:0.75}
+.shadow-2xl{--tw-shadow:0 25px 50px -12px rgb(0 0 0 / 0.25);--tw-shadow-colored:0 25px 50px -12px rgb(0 0 0 / 0.25);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}
+.shadow-sm{--tw-shadow:0 1px 2px 0 rgb(0 0 0 / 0.05);--tw-shadow-colored:0 1px 2px 0 var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}
+.transition{transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-backdrop-filter, backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}
+.transition-transform{transition-property:transform;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}
+.duration-200{transition-duration:200ms}
+.backdrop-blur{-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.backdrop-blur-sm{-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.pointer-events-none{pointer-events:none}
+.space-y-1 > :not([hidden]) ~ :not([hidden]){margin-top:0.25rem}
+.space-y-2\.5 > :not([hidden]) ~ :not([hidden]){margin-top:0.625rem}
+.space-y-3 > :not([hidden]) ~ :not([hidden]){margin-top:0.75rem}
+.space-y-4 > :not([hidden]) ~ :not([hidden]){margin-top:1rem}
+.group:hover .group-hover\:text-blue-500{color:#3b82f6}
+.hover\:border-blue-400:hover{border-color:#60a5fa}
+.hover\:border-slate-300:hover{border-color:#cbd5e1}
+.hover\:bg-amber-100:hover{background-color:#fef3c7}
+.hover\:bg-blue-100:hover{background-color:#dbeafe}
+.hover\:bg-blue-50:hover{background-color:#eff6ff}
+.hover\:bg-blue-700:hover{background-color:#1d4ed8}
+.hover\:bg-emerald-700:hover{background-color:#047857}
+.hover\:bg-purple-100:hover{background-color:#f3e8ff}
+.hover\:bg-rose-100:hover{background-color:#ffe4e6}
+.hover\:bg-slate-100:hover{background-color:#f1f5f9}
+.hover\:bg-slate-200:hover{background-color:#e2e8f0}
+.hover\:bg-slate-50:hover{background-color:#f8fafc}
+.hover\:bg-violet-100:hover{background-color:#ede9fe}
+.hover\:text-blue-700:hover{color:#1d4ed8}
+.hover\:text-slate-600:hover{color:#475569}
+.hover\:text-slate-700:hover{color:#334155}
+.focus\:ring-blue-400:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(96 165 250 / var(--tw-ring-opacity))}
+.focus\:ring-blue-500:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(59 130 246 / var(--tw-ring-opacity))}
+.focus\:ring-emerald-500:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(16 185 129 / var(--tw-ring-opacity))}
+.focus\:ring-rose-500:focus{--tw-ring-opacity:1;--tw-ring-color:rgb(244 63 94 / var(--tw-ring-opacity))}
+.focus\:ring-2:focus{--tw-ring-offset-shadow:var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);--tw-ring-shadow:var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);box-shadow:var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000)}
+.focus\:outline-none:focus{outline:2px solid transparent;outline-offset:2px}
+.active\:cursor-grabbing:active{cursor:grabbing}
+.disabled\:opacity-30:disabled{opacity:0.3}
+.disabled\:opacity-40:disabled{opacity:0.4}
+.disabled\:opacity-50:disabled{opacity:0.5}
+.disabled\:hover\:bg-slate-100:disabled:hover{background-color:#f1f5f9}
+@media (min-width:640px){.sm\:w-\[440px\]{width:440px}}
+@media (min-width:640px){.sm\:w-auto{width:auto}}
+@media (min-width:640px){.sm\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}}
+@media (min-width:640px){.sm\:flex-row{flex-direction:row}}
+@media (min-width:640px){.sm\:gap-4{gap:1rem}}
+@media (min-width:640px){.sm\:gap-6{gap:1.5rem}}
+@media (min-width:640px){.sm\:p-4{padding:1rem}}
+@media (min-width:640px){.sm\:p-5{padding:1.25rem}}
+@media (min-width:640px){.sm\:p-6{padding:1.5rem}}
+@media (min-width:640px){.sm\:px-6{padding-left:1.5rem;padding-right:1.5rem}}
+@media (min-width:640px){.sm\:text-2xl{font-size:1.5rem;line-height:2rem}}
+@media (min-width:640px){.sm\:text-4xl{font-size:2.25rem;line-height:2.5rem}}
+@media (min-width:640px){.sm\:text-base{font-size:1rem;line-height:1.5rem}}
+@media (min-width:640px){.sm\:text-sm{font-size:0.875rem;line-height:1.25rem}}
+@media (min-width:640px){.sm\:text-xl{font-size:1.25rem;line-height:1.75rem}}
+@media (min-width:768px){.md\:flex-row{flex-direction:row}}
+@media (min-width:768px){.md\:items-center{align-items:center}}
+@media (min-width:1024px){.lg\:col-span-2{grid-column:span 2 / span 2}}
+@media (min-width:1024px){.lg\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+  <!-- TOP GLOBAL BAR -->
+  <header class="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 id="headerTitle" class="text-lg sm:text-xl font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
+            <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              Teacher Studio · v27
+            </span>
+          </div>
+          <p id="headerSubtitle" class="hidden text-xs text-slate-500"></p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 flex-wrap">
+        <!-- Back to Constructor Button -->
+        <button id="backToConstructorBtn" onclick="switchView('constructor')" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
+          Back to Question Library
+        </button>
+
+        <!-- Review Mode Toolbar Items -->
+        <div id="reviewToolbarItems" class="hidden items-center gap-2 flex-wrap">
+          <div class="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs font-semibold">
+            <span title="Problems Completed" class="flex items-center gap-1 text-emerald-600">
+              <span>&#10003;</span> <span id="progressCounter">0/0</span>
+            </span>
+            <span class="text-slate-300">|</span>
+            <span title="Current Correct Streak" class="flex items-center gap-1 text-amber-600">
+              <span>&#128293;</span> Streak: <span id="streakCounter">0</span>
+            </span>
+          </div>
+
+          <a id="equationSheetLink" href="https://apcentral.collegeboard.org/media/pdf/ap-physics-1-equations-sheet.pdf" target="_blank" rel="noopener noreferrer"
+             class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Equation Sheet
+          </a>
+
+          <button id="exportStandaloneBtn" onclick="downloadStandaloneReviewApp()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white shadow-sm transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Export Standalone HTML
+          </button>
+
+          <button id="copyHtmlBtn" onclick="copyStandaloneHtml()" title="Copy the app's HTML so you can paste it into a Google Site embed" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white shadow-sm transition flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            Copy HTML
+          </button>
+
+          <button id="saveRecipeBtn" onclick="saveRecipe('review')" title="Download a small file that remembers this app's questions, order and settings" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white border border-transparent transition flex items-center gap-1.5">
+            Save Recipe
+          </button>
+
+          <button onclick="openTeacherSetupModal()" title="Teacher Setup and Google Sheet Logging" class="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- VIEW 1: TEACHER QUESTION LIBRARY & REVIEW APP CONSTRUCTOR             -->
+  <!-- ===================================================================== -->
+  <main id="constructorView" class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <!-- Top Configuration & Action Banner -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+      <div class="lg:col-span-2 bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-blue-600">Step 1: Select Design and Physics Template</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">Active Template</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+            <div>
+              <label for="templateSelect" class="block text-xs font-semibold text-slate-600 mb-1">Application Template</label>
+              <select id="templateSelect" onchange="onTemplateChanged()" class="w-full rounded-xl bg-slate-50 border border-slate-300 px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="AP Physics 1" selected>AP Physics 1</option>
+                <option value="Honors Physics">Honors Physics</option>
+              </select>
+            </div>
+            <div>
+              <label for="randomizationModeSelect" class="block text-xs font-semibold text-slate-600 mb-1">Number Generation Mode</label>
+              <select id="randomizationModeSelect" onchange="updateTemplateConfig()" class="w-full rounded-xl bg-slate-50 border border-slate-300 px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="random" selected>Dynamic Randomization (&plusmn;20% per student)</option>
+                <option value="static">Static Values (same numbers for every student)</option>
+                <option value="original" hidden>Original Values</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+          <span class="font-semibold text-slate-800">Template Parameters:</span>
+          <span class="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 mono">Tolerance = &plusmn;1.0%</span>
+          <span class="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200">Mandatory Unit Dropdowns</span>
+          <span class="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200">Collapsible Topic Folders</span>
+          <span class="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200">Guided Solutions</span>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl p-4 sm:p-5 border-2 border-blue-600 shadow-sm flex flex-col justify-between">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-blue-600">Step 2: Construct Review App</span>
+          <div class="mt-1.5 flex items-baseline gap-2">
+            <span id="selectedCountBig" class="text-3xl sm:text-4xl font-extrabold text-slate-900">0</span>
+            <span class="text-sm text-slate-600 font-medium">of <span id="totalLibraryCount">0</span> questions selected</span>
+          </div>
+        </div>
+
+        <div class="mt-3 flex flex-col gap-2">
+          <button onclick="goToReorderView()" class="w-full py-2.5 px-4 rounded-xl bg-blue-600 text-white font-bold text-sm shadow-sm hover:bg-blue-700 transition flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            Build a Review App
+          </button>
+          <button type="button" onclick="openLoadRecipe()" title="Open a recipe file you saved earlier to bring back its questions, order and settings" class="w-full py-2 px-4 rounded-xl bg-white text-blue-700 font-semibold text-sm border border-blue-300 hover:bg-blue-50 transition flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            Load Recipe
+          </button>
+          <input id="recipeFileInput" type="file" accept=".txt,.json,text/plain,application/json" onchange="handleRecipeFile(event)" class="hidden" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter, Search, Tag Filter and Folder Controls -->
+    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm mb-5">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <!-- Search Input -->
+        <div class="relative flex-1">
+          <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input id="librarySearchInput" type="text" oninput="handleLibrarySearch()" placeholder="Search by keyword, topic, or question number (e.g., 'Atwood', 'incline', 'satellite', 'skier')..."
+                 class="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <!-- Folder View and Bulk Selection Actions -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="toggleAllFolders(true)" class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition">
+            Expand All Folders
+          </button>
+          <button onclick="toggleAllFolders(false)" class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition">
+            Collapse All Folders
+          </button>
+          <button onclick="selectFilteredQuestions(true)" class="px-3 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition">
+            Check All Shown
+          </button>
+          <button onclick="clearAllSelections()" class="px-3 py-2 rounded-xl text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition">
+            Clear Selection
+          </button>
+          <button onclick="resetLibraryOrder()" class="px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200 transition" title="Restore default library question order">
+            Reset Order
+          </button>
+        </div>
+      </div>
+
+      <!-- Unit and Topic Tag Filter Pills -->
+      <div class="mt-3 pt-3 border-t border-slate-100">
+        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Filter by Unit or Topic Tag:</div>
+        <div id="topicFilterContainer" class="flex items-center gap-1.5 flex-wrap">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Order Status Strip -->
+      <div class="flex items-center justify-between gap-2 mt-3 pt-2 text-[11px] text-slate-500 border-t border-slate-100">
+        <span id="orderSavedIndicator">
+          Use folder headers to expand/collapse units or bulk select problems. Reorder with <strong class="text-slate-700">&uarr; / &darr;</strong> or drag cards.
+        </span>
+      </div>
+    </div>
+
+    <!-- Top Pagination Bar -->
+    <div id="libraryPaginationTop" class="mb-4"></div>
+
+    <!-- Question Library Collapsible Folders Container -->
+    <div id="libraryListContainer" class="space-y-4">
+      <!-- Populated dynamically by renderLibraryList() -->
+    </div>
+
+    <!-- Bottom Pagination Bar -->
+    <div id="libraryPaginationBottom" class="mt-5"></div>
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- VIEW 1B: REORDER SELECTED QUESTIONS PAGE                              -->
+  <!-- ===================================================================== -->
+  <section id="reorderView" class="hidden max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm mb-5">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-blue-600">Step 2: Arrange Question Sequence</span>
+            <span id="reorderCountBadge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+              0 Selected
+            </span>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">Order Selected Questions</h2>
+          <p class="text-xs sm:text-sm text-slate-600 mt-1">
+            Click any blue <strong>Q#</strong> badge to type a new question number, drag questions up or down, or click <strong>Randomize Order</strong> to shuffle them. When finished, press <strong>Create App</strong> in the top right.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2.5 flex-wrap shrink-0">
+          <button type="button" onclick="randomizeSelectedQuestionsOrder()"
+                  class="px-4 py-2.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-700 font-bold text-xs sm:text-sm border border-violet-200 shadow-sm transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Randomize Order
+          </button>
+
+          <button type="button" onclick="openBuildModal()"
+                  class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm shadow-sm transition flex items-center gap-2">
+            <span>Create App</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+        <span id="reorderStatusIndicator">
+          Click any blue <strong>Q#</strong> box to type a new position, or drag cards up or down to customize your review app question order.
+        </span>
+      </div>
+    </div>
+
+    <div id="reorderListContainer" class="space-y-3">
+      <!-- Populated dynamically by renderReorderList() -->
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- VIEW 2: STUDENT REVIEW APP ("AP PHYSICS 1" TEMPLATE - WHITE THEME)    -->
+  <!-- ===================================================================== -->
+  <section id="studentReviewView" class="hidden max-w-6xl mx-auto px-4 sm:px-6 py-5">
+    <div class="bg-white rounded-2xl p-4 sm:p-5 mb-5 border border-slate-200 shadow-sm">
+      <p class="text-xs sm:text-sm text-slate-600">
+        <strong>Instructions:</strong> Enter your numerical answer and select the appropriate <strong>units</strong> from the dropdown menu. For scientific notation, enter values like <span class="mono font-semibold text-indigo-700">2.45e-7</span>.
+      </p>
+
+      <div id="questionNavPills" class="flex items-center gap-1.5 flex-wrap mt-3 pt-3 border-t border-slate-100">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+
+    <div id="activeQuestionStage">
+      <!-- Populated dynamically -->
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 1: "BUILD A REVIEW APP"                                         -->
+  <!-- ===================================================================== -->
+  <div id="buildAppModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 border border-slate-200 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <h3 class="text-lg font-bold text-slate-900">Build a Review App</h3>
+        <button onclick="closeBuildModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+
+      <div class="py-4 space-y-4">
+        <div>
+          <label for="reviewAppNameInput" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+            Review Application Name
+          </label>
+          <input id="reviewAppNameInput" type="text" value="AP Physics 1 Review"
+                 placeholder="e.g., AP Physics 1 Unit 1 and 2 Review"
+                 class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="text-xs text-slate-500 block">Selected Template</span>
+            <select id="modalTemplateSelect" onchange="onModalTemplateChanged()" class="mt-0.5 -ml-1 w-full bg-transparent text-sm font-bold text-blue-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">
+              <option value="AP Physics 1">AP Physics 1</option>
+              <option value="Honors Physics">Honors Physics</option>
+            </select>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <span class="text-xs text-slate-500 block">Questions Included</span>
+            <span id="modalQuestionCount" class="text-sm font-bold text-emerald-600">0 Questions</span>
+          </div>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 text-xs text-slate-700 space-y-1">
+          <div id="modalTemplateSettingsTitle" class="font-bold text-blue-800">Included "AP Physics 1" Template Settings:</div>
+          <div>&bull; Preserves your exact selected problem sequence across unit folders</div>
+          <div>&bull; Dynamic &plusmn;20% variable randomization per problem instance</div>
+          <div>&bull; <span class="mono">&plusmn;1.0%</span> grading tolerance, required unit dropdowns, and direction selectors</div>
+          <div>&bull; Interactive Free-Body Diagram (FBD) scratchpad and guided solutions</div>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-end gap-2">
+        <button onclick="closeBuildModal()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">
+          Cancel
+        </button>
+        <button type="button" onclick="saveRecipe('build')" title="Download a small file that remembers these questions, their order and your settings" class="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 text-white border border-transparent hover:bg-emerald-700 transition">
+          Save Recipe
+        </button>
+        <button onclick="buildAndDownloadStandalone()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
+          Download Standalone HTML
+        </button>
+        <button onclick="buildAndLaunchReviewApp()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">
+          Launch Review App Now &rarr;
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 2: ADD CUSTOM QUESTION TO LIBRARY                               -->
+  <!-- ===================================================================== -->
+  <div id="addQuestionModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-6 border border-slate-200 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <h3 class="text-lg font-bold text-slate-900">Add Question to Library</h3>
+        <button onclick="closeAddQuestionModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+      <div class="py-4 space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="font-bold block mb-1 text-slate-700">Question Title / Short Label</label>
+            <input id="customQTitle" type="text" placeholder="e.g., Block on Frictionless Ramp" class="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-300" />
+          </div>
+          <div>
+            <label class="font-bold block mb-1 text-slate-700">AP Physics 1 CED Unit and Topic Folder</label>
+            <select id="customQTopic" class="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-300 font-medium">
+              <optgroup label="Unit 1: Kinematics">
+                <option value="Unit 1: 1D Kinematics">Unit 1: 1D Kinematics</option>
+                <option value="Unit 1: 2D Kinematics and Projectile Motion">Unit 1: 2D Kinematics and Projectile Motion</option>
+              </optgroup>
+              <optgroup label="Unit 2: Force and Translational Dynamics">
+                <option value="Unit 2: Dynamics and Forces" selected>Unit 2: Dynamics and Forces</option>
+                <option value="Unit 2: Friction">Unit 2: Friction</option>
+                <option value="Unit 2: Inclined Planes">Unit 2: Inclined Planes</option>
+                <option value="Unit 2: Multi-Body Systems and Pulleys">Unit 2: Multi-Body Systems and Pulleys</option>
+                <option value="Unit 2: Elevators and Apparent Weight">Unit 2: Elevators and Apparent Weight</option>
+                <option value="Unit 2: 2D Forces and Vectors">Unit 2: 2D Forces and Vectors</option>
+                <option value="Unit 2: Newton's 3rd Law and Impulse">Unit 2: Newton's 3rd Law and Impulse</option>
+                <option value="Unit 2: Circular Motion and Gravitation">Unit 2: Circular Motion and Gravitation</option>
+              </optgroup>
+              <optgroup label="Unit 3: Work, Energy, and Power">
+                <option value="Unit 3: Work, Energy, and Power">Unit 3: Work, Energy, and Power</option>
+              </optgroup>
+              <optgroup label="Unit 4: Linear Momentum">
+                <option value="Unit 4: Impulse and Linear Momentum">Unit 4: Impulse and Linear Momentum</option>
+              </optgroup>
+              <optgroup label="Unit 5: Torque and Rotational Dynamics">
+                <option value="Unit 5: Torque and Rotational Dynamics">Unit 5: Torque and Rotational Dynamics</option>
+              </optgroup>
+              <optgroup label="Unit 6: Energy and Momentum of Rotating Systems">
+                <option value="Unit 6: Energy and Momentum of Rotating Systems">Unit 6: Energy and Momentum of Rotating Systems</option>
+              </optgroup>
+              <optgroup label="Unit 7: Oscillations">
+                <option value="Unit 7: Simple Harmonic Motion and Oscillations">Unit 7: Simple Harmonic Motion and Oscillations</option>
+              </optgroup>
+              <optgroup label="Unit 8: Fluids">
+                <option value="Unit 8: Fluids">Unit 8: Fluids</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="font-bold block mb-1 text-slate-700">Question Prompt (use <span class="mono">{{v1}}</span>, <span class="mono">{{v2}}</span> for randomized variables)</label>
+          <textarea id="customQPrompt" rows="3" placeholder="e.g., A {{v1}}-kg cart experiences a net horizontal force of {{v2}} N. What is the magnitude of its acceleration?" class="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-300"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="font-bold block mb-1 text-slate-700">Variable <span class="mono">v1</span> Base Value</label>
+            <input id="customQV1" type="number" step="any" value="12.5" class="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-300" />
+          </div>
+          <div>
+            <label class="font-bold block mb-1 text-slate-700">Variable <span class="mono">v2</span> Base Value</label>
+            <input id="customQV2" type="number" step="any" value="45.0" class="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-300" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="font-bold block mb-1 text-slate-700">JavaScript Formula for Answer (using <span class="mono">v1, v2, g</span>)</label>
+            <input id="customQFormula" type="text" value="v2 / v1" class="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-300 mono" />
+          </div>
+          <div>
+            <label class="font-bold block mb-1 text-slate-700">Correct Answer Unit</label>
+            <select id="customQUnit" class="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-300 mono">
+              <option value="m/s²" selected>m/s²</option>
+              <option value="m/s">m/s</option>
+              <option value="m">m</option>
+              <option value="cm">cm</option>
+              <option value="mm">mm</option>
+              <option value="km">km</option>
+              <option value="km/h">km/h</option>
+              <option value="s">s</option>
+              <option value="g's">g's</option>
+              <option value="kg">kg</option>
+              <option value="N">N</option>
+              <option value="N/kg">N/kg</option>
+              <option value="J">J</option>
+              <option value="W">W</option>
+              <option value="N·s">N·s</option>
+              <option value="kg·m/s">kg·m/s</option>
+              <option value="°">°</option>
+              <option value="No units">No units</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="font-bold block mb-1 text-slate-700">Guided Step-by-Step Explanation</label>
+          <textarea id="customQSolution" rows="2" placeholder="Apply Newton's Second Law: a = Fnet / m = v2 / v1." class="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-300"></textarea>
+        </div>
+      </div>
+      <div class="pt-3 border-t border-slate-200 flex justify-end gap-2">
+        <button onclick="closeAddQuestionModal()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Cancel</button>
+        <button onclick="saveCustomQuestion()" class="px-4 py-2 rounded-lg text-xs font-bold bg-blue-600 text-white hover:bg-blue-700">Add to Library</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 3: TEACHER SETUP (GOOGLE SHEETS LOGGING)                        -->
+  <!-- ===================================================================== -->
+  <div id="teacherSetupModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 border border-slate-200 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <h3 class="text-lg font-bold text-slate-900">Teacher Setup and Student Data Logging</h3>
+        <button onclick="closeTeacherSetupModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+      <div class="py-4 space-y-3 text-xs">
+        <p class="text-slate-600">
+          Link a Google Apps Script Web App URL to automatically record student attempts, accuracy, and completion streaks into Google Sheets.
+        </p>
+        <div>
+          <label class="font-bold block mb-1 text-slate-700">Google Web App URL (Optional)</label>
+          <input id="webAppUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec"
+                 class="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-300 mono" />
+        </div>
+      </div>
+      <div class="pt-3 border-t border-slate-200 flex justify-end gap-2">
+        <button onclick="closeTeacherSetupModal()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">Close</button>
+        <button onclick="saveTeacherSetup()" class="px-4 py-2 rounded-lg text-xs font-bold bg-blue-600 text-white">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 4: NOTIFICATION MESSAGE MODAL                                   -->
+  <!-- ===================================================================== -->
+  <div id="messageModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 border border-slate-200 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+        <h3 id="messageModalTitle" class="text-base font-bold text-slate-900">Notice</h3>
+        <button onclick="closeMessageModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      </div>
+      <div class="py-4">
+        <p id="messageModalBody" class="text-xs sm:text-sm text-slate-700 leading-relaxed"></p>
+      </div>
+      <div class="pt-3 border-t border-slate-200 flex justify-end">
+        <button onclick="closeMessageModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- FLOATING FBD AND SCRATCHPAD CANVAS DRAWER                             -->
+  <!-- ===================================================================== -->
+  <div id="scratchpadDrawer" class="fixed bottom-4 right-4 z-40 hidden bg-white rounded-2xl border border-slate-300 shadow-2xl overflow-hidden w-[360px] sm:w-[440px]">
+    <div class="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
+      <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-violet-600"></span>
+        Free-Body Diagram (FBD) and Scratchpad
+      </span>
+      <div class="flex items-center gap-1.5">
+        <input id="penColorPicker" type="color" value="#2563eb" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent" title="Pen Color" />
+        <select id="penWidthSelect" class="text-xs rounded bg-white px-1.5 py-0.5 border border-slate-300 text-slate-700">
+          <option value="2">Thin</option>
+          <option value="3" selected>Med</option>
+          <option value="5">Bold</option>
+        </select>
+        <button onclick="clearScratchpad()" class="px-2 py-0.5 rounded text-xs bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 font-semibold">Clear</button>
+        <button onclick="toggleScratchpad()" class="text-slate-400 hover:text-slate-700 font-bold px-1">&times;</button>
+      </div>
+    </div>
+    <canvas id="fbdCanvas" width="440" height="280" class="bg-white cursor-crosshair w-full touch-none"></canvas>
+  </div>
+
+  <script>
+    // =========================================================================
+    // SAFE STORAGE HELPERS (PREVENTS IFRAME SANDBOX ERRORS)
+    // =========================================================================
+    function safeGetStorage(key, fallback = null) {
+      try {
+        const val = window.localStorage.getItem(key);
+        return val !== null ? val : fallback;
+      } catch (e) {
+        return fallback;
+      }
+    }
+
+    function safeSetStorage(key, value) {
+      try {
+        window.localStorage.setItem(key, value);
+      } catch (e) {
+        // Ignore storage errors in restricted iframes
+      }
+    }
+
+    function safeRemoveStorage(key) {
+      try {
+        window.localStorage.removeItem(key);
+      } catch (e) {
+        // Ignore storage errors in restricted iframes
+      }
+    }
+
+    function showMessageModal(message, title = "Notice") {
+      document.getElementById("messageModalTitle").textContent = title;
+      document.getElementById("messageModalBody").textContent = message;
+      document.getElementById("messageModal").classList.remove("hidden");
+    }
+
+    function closeMessageModal() {
+      document.getElementById("messageModal").classList.add("hidden");
+    }
+
+    // =========================================================================
+    // CONSTANTS & TEMPLATE PARAMETERS
+    // =========================================================================
+    const G_ACCEL = 9.80;
+    const G_CONST = 6.67e-11;
+    const TOLERANCE = 0.01;
+    const DEG2RAD = Math.PI / 180;
+    const RAD2DEG = 180 / Math.PI;
+    const ORDER_STORAGE_KEY = "physicsLibraryOrderV9";
+    const FOLDER_STATE_STORAGE_KEY = "physicsLibraryFoldersV9";
+    const CUSTOM_Q_STORAGE_KEY = "physicsCustomQuestionsV5";
+    const PROBLEMS_PER_PAGE = 50;
+
+    const UNIT_OPTIONS = [
+      "m", "cm", "mm", "km", "s", "kg", "m/s", "km/h", "m/s²", "g's", "N", "kN", "lb", "N/kg", "J", "W", "N·s", "kg·m/s", "°", "rad", "No units"
+    ];
+
+    function normalizeUnit(u) {
+      if (!u || u === "" || u === "ratio" || u === "unitless") return "No units";
+      if (u === "m/s^2") return "m/s²";
+      return u;
+    }
+
+    function getSampleVars(q, overrideVars) {
+      if (overrideVars && typeof overrideVars === "object" && Object.keys(overrideVars).length > 0) {
+        return overrideVars;
+      }
+      if (!q) return {};
+      if (q._cachedSampleVars) return q._cachedSampleVars;
+      let v = (q.baseVars && typeof q.baseVars === "object") ? { ...q.baseVars } : {};
+      if (typeof q.randomize === "function") {
+        try {
+          const r = q.randomize(v);
+          if (r && typeof r === "object") {
+            v = { ...v, ...r };
+          }
+        } catch (e) {}
+      }
+      q._cachedSampleVars = v;
+      return v;
+    }
+
+    const COMMON_RUNON_WORDS = new Set([
+      "a","an","and","are","as","at","away","ball","base","before","begins","below","between","block","blocks","boat","both","bottom","box","boy","brakes","braking","bridge","brought","by","cable","can","canyon","car","chair","cliff","climbs","coasts","coefficient","coefficients","collision","comes","coming","common","commuter","component","components","compresses","connected","constant","contact","continues","convert","converting","covers","crate","cruises","cruising","curve","data","decelerates","decelerating","deceleration","deck","descends","descending","determine","direction","displacement","distance","dock","does","down","downward","drag","driver","driving","drop","dropped","drops","due","during","each","east","edge","elevation","elevator","emerges","end","engine","engines","equilibrium","estimate","exert","exerted","exerts","experiences","explosive","extends","fall","falling","falls","far","fast","faster","fastest","find","fireman","first","fish","flat","flea","flight","floats","floor","flying","for","force","forces","forms","forward","found","four","free","freight","friction","frictionless","from","fuel","full","further","game","generates","girl","gives","glove","goes","going","gram","grams","graph","gravitational","gravity","ground","halt","hanging","has","have","he","heard","height","helicopter","her","high","higher","highest","hill","his","hit","hits","hitting","hockey","hold","holding","home","horizontal","horizontally","how","human","ice","identical","if","illustrates","immediately","impact","in","incline","inclined","increase","initial","initially","instrument","into","is","island","it","its","jump","jumping","jumps","kangaroo","kg","kicked","kinetic","km","kn","known","land","landing","lands","lasts","later","launch","launched","launches","leaves","leaving","left","leg","length","let","level","line","linked","local","locate","log","long","longer","lower","lowered","m","machine","made","magnitude","maintain","make","makes","making","man","marble","mars","mass","masses","maximum","measure","measured","measures","meets","metal","meter","meters","middle","minimum","mirror","mm","model","modes","moon","mortar","motion","motorboat","motorcycle","move","moves","moving","ms","multiple","multiply","must","n","needed","needs","neglecting","net","new","newly","newton","next","no","normal","north","not","notice","now","number","object","obstacle","ocean","of","off","on","one","only","open","opening","opposite","or","orbit","orbital","other","out","over","overboard","package","parachutist","parallel","park","parked","part","parts","passenger","past","path","pavement","peak","peaks","pelican","people","per","period","person","phase","pick","pictured","pitcher","placed","plain","plane","planet","platform","player","point","points","pole","police","pond","pool","pops","position","positive","potential","power","producing","projectile","pull","pulled","pulling","pulls","puck","push","pushed","pushes","pushing","put","question","quite","racket","radius","ramp","range","rate","rates","reach","reaches","reaching","reaction","read","reading","reads","rear","rebound","rebounds","recorded","red","reference","refrigerator","relative","release","released","releases","remains","required","requires","resistance","resistive","respectively","rest","restraint","returns","riders","riding","right","rigid","road","roadway","rock","rocket","rocks","holds","roll","roller","rolling","rolls","rope","ropes","rough","run","running","runs","runway","s","safe","safely","same","satellite","scale","seat","second","seconds","section","securely","select","separate","served","service","set","she","sheer","shell","shortest","shown","sign","sin","single","skater","skid","skidding","skier","skis","skydiver","skyscraper","sled","slide","slides","sliding","slope","slows","small","snowboarder","so","soccer","some","sound","south","space","speed","speedboat","sphere","splash","spring","stage","standing","stands","star","start","starting","starts","static","station","stays","steam","steel","stone","stop","stopping","stops","straight","straps","strikes","striking","string","strings","student","surface","suspended","symmetric","system","t","table","tabletop","take","takeoff","takes","taking","tall","tangent","target","ten","tennis","tension","terminal","test","than","that","the","their","them","then","there","these","they","this","three","through","throw","throwing","thrown","throws","time","times","to","together","top","total","touchdown","touches","toward","towards","tows","track","tracks","train","travel","traveled","traveling","travels","tree","truck","tube","turf","two","unbanked","under","uniform","uniformly","unit","units","unknown","unpowered","until","up","upward","use","usual","valleys","value","values","vector","vectors","vehicle","velocity","vertical","vertically","via","view","wall","wants","was","water","weather","wedge","weight","weighing","weighs","west","what","when","where","which","while","who","whose","wind","with","within","without","withstand","wood","wooden","work","would","x","y","you","your","zero","zone"
+    ]);
+
+    function segmentGluedWords(token) {
+      if (!token || token.length < 7 || !/^[a-zA-Z]+$/.test(token)) return token;
+      const lower = token.toLowerCase();
+      if (COMMON_RUNON_WORDS.has(lower)) return token;
+
+      const n = lower.length;
+      const dp = new Array(n + 1).fill(null);
+      dp[0] = [];
+
+      for (let i = 0; i < n; i++) {
+        if (!dp[i]) continue;
+        for (let j = i + 1; j <= n; j++) {
+          const sub = lower.slice(i, j);
+          if (COMMON_RUNON_WORDS.has(sub)) {
+            const candidate = [...dp[i], token.slice(i, j)];
+            if (!dp[j] || candidate.length < dp[j].length) {
+              dp[j] = candidate;
+            }
+          }
+        }
+      }
+      if (dp[n] && dp[n].length > 1) {
+        return dp[n].join(" ");
+      }
+      return token;
+    }
+
+    function ensureHtmlTagSpacing(str) {
+      if (!str || typeof str !== "string") return "";
+      let s = str;
+
+      // Repair specific spaceless phrases caused by LaTeX/template literal stripping
+      const phraseFixes = [
+        [/appliesservicebrakes,producingaconstantdecelerationof/gi, "applies service brakes, producing a constant deceleration of"],
+        [/fromtheedgeofasheercliff/gi, "from the edge of a sheer cliff"],
+        [/whenanobstacleappearsintheroadway\.Thevehicledeceleratesatamaximumrateof/gi, "when an obstacle appears in the roadway. The vehicle decelerates at a maximum rate of"],
+        [/whenanobstacleappearsintheroadway/gi, "when an obstacle appears in the roadway"],
+        [/Thevehicledeceleratesatamaximumrateof/gi, "The vehicle decelerates at a maximum rate of"],
+        [/Timewhenobjectisatrest\(separatemultipletimeswithacomma,e\.g\.1\.5,5\.0\)/gi, "Time when object is at rest (separate multiple times with a comma, e.g. 1.5, 5.0)"],
+        [/Timewhenobjectisatrest/gi, "Time when object is at rest"],
+        [/\(separatemultipletimeswithacomma,e\.g\.1\.5,5\.0\)/gi, " (separate multiple times with a comma, e.g. 1.5, 5.0)"],
+        [/Displacementfrom\s*t\s*=/gi, "Displacement from <em>t</em> = "],
+        [/InstantaneousVelocityat\s*t\s*=/gi, "Instantaneous Velocity at <em>t</em> = "],
+        [/Atwhatpoint\(s\)intimeistheobject[’'&rsquo;]*svelocity/gi, "At what point(s) in time is the object&rsquo;s velocity "],
+        [/sto\s*<em>t<\/em>\s*=/gi, " s to <em>t</em> = "],
+        [/sto\s*t\s*=/gi, " s to <em>t</em> = "]
+      ];
+      for (const [pattern, replacement] of phraseFixes) {
+        s = s.replace(pattern, replacement);
+      }
+
+      // Segment any remaining run-together lowercase/mixed words outside of HTML tags
+      s = s.split(/(<[^>]+>)/g).map(chunk => {
+        if (chunk.startsWith("<")) return chunk;
+        // Add space after period or comma when glued to a word
+        let fixedChunk = chunk.replace(/([.,;:!?])([A-Za-z])/g, "$1 $2");
+        fixedChunk = fixedChunk.replace(/\b[A-Za-z]{11,}\b/g, (word) => segmentGluedWords(word));
+        return fixedChunk;
+      }).join("");
+
+      // Ensure space after closing inline tags when followed by a word or opening tag (except sub/sup)
+      s = s.replace(/(<\/(?:strong|b|em|i|span)>)(?=[A-Za-z0-9(\[{])/g, "$1 ");
+      s = s.replace(/(<\/(?:strong|b|em|i|span)>)(?=<(?:strong|b|em|i|span)\b)/g, "$1 ");
+
+      // Ensure space before opening inline tags when preceded by a word or number
+      s = s.replace(/([A-Za-z0-9.,;:!?)\]}])(?=<(?:strong|b|em|i|span)\b)/g, "$1 ");
+
+      return s;
+    }
+
+    function interpolateBrokenTokens(rawStr, vars) {
+      if (!rawStr || typeof rawStr !== "string") return "";
+      const v = vars || {};
+      let s = rawStr;
+
+      if (v.vb !== undefined && v.vbSign === undefined) {
+        v.vbSign = v.vb > 0 ? `+${v.vb}` : `${v.vb}`;
+      }
+
+      // 1. Replace method calls on v.<key>
+      s = s.replace(/\$?\{?\s*\bv\.([a-zA-Z0-9_]+)\.toLocaleString\(\)\s*\}?/g, (m, k) => {
+        if (v[k] === undefined || v[k] === null) return m;
+        return Number(v[k]).toLocaleString();
+      });
+      s = s.replace(/\$?\{?\s*\bv\.([a-zA-Z0-9_]+)\.toFixed\((\d+)\)\s*\}?/g, (m, k, digits) => {
+        if (v[k] === undefined || v[k] === null) return m;
+        return Number(v[k]).toFixed(Number(digits));
+      });
+
+      // 2. Replace bracketed placeholder tokens like {{key}}, ${v.key}, {v.key}, {key}
+      s = s.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (m, k) => (v[k] !== undefined ? `<strong>${v[k]}</strong>` : m));
+      s = s.replace(/\$\{\s*v\.([a-zA-Z0-9_]+)\s*\}/g, (m, k) => (v[k] !== undefined ? `${v[k]}` : m));
+      s = s.replace(/\{\s*v\.([a-zA-Z0-9_]+)\s*\}/g, (m, k) => (v[k] !== undefined ? `${v[k]}` : m));
+      s = s.replace(/\{\s*([a-zA-Z0-9_]+)\s*\}/g, (m, k) => (v[k] !== undefined ? `<strong>${v[k]}</strong>` : m));
+
+      // 3. Replace bare v.<key> tokens even when glued directly to units
+      const keys = Object.keys(v).sort((a, b) => b.length - a.length);
+      for (const k of keys) {
+        const val = v[k];
+        if (val === undefined || val === null || typeof val === "object") continue;
+        const regGluedUnit = new RegExp(`\\bv\\.${k}(?=(?:m\\/s|km\\/h|km\\/hr|m\\b|cm\\b|mm\\b|km\\b|s\\b|ms\\b|kg\\b|g\\b|N\\b|kN\\b|J\\b|W\\b|seconds\\b|meters\\b|meter\\b|kilometers\\b|gram\\b|grams\\b))`, "g");
+        s = s.replace(regGluedUnit, `${val} `);
+        const regGluedPunct = new RegExp(`\\bv\\.${k}(?=[-&°'’<.,;:!?)\\s]|$)`, "g");
+        s = s.replace(regGluedPunct, `${val}`);
+        const regAny = new RegExp(`\\bv\\.${k}`, "g");
+        s = s.replace(regAny, `${val} `);
+      }
+      return ensureHtmlTagSpacing(s);
+    }
+
+    function renderFormattedPrompt(q, overrideVars) {
+      if (!q) return "";
+      const v = getSampleVars(q, overrideVars);
+      let raw = "";
+      if (typeof q.renderPrompt === "function") {
+        try { raw = q.renderPrompt(v); } catch (e) { raw = q.prompt || q.title || ""; }
+      } else if (typeof q.prompt === "string") {
+        raw = q.prompt;
+      }
+      return interpolateBrokenTokens(raw, v);
+    }
+
+    // Library preview only: some questions keep their lettered parts (a., b., c.) out of the prompt text and show them as separate answer boxes.
+    // Append them here so the preview shows the whole question. (The review app already shows its own answer boxes, so it uses renderFormattedPrompt directly.)
+    function renderLibraryPrompt(q, overrideVars) {
+      const v = getSampleVars(q, overrideVars);
+      let html = renderFormattedPrompt(q, v);
+      const parts = q.parts || [];
+      if (parts.length > 1 && !/(^|>|\s)a\.(\s|<)/.test(html)) {
+        const labels = parts.map(p => getPartLabel(p, v));
+        if (labels.every((l, i) => new RegExp("^\\s*" + String.fromCharCode(97 + i) + "\\.\\s", "i").test(l))) {
+          html += labels.map(l => "<br/>" + l.replace(/^\s*([a-z])\.\s*/i, "<strong>$1.</strong> ")).join("");
+        }
+      }
+      return html;
+    }
+
+    function getPartLabel(part, vars) {
+      const raw = typeof part.getLabel === "function" ? part.getLabel(vars) : part.label;
+      return interpolateBrokenTokens(raw, vars);
+    }
+
+    function rnd(base, pct = 0.20, decimals = 2) {
+      const factor = 1 + (Math.random() * 2 - 1) * pct;
+      return Number((base * factor).toFixed(decimals));
+    }
+
+    function fmtSci(val, sig = 3) {
+      if (val === 0) return "0";
+      const abs = Math.abs(val);
+      if (abs >= 1e4 || abs < 1e-2) return val.toExponential(sig - 1);
+      return Number(val.toPrecision(sig)).toString();
+    }
+
+    function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+    // =========================================================================
+    // EXTERNAL QUESTION LIBRARY (LOADED DYNAMICALLY FROM GITHUB)
+    // =========================================================================
+    const INITIAL_QUESTION_LIBRARY = [];
+
+    const CED_UNITS = [
+      { prefix: "Unit 1:", tag: "Unit 1: Kinematics" },
+      { prefix: "Unit 2:", tag: "Unit 2: Force and Translational Dynamics" },
+      { prefix: "Unit 3:", tag: "Unit 3: Work, Energy, and Power" },
+      { prefix: "Unit 4:", tag: "Unit 4: Linear Momentum" },
+      { prefix: "Unit 5:", tag: "Unit 5: Torque and Rotational Dynamics" },
+      { prefix: "Unit 6:", tag: "Unit 6: Energy and Momentum of Rotating Systems" },
+      { prefix: "Unit 7:", tag: "Unit 7: Oscillations" },
+      { prefix: "Unit 8:", tag: "Unit 8: Fluids" }
+    ];
+
+    function getUnitTagFromTopic(topic) {
+      const found = CED_UNITS.find(u => topic && topic.startsWith(u.prefix));
+      return found ? found.tag : "Unit 2: Force and Translational Dynamics";
+    }
+
+    let questionLibrary = [...INITIAL_QUESTION_LIBRARY];
+    let selectedQuestionIds = new Set();
+    let selectedQuestionsOrder = [];
+    let visibleDiagramIds = new Set();
+    let diagramStateBeforeArrange = null;
+    let activeFilterTag = "All";
+    let currentLibraryPage = 1;
+    let folderOpenState = {};
+    let draggedQuestionId = null;
+    let draggedReorderIndex = null;
+    let randomizationMode = "random";
+    // Numbers chosen once for "Static Values" apps: { questionId: vars }. Saved inside exported apps so every student sees the same numbers.
+    let staticVarsStore = {};
+
+    function toggleDiagramPreview(qId) {
+      if (visibleDiagramIds.has(qId)) visibleDiagramIds.delete(qId);
+      else visibleDiagramIds.add(qId);
+      renderLibraryList();
+      const reorderView = document.getElementById("reorderView");
+      if (reorderView && !reorderView.classList.contains("hidden")) renderReorderList();
+    }
+
+    let currentReviewApp = {
+      name: "AP Physics 1 — Dynamics and Circular Motion Review",
+      template: "AP Physics 1",
+      questions: [],
+      instances: {},
+      currentIndex: 0,
+      streak: Number(safeGetStorage("ap1ReviewStreak", "0") || 0),
+      webAppUrl: safeGetStorage("ap1TeacherWebappUrl", "") || ""
+    };
+
+    function getUniqueTopics() {
+      const set = new Set(); questionLibrary.forEach(q => set.add(q.topic)); return Array.from(set);
+    }
+
+    function loadSavedFolderState() {
+      try {
+        const raw = safeGetStorage(FOLDER_STATE_STORAGE_KEY);
+        if (raw) folderOpenState = JSON.parse(raw);
+        else getUniqueTopics().forEach(t => { folderOpenState[t] = true; });
+      } catch (e) { folderOpenState = {}; }
+    }
+
+    function saveFolderState() { safeSetStorage(FOLDER_STATE_STORAGE_KEY, JSON.stringify(folderOpenState)); }
+    function toggleFolder(topic) { folderOpenState[topic] = !folderOpenState[topic]; saveFolderState(); renderLibraryList(); }
+    function toggleAllFolders(open) { getUniqueTopics().forEach(t => { folderOpenState[t] = open; }); saveFolderState(); renderLibraryList(); }
+
+    function loadSavedLibraryOrder() {
+      try {
+        const rawOrder = safeGetStorage(ORDER_STORAGE_KEY);
+        if (!rawOrder) return;
+        const idOrder = JSON.parse(rawOrder);
+        if (Array.isArray(idOrder) && idOrder.length > 0) applyLibraryOrderArray(idOrder);
+      } catch (e) { console.error(e); }
+    }
+
+    function applyLibraryOrderArray(idOrder) {
+      const map = new Map(questionLibrary.map(q => [q.id, q]));
+      const ordered = [];
+      idOrder.forEach(id => { if (map.has(id)) { ordered.push(map.get(id)); map.delete(id); } });
+      map.forEach(q => ordered.push(q));
+      questionLibrary = ordered;
+    }
+
+    function saveLibraryOrder() {
+      safeSetStorage(ORDER_STORAGE_KEY, JSON.stringify(questionLibrary.map(q => q.id)));
+      flashOrderSavedIndicator("Library order saved permanently &#10003;");
+    }
+
+    function flashOrderSavedIndicator(msg) {
+      const el = document.getElementById("orderSavedIndicator");
+      if (!el) return;
+      el.innerHTML = `<span class="text-emerald-600 font-semibold">${msg}</span>`;
+      clearTimeout(window.orderFlashTimer);
+      window.orderFlashTimer = setTimeout(() => {
+        el.innerHTML = `Use folder headers to expand/collapse units or bulk select problems. Reorder with <strong class="text-slate-700">&uarr; / &darr;</strong> or drag cards.`;
+      }, 2400);
+    }
+
+    function moveQuestionOrder(qId, direction) {
+      const q = questionLibrary.find(item => item.id === qId);
+      if (!q) return;
+      const sameFolderList = questionLibrary.filter(item => item.topic === q.topic);
+      const targetFolderIdx = sameFolderList.findIndex(item => item.id === qId) + direction;
+      if (targetFolderIdx < 0 || targetFolderIdx >= sameFolderList.length) return;
+      const masterA = questionLibrary.findIndex(item => item.id === qId);
+      const masterB = questionLibrary.findIndex(item => item.id === sameFolderList[targetFolderIdx].id);
+      if (masterA === -1 || masterB === -1) return;
+      [questionLibrary[masterA], questionLibrary[masterB]] = [questionLibrary[masterB], questionLibrary[masterA]];
+      saveLibraryOrder(); renderLibraryList();
+    }
+
+    let defaultGitHubIdOrder = [];
+    function resetLibraryOrder() {
+      if (defaultGitHubIdOrder.length > 0) applyLibraryOrderArray(defaultGitHubIdOrder);
+      safeRemoveStorage(ORDER_STORAGE_KEY);
+      flashOrderSavedIndicator("Restored default question order &#10003;");
+      renderLibraryList();
+    }
+
+    function handleDragStart(e, qId) { draggedQuestionId = qId; e.currentTarget.classList.add("dragging-card"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", qId); }
+    function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; e.currentTarget.classList.add("drag-over-card"); }
+    function handleDragLeave(e) { e.currentTarget.classList.remove("drag-over-card"); }
+    function handleDrop(e, targetQId) {
+      e.preventDefault(); e.currentTarget.classList.remove("drag-over-card");
+      if (!draggedQuestionId || draggedQuestionId === targetQId) return;
+      const fromIdx = questionLibrary.findIndex(q => q.id === draggedQuestionId), toIdx = questionLibrary.findIndex(q => q.id === targetQId);
+      if (fromIdx === -1 || toIdx === -1) return;
+      questionLibrary.splice(toIdx, 0, questionLibrary.splice(fromIdx, 1)[0]);
+      draggedQuestionId = null; saveLibraryOrder(); renderLibraryList();
+    }
+    function handleDragEnd(e) { e.currentTarget.classList.remove("dragging-card"); draggedQuestionId = null; }
+
+    // =========================================================================
+    // REORDER SELECTED QUESTIONS VIEW & "BUILD A REVIEW APP" FLOW
+    // =========================================================================
+    function syncSelectedQuestionsOrder() {
+      const keptSet = new Set(selectedQuestionsOrder.filter(id => selectedQuestionIds.has(id)));
+      const kept = Array.from(keptSet);
+      questionLibrary.forEach(q => { if (selectedQuestionIds.has(q.id) && !keptSet.has(q.id)) kept.push(q.id); });
+      selectedQuestionsOrder = kept;
+    }
+
+    function goToReorderView() {
+      if (selectedQuestionIds.size === 0) return showMessageModal("Please check the box next to at least one question in the library before building a review app.", "No Questions Selected");
+      syncSelectedQuestionsOrder(); switchView("reorder");
+    }
+
+    function randomizeSelectedQuestionsOrder() {
+      if (selectedQuestionsOrder.length <= 1) return;
+      for (let i = selectedQuestionsOrder.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [selectedQuestionsOrder[i], selectedQuestionsOrder[j]] = [selectedQuestionsOrder[j], selectedQuestionsOrder[i]];
+      }
+      renderReorderList();
+      const statusEl = document.getElementById("reorderStatusIndicator");
+      if (statusEl) statusEl.innerHTML = `<span class="text-violet-700 font-semibold">Selected questions randomly reordered! Click Randomize Order again to reshuffle, or drag cards to fine-tune.</span>`;
+    }
+
+    function moveSelectedQuestion(index, direction) {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= selectedQuestionsOrder.length) return;
+      [selectedQuestionsOrder[index], selectedQuestionsOrder[targetIndex]] = [selectedQuestionsOrder[targetIndex], selectedQuestionsOrder[index]];
+      renderReorderList();
+    }
+
+    function startEditQuestionPosition(idx) {
+      const badgeBtn = document.getElementById(`qpos-btn-${idx}`), inputEl = document.getElementById(`qpos-input-${idx}`);
+      if (!badgeBtn || !inputEl) return;
+      badgeBtn.classList.add("hidden"); inputEl.classList.remove("hidden");
+      inputEl.value = String(idx + 1); inputEl.focus(); inputEl.select();
+    }
+
+    function handlePositionInputKey(e, fromIdx) {
+      if (e.key === "Enter") { e.preventDefault(); e.target.blur(); }
+      else if (e.key === "Escape") { e.preventDefault(); e.target.dataset.cancelled = "true"; renderReorderList(); }
+    }
+
+    function commitQuestionPosition(fromIdx, inputEl) {
+      if (!inputEl || inputEl.dataset.cancelled === "true" || inputEl.dataset.committed === "true") return;
+      inputEl.dataset.committed = "true";
+      const raw = (inputEl.value || "").replace(/[^0-9]/g, "");
+      if (!raw) { renderReorderList(); return; }
+      let targetPos = parseInt(raw, 10);
+      if (Number.isNaN(targetPos)) { renderReorderList(); return; }
+      targetPos = Math.max(1, Math.min(selectedQuestionsOrder.length, targetPos));
+      const toIdx = targetPos - 1;
+      if (toIdx !== fromIdx && fromIdx >= 0 && fromIdx < selectedQuestionsOrder.length) {
+        selectedQuestionsOrder.splice(toIdx, 0, selectedQuestionsOrder.splice(fromIdx, 1)[0]);
+        const statusEl = document.getElementById("reorderStatusIndicator");
+        if (statusEl) statusEl.innerHTML = `<span class="text-blue-700 font-semibold">Moved question from Q${fromIdx + 1} to Q${targetPos}.</span>`;
+      }
+      renderReorderList();
+    }
+
+    function handleReorderDragStart(e, index) { draggedReorderIndex = index; e.currentTarget.classList.add("dragging-card"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", String(index)); }
+    function handleReorderDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; e.currentTarget.classList.add("drag-over-card"); }
+    function handleReorderDragLeave(e) { e.currentTarget.classList.remove("drag-over-card"); }
+    function handleReorderDrop(e, targetIndex) {
+      e.preventDefault(); e.currentTarget.classList.remove("drag-over-card");
+      if (draggedReorderIndex === null || draggedReorderIndex === targetIndex) return;
+      selectedQuestionsOrder.splice(targetIndex, 0, selectedQuestionsOrder.splice(draggedReorderIndex, 1)[0]);
+      draggedReorderIndex = null; renderReorderList();
+    }
+    function handleReorderDragEnd(e) { e.currentTarget.classList.remove("dragging-card"); draggedReorderIndex = null; }
+
+    function renderReorderList() {
+      const countBadge = document.getElementById("reorderCountBadge");
+      if (countBadge) countBadge.textContent = `${selectedQuestionsOrder.length} ${selectedQuestionsOrder.length === 1 ? 'Question' : 'Questions'} Selected`;
+      const container = document.getElementById("reorderListContainer");
+      if (!container) return;
+      const qMap = new Map(questionLibrary.map(q => [q.id, q]));
+      const orderedQuestions = selectedQuestionsOrder.map(id => qMap.get(id)).filter(Boolean);
+      if (orderedQuestions.length === 0) {
+        container.innerHTML = `<div class="bg-white rounded-2xl p-8 text-center border border-slate-200 text-slate-500">No questions selected. Click "Back to Question Library" to select problems.</div>`;
+        return;
+      }
+      container.innerHTML = orderedQuestions.map((q, idx) => {
+        const isFirst = idx === 0, isLast = idx === orderedQuestions.length - 1, sampleVars = getSampleVars(q);
+        const basePrompt = renderLibraryPrompt(q, sampleVars), isDiagramVisible = q.diagram && visibleDiagramIds.has(q.id);
+        const diagramPreviewHTML = isDiagramVisible ? `<div class="mt-3 pt-3 border-t border-slate-100 cursor-default" onclick="event.stopPropagation()">${getDiagramSVG(q.diagram, sampleVars)}</div>` : "";
+        const sampleSolutions = q.parts.map(p => {
+          const val = p.solve(sampleVars), u = normalizeUnit(p.unit);
+          const dispVal = p.solveMulti ? p.solveMulti(sampleVars).map(r => Number(r).toFixed(2)).join(", ") : (p.multiVals ? p.multiVals.map(k => sampleVars[k]).join(", ") : fmtSci(val, 3));
+          return `<span class="px-2 py-0.5 rounded bg-emerald-50 mono text-[11px] text-emerald-700 border border-emerald-200">${getPartLabel(p, sampleVars).split('.')[0]}: <strong>${dispVal} ${u === 'No units' ? '(No units)' : u}</strong> ${p.expectedDirection ? '(' + p.expectedDirection + ')' : ''}</span>`;
+        }).join(" ");
+        return `
+        <div draggable="true" ondragstart="handleReorderDragStart(event, ${idx})" ondragover="handleReorderDragOver(event)" ondragleave="handleReorderDragLeave(event)" ondrop="handleReorderDrop(event, ${idx})" ondragend="handleReorderDragEnd(event)" class="group cursor-grab active:cursor-grabbing rounded-2xl p-4 bg-white border border-slate-200 hover:border-blue-400 shadow-sm transition">
+          <div class="flex items-start gap-3 sm:gap-4">
+            <div class="flex flex-col items-center gap-1 pt-0.5 select-none" onclick="event.stopPropagation()">
+              <button id="qpos-btn-${idx}" type="button" onclick="startEditQuestionPosition(${idx})" class="px-2 py-0.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold mono shadow-xs transition cursor-pointer">Q${idx + 1}</button>
+              <input id="qpos-input-${idx}" type="text" inputmode="numeric" value="${idx + 1}" draggable="false" ondragstart="event.preventDefault(); event.stopPropagation();" onkeydown="handlePositionInputKey(event, ${idx})" onblur="commitQuestionPosition(${idx}, this)" class="hidden w-12 px-1 py-0.5 rounded-md bg-white text-blue-700 border-2 border-blue-600 text-xs font-extrabold mono text-center focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-xs" />
+              <button type="button" onclick="moveSelectedQuestion(${idx}, -1)" ${isFirst ? 'disabled' : ''} class="w-7 h-6 rounded-md bg-slate-100 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30 text-slate-600 border border-slate-200 flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg></button>
+              <button type="button" onclick="moveSelectedQuestion(${idx}, 1)" ${isLast ? 'disabled' : ''} class="w-7 h-6 rounded-md bg-slate-100 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30 text-slate-600 border border-slate-200 flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg></button>
+            </div>
+            <div class="pt-1 text-slate-400 group-hover:text-blue-500 transition select-none"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"/></svg></div>
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                <div class="flex flex-wrap items-center gap-2"><span class="px-2 py-0.5 rounded text-xs font-bold mono bg-slate-100 text-slate-700 border border-slate-200">${q.docNum}</span><span title="Question code (searchable)" class="px-2 py-0.5 rounded text-xs font-bold mono bg-blue-50 text-blue-700 border border-blue-200">${q.id}</span><h4 class="text-sm sm:text-base font-bold text-slate-900">${q.title}</h4></div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">${q.topic}</span>
+                  ${q.diagram ? `<button type="button" onclick="event.stopPropagation(); toggleDiagramPreview('${q.id}')" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition flex items-center gap-1 cursor-pointer ${isDiagramVisible ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}"><span>${isDiagramVisible ? 'Hide Diagram' : 'Diagram'}</span></button>` : ''}
+                  <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">${q.parts.length} Parts</span>
+                </div>
+              </div>
+              <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">${basePrompt}</p>${diagramPreviewHTML}
+              <div class="mt-2.5 flex flex-wrap items-center gap-1.5"><span class="text-[11px] font-semibold text-slate-400 mr-1">Base Key:</span>${sampleSolutions}</div>
+            </div>
+          </div>
+        </div>`;
+      }).join("");
+    }
+
+    // =========================================================================
+    // LIBRARY FILTERING, PAGINATION, SELECTION, AND RENDERING
+    // =========================================================================
+    function renderTagFilterPills() {
+      const container = document.getElementById("topicFilterContainer");
+      if (!container) return;
+      const baseTags = [
+        { label: "All Questions", value: "All", isUnit: false },
+        { label: "Unit 1: Kinematics (All)", value: "Unit 1: Kinematics", isUnit: true },
+        { label: "Unit 2: Force and Translational Dynamics (All)", value: "Unit 2: Force and Translational Dynamics", isUnit: true }
+      ];
+      const existingValues = new Set(baseTags.map(t => t.value));
+      CED_UNITS.forEach(u => {
+        if (!existingValues.has(u.tag) && questionLibrary.some(q => q.unitTag === u.tag)) {
+          baseTags.splice(2, 0, { label: u.tag + " (All)", value: u.tag, isUnit: true });
+          existingValues.add(u.tag);
+        }
+      });
+      getUniqueTopics().forEach(topic => {
+        if (!existingValues.has(topic)) {
+          baseTags.push({ label: topic.replace(/^Unit \d+:\s*/, ""), value: topic, isUnit: false });
+          existingValues.add(topic);
+        }
+      });
+      container.innerHTML = baseTags.map(tag => {
+        let count = tag.value === "All" ? questionLibrary.length : (tag.isUnit ? questionLibrary.filter(q => q.unitTag === tag.value).length : questionLibrary.filter(q => q.topic === tag.value).length);
+        return `<button type="button" onclick="setFilterTag('${tag.value.replace(/'/g, "\\'")}')" class="px-2.5 py-1 rounded-full text-xs font-semibold transition border ${activeFilterTag === tag.value ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'}">${tag.label} <span class="opacity-75">(${count})</span></button>`;
+      }).join("");
+    }
+
+    function setFilterTag(tag) {
+      activeFilterTag = tag; currentLibraryPage = 1;
+      // Choosing a unit/topic shows each of its diagrams by default (you can still hide one with its Diagram button); "All" clears them.
+      visibleDiagramIds = new Set();
+      if (tag !== "All") {
+        const isUnit = CED_UNITS.some(u => u.tag === tag);
+        questionLibrary.forEach(q => { if (q.diagram && (isUnit ? q.unitTag === tag : q.topic === tag)) visibleDiagramIds.add(q.id); });
+      } renderTagFilterPills(); renderLibraryList(); }
+    function handleLibrarySearch() { currentLibraryPage = 1; renderLibraryList(); }
+
+    function getFilteredQuestions() {
+      const qStr = (document.getElementById("librarySearchInput")?.value || "").trim().toLowerCase();
+      const isCedUnitFilter = CED_UNITS.some(u => u.tag === activeFilterTag);
+      return questionLibrary.filter(q => {
+        let matchesTag = activeFilterTag === "All" ? true : (isCedUnitFilter ? q.unitTag === activeFilterTag : q.topic === activeFilterTag);
+        if (!matchesTag) return false;
+        if (!qStr) return true;
+        const promptPreview = renderFormattedPrompt(q).toLowerCase();
+        return q.id.toLowerCase().includes(qStr) || q.docNum.toLowerCase().includes(qStr) || q.title.toLowerCase().includes(qStr) || q.topic.toLowerCase().includes(qStr) || (q.unitTag && q.unitTag.toLowerCase().includes(qStr)) || promptPreview.includes(qStr);
+      });
+    }
+
+    function goToLibraryPage(page) { currentLibraryPage = page; renderLibraryList(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+
+    function renderLibraryPagination(totalItems, totalPages, startIdx, endIdx) {
+      const topEl = document.getElementById("libraryPaginationTop"), bottomEl = document.getElementById("libraryPaginationBottom");
+      if (!topEl || !bottomEl) return;
+      if (totalItems === 0 || totalPages <= 1) {
+        const simpleBar = totalItems > 0 ? `<div class="bg-white rounded-xl px-4 py-2.5 border border-slate-200 shadow-xs flex items-center justify-between text-xs text-slate-600"><span>Showing <strong>1&ndash;${totalItems}</strong> of <strong>${totalItems}</strong> problems</span><span class="font-semibold text-slate-500">Page 1 of 1</span></div>` : "";
+        topEl.innerHTML = simpleBar; bottomEl.innerHTML = "";
+        return;
+      }
+      let pageBtns = "";
+      for (let p = 1; p <= totalPages; p++) pageBtns += `<button type="button" onclick="goToLibraryPage(${p})" class="w-8 h-8 rounded-lg text-xs font-bold border transition ${p === currentLibraryPage ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'}">${p}</button>`;
+      const barHTML = `<div class="bg-white rounded-xl px-4 py-2.5 border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600"><span>Showing <strong>${startIdx + 1}&ndash;${endIdx}</strong> of <strong>${totalItems}</strong> problems &bull; Page <strong>${currentLibraryPage}</strong> of <strong>${totalPages}</strong></span><div class="flex items-center gap-1.5"><button type="button" onclick="goToLibraryPage(${Math.max(1, currentLibraryPage - 1)})" ${currentLibraryPage === 1 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg font-semibold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 disabled:opacity-40 transition">&larr; Prev</button>${pageBtns}<button type="button" onclick="goToLibraryPage(${Math.min(totalPages, currentLibraryPage + 1)})" ${currentLibraryPage === totalPages ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg font-semibold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 disabled:opacity-40 transition">Next &rarr;</button></div></div>`;
+      topEl.innerHTML = barHTML; bottomEl.innerHTML = barHTML;
+    }
+
+    function copyQuestionText(qId, btnEl) {
+      const q = questionLibrary.find(item => item.id === qId);
+      if (!q) return;
+      const sampleVars = getSampleVars(q);
+      const rawHTML = renderLibraryPrompt(q, sampleVars).replace(/<br\s*\/?>/gi, "\n").replace(/<\/?strong>/gi, "").replace(/<\/?em>/gi, "").replace(/<sub>(.*?)<\/sub>/gi, "_$1").replace(/<sup>(.*?)<\/sup>/gi, "^$1");
+      const tmp = document.createElement("div"); tmp.innerHTML = rawHTML;
+      const cleanPrompt = tmp.textContent || tmp.innerText || "";
+      const keySummary = (q.parts||[]).map(p => {
+        const val = p.solve(sampleVars), u = normalizeUnit(p.unit);
+        const dispVal = p.solveMulti ? p.solveMulti(sampleVars).map(r => Number(r).toFixed(2)).join(", ") : (p.multiVals ? p.multiVals.map(k => sampleVars[k]).join(", ") : fmtSci(val, 4));
+        return `${getPartLabel(p, sampleVars).replace(/<[^>]+>/g, "")}: ${dispVal} ${u}`;
+      }).join(" | ");
+      const fullCopyText = `${q.docNum} — ${q.title} (${q.id})\n${cleanPrompt}\nAnswer Key: ${keySummary}`;
+      const ta = document.createElement("textarea"); ta.value = fullCopyText; ta.style.position = "fixed"; ta.style.left = "-9999px";
+      document.body.appendChild(ta); ta.select();
+      try {
+        document.execCommand("copy");
+        if (btnEl) { const origHTML = btnEl.innerHTML; btnEl.innerHTML = `<span class="text-emerald-700 font-bold">&#10003; Copied!</span>`; setTimeout(() => { btnEl.innerHTML = origHTML; }, 1600); }
+      } catch (err) {}
+      document.body.removeChild(ta);
+    }
+
+    function renderLibraryList() {
+      const totalCountEl = document.getElementById("totalLibraryCount"), selectedBigEl = document.getElementById("selectedCountBig");
+      if (totalCountEl) totalCountEl.textContent = questionLibrary.length;
+      if (selectedBigEl) selectedBigEl.textContent = selectedQuestionIds.size;
+      const filtered = getFilteredQuestions(), container = document.getElementById("libraryListContainer");
+      if (!container) return;
+      if (filtered.length === 0) {
+        renderLibraryPagination(0, 0, 0, 0);
+        container.innerHTML = `<div class="bg-white rounded-2xl p-8 text-center border border-slate-200 text-slate-500">No questions match your current search or tag filter. Try selecting "All Questions" or clearing the search bar.</div>`;
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(filtered.length / PROBLEMS_PER_PAGE));
+      if (currentLibraryPage > totalPages) currentLibraryPage = totalPages;
+      const startIdx = (currentLibraryPage - 1) * PROBLEMS_PER_PAGE, endIdx = Math.min(startIdx + PROBLEMS_PER_PAGE, filtered.length);
+      const pageQuestions = filtered.slice(startIdx, endIdx);
+      renderLibraryPagination(filtered.length, totalPages, startIdx, endIdx);
+
+      const folders = {};
+      pageQuestions.forEach(q => { if (!folders[q.topic]) folders[q.topic] = []; folders[q.topic].push(q); });
+      container.innerHTML = Object.keys(folders).map(topic => {
+        const qList = folders[topic], allTopicQuestions = questionLibrary.filter(q => q.topic === topic), isOpen = folderOpenState[topic] !== false;
+        const folderSelectedCount = allTopicQuestions.filter(q => selectedQuestionIds.has(q.id)).length;
+        const questionsCardsHTML = qList.map(q => {
+          const sameFolderList = questionLibrary.filter(item => item.topic === q.topic);
+          const folderIdx = sameFolderList.findIndex(item => item.id === q.id), isFirst = folderIdx === 0, isLast = folderIdx === sameFolderList.length - 1;
+          const masterPos = questionLibrary.findIndex(item => item.id === q.id) + 1, isChecked = selectedQuestionIds.has(q.id);
+          const sampleVars = getSampleVars(q), basePrompt = renderLibraryPrompt(q, sampleVars), isDiagramVisible = q.diagram && visibleDiagramIds.has(q.id);
+          const diagramPreviewHTML = isDiagramVisible ? `<div class="mt-3 pt-3 border-t border-slate-100 cursor-default" onclick="event.stopPropagation()">${getDiagramSVG(q.diagram, sampleVars)}</div>` : "";
+          const sampleSolutions = (q.parts||[]).map(p => {
+            const val = p.solve(sampleVars), u = normalizeUnit(p.unit);
+            const dispVal = p.solveMulti ? p.solveMulti(sampleVars).map(r => Number(r).toFixed(2)).join(", ") : (p.multiVals ? p.multiVals.map(k => sampleVars[k]).join(", ") : fmtSci(val, 3));
+            return `<span class="px-2 py-0.5 rounded bg-emerald-50 mono text-[11px] text-emerald-700 border border-emerald-200">${getPartLabel(p, sampleVars).split('.')[0]}: <strong>${dispVal} ${u === 'No units' ? '(No units)' : u}</strong> ${p.expectedDirection ? '(' + p.expectedDirection + ')' : ''}</span>`;
+          }).join(" ");
+
+          return `
+          <div draggable="true" ondragstart="handleDragStart(event, '${q.id}')" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, '${q.id}')" ondragend="handleDragEnd(event)" onclick="toggleQuestionSelection('${q.id}')" class="group cursor-pointer rounded-xl p-4 transition border ${isChecked ? 'bg-blue-50/40 border-blue-500 shadow-sm' : 'bg-white border-slate-200 hover:border-slate-300 shadow-sm'}">
+            <div class="flex items-start gap-3 sm:gap-4">
+              <div class="flex flex-col items-center gap-1 pt-0.5 select-none" onclick="event.stopPropagation()">
+                <span class="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[11px] font-bold mono text-slate-600" title="Overall Library Position">#${masterPos}</span>
+                <button type="button" onclick="moveQuestionOrder('${q.id}', -1)" ${isFirst ? 'disabled' : ''} class="w-7 h-6 rounded-md bg-slate-100 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30 text-slate-600 border border-slate-200 flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7"/></svg></button>
+                <button type="button" onclick="moveQuestionOrder('${q.id}', 1)" ${isLast ? 'disabled' : ''} class="w-7 h-6 rounded-md bg-slate-100 hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30 text-slate-600 border border-slate-200 flex items-center justify-center transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg></button>
+              </div>
+              <div class="pt-1"><input type="checkbox" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation(); toggleQuestionSelection('${q.id}')" class="w-5 h-5 rounded-md border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" /></div>
+              <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                  <div class="flex flex-wrap items-center gap-2"><span class="px-2 py-0.5 rounded text-xs font-bold mono bg-slate-100 text-slate-700 border border-slate-200">${q.docNum}</span><span title="Question code (searchable)" class="px-2 py-0.5 rounded text-xs font-bold mono bg-blue-50 text-blue-700 border border-blue-200">${q.id}</span><h4 class="text-sm sm:text-base font-bold text-slate-900">${q.title}</h4></div>
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <button type="button" onclick="event.stopPropagation(); copyQuestionText('${q.id}', this)" class="px-2.5 py-0.5 rounded-lg text-[11px] font-semibold bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 transition flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>Copy Text</button>
+                    ${q.diagram ? `<button type="button" onclick="event.stopPropagation(); toggleDiagramPreview('${q.id}')" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition flex items-center gap-1 cursor-pointer ${isDiagramVisible ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}"><span>${isDiagramVisible ? 'Hide Diagram' : 'Diagram'}</span></button>` : ''}
+                    <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">${q.parts.length} Parts</span>
+                  </div>
+                </div>
+                <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">${basePrompt}</p>${diagramPreviewHTML}
+                <div class="mt-2.5 flex flex-wrap items-center gap-1.5"><span class="text-[11px] font-semibold text-slate-400 mr-1">Base Key:</span>${sampleSolutions}</div>
+              </div>
+            </div>
+          </div>`;
+        }).join("");
+
+        return `
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+          <div class="px-4 py-3.5 bg-slate-100/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 cursor-pointer select-none hover:bg-slate-100 transition" onclick="toggleFolder('${topic.replace(/'/g, "\\'")}')">
+            <div class="flex items-center gap-2.5">
+              <button type="button" class="text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-base font-bold text-slate-900">${topic}</span>
+                <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">${allTopicQuestions[0]?.unitTag || getUnitTagFromTopic(topic)}</span>
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-200/80 text-slate-700">${allTopicQuestions.length} Problems</span>
+                <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${folderSelectedCount > 0 ? 'bg-blue-100 text-blue-800 border border-blue-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}">${folderSelectedCount} selected</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2" onclick="event.stopPropagation()">
+              <button type="button" onclick="selectFolderQuestions('${topic.replace(/'/g, "\\'")}', true)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white hover:bg-blue-50 text-blue-700 border border-slate-200 transition">Select All in Folder</button>
+              <button type="button" onclick="selectCurrentPageQuestions(true)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white hover:bg-blue-50 text-blue-700 border border-slate-200 transition">Select All</button>
+              <button type="button" title="Unselect every question in this folder only" onclick="selectFolderQuestions('${topic.replace(/'/g, "\\'")}', false)" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 transition">Unselect All in Folder</button>
+              <button type="button" title="Unselect every selected question in the whole library (all folders and pages)" onclick="clearAllSelections()" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 transition">Unselect All</button>
+            </div>
+          </div>
+          <div class="p-3.5 space-y-2.5 ${isOpen ? 'block' : 'hidden'} bg-slate-50/50">${questionsCardsHTML}</div>
+        </div>`;
+      }).join("");
+    }
+
+    function selectFolderQuestions(topic, select) {
+      questionLibrary.forEach(q => { if (q.topic === topic) { if (select) selectedQuestionIds.add(q.id); else selectedQuestionIds.delete(q.id); } });
+      syncSelectedQuestionsOrder(); renderLibraryList();
+    }
+
+    function selectCurrentPageQuestions(select = true) {
+      const filtered = getFilteredQuestions(), startIdx = (currentLibraryPage - 1) * PROBLEMS_PER_PAGE;
+      filtered.slice(startIdx, Math.min(startIdx + PROBLEMS_PER_PAGE, filtered.length)).forEach(q => { if (select) selectedQuestionIds.add(q.id); else selectedQuestionIds.delete(q.id); });
+      syncSelectedQuestionsOrder(); renderLibraryList();
+    }
+
+    function toggleQuestionSelection(qId) {
+      if (selectedQuestionIds.has(qId)) selectedQuestionIds.delete(qId); else selectedQuestionIds.add(qId);
+      syncSelectedQuestionsOrder(); renderLibraryList();
+    }
+
+    function selectFilteredQuestions(select) {
+      getFilteredQuestions().forEach(q => { if (select) selectedQuestionIds.add(q.id); else selectedQuestionIds.delete(q.id); });
+      syncSelectedQuestionsOrder(); renderLibraryList();
+    }
+
+    function clearAllSelections() { selectedQuestionIds.clear(); selectedQuestionsOrder = []; renderLibraryList(); }
+    function updateTemplateConfig() { randomizationMode = document.getElementById("randomizationModeSelect").value; }
+
+    // ---- TEMPLATES ------------------------------------------------------------
+    // Each template sets the Equation Sheet link and the default name of a new review app.
+    const TEMPLATE_CONFIG = {
+      "AP Physics 1": {
+        equationSheetUrl: "https://apcentral.collegeboard.org/media/pdf/ap-physics-1-equations-sheet.pdf",
+        defaultAppName: "AP Physics 1 Review",
+        namePlaceholder: "e.g., AP Physics 1 Unit 1 and 2 Review"
+      },
+      "Honors Physics": {
+        equationSheetUrl: "https://drive.google.com/file/d/1Bx8TKoKAIw_7My2RXvxhaDsH5SlsdIc4/view?usp=sharing",
+        defaultAppName: "Honors Physics Review",
+        namePlaceholder: "e.g., Honors Physics Unit 1 and 2 Review"
+      }
+    };
+
+    function applyTemplateSettings(templateName) {
+      const cfg = TEMPLATE_CONFIG[templateName] || TEMPLATE_CONFIG["AP Physics 1"];
+      const link = document.getElementById("equationSheetLink");
+      if (link) link.href = cfg.equationSheetUrl;
+      const title = document.getElementById("modalTemplateSettingsTitle");
+      if (title) title.textContent = 'Included "' + templateName + '" Template Settings:';
+      const modalSelect = document.getElementById("modalTemplateSelect");
+      if (modalSelect) modalSelect.value = templateName;
+      const mainSelect = document.getElementById("templateSelect");
+      if (mainSelect) mainSelect.value = templateName;
+      const nameInput = document.getElementById("reviewAppNameInput");
+      if (nameInput) {
+        nameInput.placeholder = cfg.namePlaceholder;
+        // Swap the suggested name only if the teacher hasn't typed their own.
+        const stockNames = Object.keys(TEMPLATE_CONFIG).map(k => TEMPLATE_CONFIG[k].defaultAppName);
+        if (!nameInput.value.trim() || stockNames.includes(nameInput.value.trim())) nameInput.value = cfg.defaultAppName;
+      }
+    }
+
+    function onModalTemplateChanged() { applyTemplateSettings(document.getElementById("modalTemplateSelect").value); }
+    function onTemplateChanged() { applyTemplateSettings(document.getElementById("templateSelect").value); }
+
+    function openBuildModal() {
+      if (selectedQuestionIds.size === 0) return showMessageModal("Please check the box next to at least one question in the library before building a review app.", "No Questions Selected");
+      if (selectedQuestionsOrder.length === 0) syncSelectedQuestionsOrder();
+      applyTemplateSettings(document.getElementById("templateSelect").value);
+      document.getElementById("modalQuestionCount").textContent = `${selectedQuestionsOrder.length} Selected`;
+      document.getElementById("buildAppModal").classList.remove("hidden");
+      document.getElementById("reviewAppNameInput").focus();
+    }
+
+    function closeBuildModal() { document.getElementById("buildAppModal").classList.add("hidden"); }
+
+    function initializeReviewAppFromSelection() {
+      // A brand-new build picks a fresh set of static numbers; an exported app being edited keeps its saved numbers.
+      if (!window.STANDALONE_BOOT_CONFIG) staticVarsStore = {};
+      const nameInput = document.getElementById("reviewAppNameInput").value.trim() || "AP Physics 1 Review App";
+      const templateName = document.getElementById("templateSelect").value;
+      randomizationMode = document.getElementById("randomizationModeSelect").value;
+
+      if (selectedQuestionsOrder.length === 0) syncSelectedQuestionsOrder();
+      const qMap = new Map(questionLibrary.map(q => [q.id, q]));
+      const chosenQuestions = selectedQuestionsOrder.map(id => qMap.get(id)).filter(Boolean);
+
+      currentReviewApp.name = nameInput;
+      currentReviewApp.template = templateName;
+      applyTemplateSettings(templateName);
+      document.getElementById("reviewAppNameInput").value = nameInput;
+      currentReviewApp.questions = chosenQuestions;
+      currentReviewApp.currentIndex = 0;
+      currentReviewApp.instances = {};
+
+      chosenQuestions.forEach(q => { currentReviewApp.instances[q.id] = createQuestionInstance(q); });
+    }
+
+    function createQuestionInstance(q) {
+      const base = getSampleVars(q);
+      let vars = { ...base };
+      if (randomizationMode === "static") {
+        if (!staticVarsStore[q.id]) {
+          const start = (q.baseVars && typeof q.baseVars === "object") ? { ...q.baseVars } : { ...base };
+          let chosen = start;
+          if (typeof q.randomize === "function") {
+            try { chosen = { ...start, ...q.randomize(start) }; }
+            catch (err) { console.error("randomize() failed for " + q.id + ":", err); }
+          }
+          staticVarsStore[q.id] = chosen;
+        }
+        vars = { ...staticVarsStore[q.id] };
+      } else if (randomizationMode === "random" && typeof q.randomize === "function") {
+        try { vars = { ...base, ...q.randomize(base) }; }
+        catch (err) { console.error("randomize() failed for " + q.id + ", using original values:", err); vars = { ...base }; }
+      }
+      return {
+        vars,
+        partStates: (q.parts||[]).map(() => ({ attempts: 0, completed: false, showSolution: false, userVal: "", userUnit: "", userDir: "", feedback: null }))
+      };
+    }
+
+    function buildAndLaunchReviewApp() {
+      try {
+        initializeReviewAppFromSelection();
+        closeBuildModal();
+        switchView("student");
+      } catch (err) {
+        console.error(err);
+        showMessageModal("The review app could not be built: " + (err && err.message ? err.message : err), "Build Error");
+      }
+    }
+
+    // Creator shortcut inside an exported app: Ctrl+Shift+E shows or hides the button that returns to the library.
+    document.addEventListener("keydown", e => {
+      if (!window.STANDALONE_BOOT_CONFIG || !(e.ctrlKey || e.metaKey) || !e.shiftKey || String(e.key).toLowerCase() !== "e") return;
+      e.preventDefault();
+      const backBtn = document.getElementById("backToConstructorBtn");
+      if (!backBtn) return;
+      const hiding = backBtn.style.display !== "none";
+      backBtn.style.display = hiding ? "none" : "";
+      setCreatorToolsVisible(!hiding);
+      if (!hiding) renderLibraryList();
+    });
+
+    function switchView(target) {
+      const constructorView = document.getElementById("constructorView"), reorderView = document.getElementById("reorderView"), studentView = document.getElementById("studentReviewView");
+      const backBtn = document.getElementById("backToConstructorBtn"), reviewToolbar = document.getElementById("reviewToolbarItems");
+      const headerTitle = document.getElementById("headerTitle"), headerSubtitle = document.getElementById("headerSubtitle"), modeBadge = document.getElementById("modeBadge");
+
+      if (target === "student") {
+        constructorView.classList.add("hidden"); reorderView.classList.add("hidden"); studentView.classList.remove("hidden");
+        backBtn.classList.remove("hidden"); backBtn.classList.add("flex"); reviewToolbar.classList.remove("hidden"); reviewToolbar.classList.add("flex");
+        headerTitle.textContent = currentReviewApp.name; headerSubtitle.classList.add("hidden"); modeBadge.classList.add("hidden");
+        renderStudentReviewApp();
+      } else if (target === "reorder") {
+        constructorView.classList.add("hidden"); studentView.classList.add("hidden"); reorderView.classList.remove("hidden");
+        backBtn.classList.remove("hidden"); backBtn.classList.add("flex"); reviewToolbar.classList.add("hidden"); reviewToolbar.classList.remove("flex");
+        headerTitle.textContent = "Arrange Selected Questions"; headerSubtitle.textContent = "Drag questions up or down or randomize their sequence before creating your review app.";
+        headerSubtitle.classList.remove("hidden"); modeBadge.textContent = "Step 2 of 2"; modeBadge.classList.remove("hidden");
+        // Show every selected problem's diagram expanded while arranging (remember the library's own choices to restore on the way back).
+        if (!diagramStateBeforeArrange) diagramStateBeforeArrange = new Set(visibleDiagramIds);
+        const qById = new Map(questionLibrary.map(q => [q.id, q]));
+        selectedQuestionsOrder.forEach(id => { const q = qById.get(id); if (q && q.diagram) visibleDiagramIds.add(id); });
+        renderReorderList(); window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        studentView.classList.add("hidden"); reorderView.classList.add("hidden"); constructorView.classList.remove("hidden");
+        if (diagramStateBeforeArrange) { visibleDiagramIds = diagramStateBeforeArrange; diagramStateBeforeArrange = null; }
+        backBtn.classList.add("hidden"); backBtn.classList.remove("flex"); reviewToolbar.classList.add("hidden"); reviewToolbar.classList.remove("flex");
+        headerTitle.textContent = "Physics Question Library and Constructor"; headerSubtitle.textContent = "";
+        headerSubtitle.classList.add("hidden"); modeBadge.textContent = "Teacher Studio"; modeBadge.classList.remove("hidden");
+      }
+    }
+
+    // =========================================================================
+    // STUDENT REVIEW APP RENDERING & GRADING
+    // =========================================================================
+    // ---- QUESTION NAVIGATION (single row) ----------------------------------------
+    function renderQuestionNav() {
+      const qs = currentReviewApp.questions;
+      const navContainer = document.getElementById("questionNavPills");
+      if (!navContainer || !qs || qs.length === 0) return;
+
+      const isDone = idx => {
+        const inst = currentReviewApp.instances[qs[idx].id];
+        return !!(inst && inst.partStates && inst.partStates.length > 0 && inst.partStates.every(ps => ps.completed));
+      };
+      const pillHTML = idx => {
+        const allDone = isDone(idx), isCurrent = idx === currentReviewApp.currentIndex;
+        let colorCls = "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200";
+        if (allDone) colorCls = "bg-emerald-50 text-emerald-700 border-emerald-300";
+        if (isCurrent) colorCls = "bg-blue-600 text-white border-blue-600 font-bold shadow-sm";
+        return `<button onclick="goToReviewQuestion(${idx})" class="w-12 h-7 px-1 rounded-lg text-xs border transition inline-flex items-center justify-center gap-0.5 shrink-0 ${colorCls}"><span>Q${idx + 1}</span>${allDone ? '<span class="text-[10px] leading-none">&#10003;</span>' : ''}</button>`;
+      };
+
+      const n = qs.length;
+      const width = navContainer.clientWidth || 900;
+      const PILL_SLOT = 54;   // one question button plus its gap
+
+      // Everything fits on one row: show the individual question buttons.
+      if (n * PILL_SLOT <= width) {
+        navContainer.innerHTML = qs.map((q, idx) => pillHTML(idx)).join("");
+        return;
+      }
+
+      // Otherwise group them. Up to 5 groups across; fewer when the window is narrow.
+      const maxGroups = width >= 860 ? 5 : (width >= 680 ? 4 : (width >= 500 ? 3 : 2));
+      const groupSize = Math.ceil(n / maxGroups);
+      const groupCount = Math.ceil(n / groupSize);
+      let html = "";
+      for (let g = 0; g < groupCount; g++) {
+        const first = g * groupSize, last = Math.min(n, first + groupSize) - 1;
+        let allDone = true, hasCurrent = false, inner = "";
+        for (let i = first; i <= last; i++) {
+          if (!isDone(i)) allDone = false;
+          if (i === currentReviewApp.currentIndex) hasCurrent = true;
+          inner += pillHTML(i);
+        }
+        let colorCls = "bg-slate-100 text-slate-700 hover:bg-slate-200 border-slate-200";
+        if (allDone) colorCls = "bg-emerald-50 text-emerald-700 border-emerald-300";
+        if (hasCurrent) colorCls = "bg-blue-600 text-white border-blue-600 font-bold shadow-sm";
+        const label = first === last ? `Question ${first + 1}` : `Questions ${first + 1} - ${last + 1}`;
+        const alignRight = g >= Math.ceil(groupCount / 2);
+        html += `<div class="qgroup"><button type="button" onclick="toggleQuestionGroup(this)" style="font-size:calc(0.75rem + 2pt)" class="h-7 px-3 rounded-lg text-xs border transition inline-flex items-center justify-center gap-1 whitespace-nowrap ${colorCls}"><span>${label}</span>${allDone ? '<span class="text-[10px] leading-none">&#10003;</span>' : ''}</button><div class="qgroup-pop${alignRight ? ' right' : ''}"><div class="qgroup-pop-inner">${inner}</div></div></div>`;
+      }
+      navContainer.innerHTML = html;
+    }
+
+    // Keep a pop-up inside the window (matters on narrow screens): nudge it sideways if it would spill out.
+    function positionQuestionPop(group) {
+      const pop = group && group.querySelector(".qgroup-pop");
+      if (!pop) return;
+      pop.style.transform = "";
+      const r = pop.getBoundingClientRect(), vw = document.documentElement.clientWidth || window.innerWidth, margin = 6;
+      if (r.left < margin) pop.style.transform = "translateX(" + (margin - r.left) + "px)";
+      else if (r.right > vw - margin) pop.style.transform = "translateX(" + (vw - margin - r.right) + "px)";
+    }
+    document.addEventListener("mouseover", e => {
+      const group = e.target.closest ? e.target.closest("#questionNavPills .qgroup") : null;
+      if (group) positionQuestionPop(group);
+    });
+
+    // Tap/click support for screens without hover: open one group at a time; tapping elsewhere closes it.
+    function toggleQuestionGroup(btn) {
+      const group = btn.parentElement, wasOpen = group.classList.contains("open");
+      document.querySelectorAll("#questionNavPills .qgroup.open").forEach(el => el.classList.remove("open"));
+      if (!wasOpen) { group.classList.add("open"); positionQuestionPop(group); }
+    }
+    document.addEventListener("click", e => {
+      if (!e.target.closest || e.target.closest("#questionNavPills .qgroup")) return;
+      document.querySelectorAll("#questionNavPills .qgroup.open").forEach(el => el.classList.remove("open"));
+    });
+    let navResizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(navResizeTimer);
+      navResizeTimer = setTimeout(() => { try { renderQuestionNav(); } catch (e) {} }, 150);
+    });
+
+    function renderStudentReviewApp() {
+      const qs = currentReviewApp.questions;
+      if (!qs || qs.length === 0) return;
+
+      let completedProblems = 0;
+      qs.forEach(q => {
+        const inst = currentReviewApp.instances[q.id];
+        if (inst && inst.partStates && inst.partStates.length > 0 && inst.partStates.every(ps => ps.completed)) completedProblems++;
+      });
+      document.getElementById("progressCounter").textContent = `${completedProblems}/${qs.length}`;
+      document.getElementById("streakCounter").textContent = currentReviewApp.streak;
+
+      renderQuestionNav();
+
+      const activeQ = qs[currentReviewApp.currentIndex];
+      if (!activeQ) return;
+      if (!currentReviewApp.instances[activeQ.id]) { currentReviewApp.instances[activeQ.id] = createQuestionInstance(activeQ); }
+      const inst = currentReviewApp.instances[activeQ.id];
+      const diagramHTML = activeQ.diagram ? `<div class="my-4">${getDiagramSVG(activeQ.diagram, inst.vars)}</div>` : "";
+
+      const activeParts = activeQ.parts || [];
+      const partsHTML = activeParts.map((part, pIdx) => {
+        const pState = inst.partStates[pIdx];
+        if (!pState) return '';
+        const partLabelHTML = getPartLabel(part, inst.vars), placeholderStr = part.placeholder || "Enter numerical value...";
+        // Parts sit two across. A part gets the full width only when it needs the room: a direction menu
+        // (an extra control), a very long label (more than about two lines at half width), or a long placeholder.
+        const labelPlainLen = String(partLabelHTML).replace(/<[^>]+>/g, "").replace(/&[a-zA-Z#0-9]+;/g, "x").length;
+        const needsFullWidth = !!part.directionOptions || labelPlainLen > 110 || placeholderStr.length > 26;
+        const unitSelectHTML = `<select id="unit-${activeQ.id}-${pIdx}" onchange="updatePartDraft('${activeQ.id}', ${pIdx})" ${pState.completed ? 'disabled' : ''} class="part-unit-select px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-medium text-slate-800 mono focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="">Units</option>${UNIT_OPTIONS.map(u => `<option value="${u}" ${pState.userUnit === u ? 'selected' : ''}>${u}</option>`).join("")}</select>`;
+        const dirSelectHTML = part.directionOptions ? `<select id="dir-${activeQ.id}-${pIdx}" onchange="updatePartDraft('${activeQ.id}', ${pIdx})" ${pState.completed ? 'disabled' : ''} class="part-dir-select px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="">Select Direction...</option>${part.directionOptions.map(opt => `<option value="${opt}" ${pState.userDir === opt ? 'selected' : ''}>${opt}</option>`).join("")}</select>` : "";
+        let feedbackHTML = "";
+        if (pState.feedback) feedbackHTML = `<div class="mt-2 text-xs font-semibold px-3 py-2 rounded-lg border ${pState.feedback.correct ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}">${pState.feedback.message}</div>`;
+        let solutionHTML = "";
+        if (pState.showSolution && typeof part.steps === "function") {
+          const trueAns = typeof part.solve === "function" ? part.solve(inst.vars) : 0, trueUnit = normalizeUnit(part.unit);
+          const exactDisplayStr = part.solveMulti ? part.solveMulti(inst.vars).map(r => Number(r).toFixed(2)).join(", ") + " s" : (part.multiVals ? part.multiVals.map(k => inst.vars[k]).join(" s and ") + " s" : `${fmtSci(trueAns, 4)} ${trueUnit === 'No units' ? '(No units)' : trueUnit}`);
+          solutionHTML = `<div class="mt-3 p-3.5 rounded-xl bg-blue-50/50 border border-blue-200 text-xs space-y-1"><div class="font-bold text-blue-700 uppercase tracking-wider">Guided Step-by-Step Solution:</div><p class="text-slate-700 leading-relaxed">${interpolateBrokenTokens(part.steps(inst.vars, trueAns), inst.vars)}</p><div class="pt-1 font-bold mono text-emerald-700">Exact Answer: ${exactDisplayStr} ${part.expectedDirection ? '(' + part.expectedDirection + ')' : ''}</div></div>`;
+        }
+
+        return `
+        <div class="p-4 rounded-xl bg-slate-50 border border-slate-200${needsFullWidth ? ' part-wide' : ''}">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <label class="text-xs sm:text-sm font-bold text-slate-800">${partLabelHTML}</label>
+            ${pState.completed ? '<span class="text-[11px] text-emerald-600 font-bold">Completed &#10003;</span>' : ''}
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="relative flex-1 min-w-[120px]">
+              <input id="input-${activeQ.id}-${pIdx}" type="text" value="${pState.userVal}" oninput="updatePartDraft('${activeQ.id}', ${pIdx})" onkeydown="if(event.key==='Enter') checkPartAnswer('${activeQ.id}', ${pIdx})" ${pState.completed ? 'disabled' : ''} placeholder="${placeholderStr}" class="w-full px-3.5 py-2 rounded-xl bg-white border border-slate-300 text-sm text-slate-900 mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            ${unitSelectHTML}${dirSelectHTML}
+            <button onclick="checkPartAnswer('${activeQ.id}', ${pIdx})" ${pState.completed ? 'disabled' : ''} class="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white shadow-sm transition">Check Answer</button>
+            ${(pState.attempts >= 1 || pState.completed) ? `<button onclick="togglePartSolution('${activeQ.id}', ${pIdx})" class="px-3 py-2 rounded-xl text-xs font-semibold bg-white text-slate-700 border border-slate-300 hover:bg-slate-100 transition">${pState.showSolution ? 'Hide Solution' : 'Guided Solution'}</button>` : ''}
+          </div>
+          ${feedbackHTML}${solutionHTML}
+        </div>`;
+      }).join("");
+
+      const hasSteps = activeParts.some(p => typeof p.steps === "function");
+      const stepsShown = activeParts.some((p, i) => typeof p.steps === "function" && inst.partStates[i] && inst.partStates[i].showSolution);
+      const stage = document.getElementById("activeQuestionStage");
+      stage.innerHTML = `
+      <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-slate-100">
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="inline-flex items-center gap-1">
+              <button type="button" onclick="goToReviewQuestion(${Math.max(0, currentReviewApp.currentIndex - 1)})" ${currentReviewApp.currentIndex === 0 ? 'disabled' : ''} title="Previous Question" class="w-12 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 disabled:opacity-40 disabled:hover:bg-slate-100 flex items-center justify-center transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg></button>
+              <button type="button" onclick="goToReviewQuestion(${Math.min(qs.length - 1, currentReviewApp.currentIndex + 1)})" ${currentReviewApp.currentIndex === qs.length - 1 ? 'disabled' : ''} title="Next Question" class="w-12 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 disabled:opacity-40 disabled:hover:bg-slate-100 flex items-center justify-center transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></button>
+            </div>
+            <span class="w-36 py-1 rounded-lg text-xs font-extrabold bg-blue-600 text-white text-center inline-block tabular-nums shrink-0">Question ${currentReviewApp.currentIndex + 1} of ${qs.length}</span>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">${activeQ.topic}</span>
+          </div>
+          <button type="button" ${randomizationMode === "random" ? "" : 'style="display:none"'} onclick="regenerateSingleQuestion('${activeQ.id}')" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-800 border border-slate-200 transition flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Try New Numbers for This Problem</button>
+        </div>
+        <div class="py-4"><p class="text-sm sm:text-base leading-relaxed text-slate-800">${renderFormattedPrompt(activeQ, inst.vars)}</p>${diagramHTML}</div>
+        <div class="parts-grid">${partsHTML}</div>
+        <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+          <div class="flex items-center gap-2 flex-wrap">
+            <button onclick="goToReviewQuestion(${Math.max(0, currentReviewApp.currentIndex - 1)})" ${currentReviewApp.currentIndex === 0 ? 'disabled' : ''} class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 disabled:opacity-40 hover:bg-slate-200 transition">&larr; Previous Problem</button>
+            ${hasSteps ? `<button type="button" onclick="toggleQuestionSolutions('${activeQ.id}')" class="px-4 py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition inline-flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>${stepsShown ? 'Hide Solution Steps' : 'Solution Steps'}</button>` : ''}
+          </div>
+          <button onclick="goToReviewQuestion(${Math.min(qs.length - 1, currentReviewApp.currentIndex + 1)})" ${currentReviewApp.currentIndex === qs.length - 1 ? 'disabled' : ''} class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 disabled:opacity-40 hover:bg-slate-200 transition">Next Problem &rarr;</button>
+        </div>
+      </div>`;
+    }
+
+    function updatePartDraft(qId, pIdx) {
+      const inst = currentReviewApp.instances[qId];
+      if (!inst) return;
+      const pState = inst.partStates[pIdx];
+      const valEl = document.getElementById(`input-${qId}-${pIdx}`), unitEl = document.getElementById(`unit-${qId}-${pIdx}`), dirEl = document.getElementById(`dir-${qId}-${pIdx}`);
+      if (valEl) pState.userVal = valEl.value;
+      if (unitEl) pState.userUnit = unitEl.value;
+      if (dirEl) pState.userDir = dirEl.value;
+    }
+
+    function checkNumericTolerance(userNum, expected, acceptNegative, customAbsTol = 0, customTolFn = null) {
+      if (typeof customTolFn === "function") {
+        const tol = customTolFn(expected);
+        if (Math.abs(userNum - expected) <= tol) return true;
+        if (acceptNegative && Math.abs(Math.abs(userNum) - Math.abs(expected)) <= tol) return true;
+        return false;
+      }
+      if (customAbsTol > 0 && Math.abs(userNum - expected) <= Math.abs(expected * 0.1) + customAbsTol) return true;
+      if (Math.abs(expected) < 1e-12) return Math.abs(userNum) < 1e-6;
+      const relErr = Math.abs(userNum - expected) / Math.abs(expected), relErrNeg = acceptNegative ? Math.abs(Math.abs(userNum) - Math.abs(expected)) / Math.abs(expected) : 1;
+      return relErr <= TOLERANCE || relErrNeg <= TOLERANCE;
+    }
+
+    // ---- FLEXIBLE UNITS -------------------------------------------------------
+    // Units in the same family are interchangeable (e.g. 0.23 km = 230 m). Each unit lists its
+    // family and its size relative to the family's base unit. A part is graded flexibly unless it
+    // is marked strictUnit: true, or its required unit is "lb" (the question asks for pounds).
+    const UNIT_FAMILIES = {
+      "m": ["length", 1], "cm": ["length", 0.01], "mm": ["length", 0.001], "km": ["length", 1000],
+      "m/s": ["speed", 1], "km/h": ["speed", 1 / 3.6],
+      "N": ["force", 1], "kN": ["force", 1000]
+    };
+    function getFlexibleUnitFactor(userUnit, expectedUnit, part) {
+      if (!part || part.strictUnit === true || expectedUnit === "lb" || userUnit === expectedUnit) return null;
+      const a = UNIT_FAMILIES[userUnit], b = UNIT_FAMILIES[expectedUnit];
+      if (!a || !b || a[0] !== b[0]) return null;
+      return a[1] / b[1];   // multiply the student's number by this to express it in the expected unit
+    }
+
+    function checkPartAnswer(qId, pIdx) {
+      const q = currentReviewApp.questions.find(item => item.id === qId);
+      const inst = currentReviewApp.instances[qId];
+      if (!q || !inst) return;
+      const part = q.parts[pIdx];
+      const pState = inst.partStates[pIdx];
+      if (!part || !pState) return;
+
+      updatePartDraft(qId, pIdx);
+      const rawInput = pState.userVal.trim();
+
+      if (part.solveMulti || part.multiVals) {
+        const userNums = rawInput.split(",").map(s => parseFloat(s.trim())).filter(n => !Number.isNaN(n));
+        if (userNums.length === 0) { pState.feedback = { correct: false, message: "Please enter numerical time value(s) separated by a comma (e.g., 1.5, 5.0)." }; renderStudentReviewApp(); return; }
+        if (!pState.userUnit) { pState.feedback = { correct: false, message: "Please select the units from the dropdown menu." }; renderStudentReviewApp(); return; }
+        pState.attempts++;
+        const expectedList = part.solveMulti ? part.solveMulti(inst.vars) : part.multiVals.map(k => Number(inst.vars[k]));
+        const tol = part.customAbsTol || 0.22;
+        const matchedExpected = expectedList.filter(expVal => userNums.some(uVal => Math.abs(uVal - expVal) <= tol));
+        const allUserValid = userNums.every(uVal => expectedList.some(expVal => Math.abs(uVal - expVal) <= tol));
+        const expectedUnit = normalizeUnit(part.unit), unitMatches = pState.userUnit === expectedUnit;
+
+        if (matchedExpected.length === expectedList.length && allUserValid && unitMatches) {
+          pState.completed = true; currentReviewApp.streak++; safeSetStorage("ap1ReviewStreak", String(currentReviewApp.streak));
+          pState.feedback = { correct: true, message: `Great job! Value(s) (${expectedList.map(r => Number(r).toFixed(2)).join(", ")} s) and units are within acceptable range.` };
+          logStudentProgressToSheet(qId, pState.attempts, true);
+        } else {
+          currentReviewApp.streak = 0; safeSetStorage("ap1ReviewStreak", "0");
+          if (matchedExpected.length === expectedList.length && allUserValid && !unitMatches) pState.feedback = { correct: false, message: `Your numerical value is correct, but check the units (expected ${expectedUnit}).` };
+          else if (matchedExpected.length > 0) pState.feedback = { correct: false, message: `You found ${matchedExpected.length} correct ${matchedExpected.length === 1 ? "time" : "times"}, but ${!allUserValid ? "one or more values are incorrect. There " + (expectedList.length === 1 ? "is 1 time" : "are " + expectedList.length + " times") + " total" : "there " + (expectedList.length > 1 ? "are " + expectedList.length + " times total" : "is another point")} on the graph. Separate multiple values with a comma.` };
+          else pState.feedback = { correct: false, message: "Not quite within tolerance. Check the graph carefully and separate multiple values with a comma." };
+          logStudentProgressToSheet(qId, pState.attempts, false);
+        }
+        renderStudentReviewApp(); return;
+      }
+
+      const userNum = Number(rawInput);
+      if (rawInput === "" || Number.isNaN(userNum)) { pState.feedback = { correct: false, message: "Please enter a valid numerical value (e-notation like 1.23e-4 is supported)." }; renderStudentReviewApp(); return; }
+      if (!pState.userUnit) { pState.feedback = { correct: false, message: "Please select the units from the dropdown menu." }; renderStudentReviewApp(); return; }
+      if (part.directionOptions && !pState.userDir) { pState.feedback = { correct: false, message: "Please select a direction from the dropdown menu." }; renderStudentReviewApp(); return; }
+
+      pState.attempts++;
+      const expected = typeof part.solve === "function" ? part.solve(inst.vars) : 0;
+      const expectedUnit = normalizeUnit(part.unit), validUnits = part.acceptedUnits ? part.acceptedUnits.map(normalizeUnit) : [expectedUnit];
+
+      let numMatches = checkNumericTolerance(userNum, expected, part.acceptNegative, part.customAbsTol || 0, part.customTol || null);
+      let unitMatches = validUnits.includes(pState.userUnit), matchedDisplayVal = expected, matchedDisplayUnit = expectedUnit;
+
+      if ((!numMatches || !unitMatches) && Array.isArray(part.altUnitSolutions)) {
+        for (const alt of part.altUnitSolutions) {
+          const altVal = typeof alt.solve === "function" ? alt.solve(inst.vars) : 0, altUnit = normalizeUnit(alt.unit);
+          const altNumOk = checkNumericTolerance(userNum, altVal, part.acceptNegative), altUnitOk = pState.userUnit === altUnit;
+          if (altNumOk && altUnitOk) { numMatches = true; unitMatches = true; matchedDisplayVal = altVal; matchedDisplayUnit = altUnit; break; }
+          else if (altNumOk && !numMatches) numMatches = true;
+        }
+      }
+
+      // Flexible units: if the student chose a different unit from the same family, convert their number
+      // into the expected unit and grade that. This replaces the plain comparison above for that case.
+      if (!(numMatches && unitMatches)) {
+        const flexFactor = getFlexibleUnitFactor(pState.userUnit, expectedUnit, part);
+        if (flexFactor !== null) {
+          unitMatches = true;
+          numMatches = checkNumericTolerance(userNum * flexFactor, expected, part.acceptNegative, part.customAbsTol || 0, part.customTol || null);
+          if (numMatches) { matchedDisplayVal = expected / flexFactor; matchedDisplayUnit = pState.userUnit; }
+        }
+      }
+
+      const dirMatches = !part.expectedDirection || pState.userDir === part.expectedDirection;
+
+      if (numMatches && unitMatches && dirMatches) {
+        pState.completed = true; currentReviewApp.streak++; safeSetStorage("ap1ReviewStreak", String(currentReviewApp.streak));
+        pState.feedback = { correct: true, message: `Correct! Within ±1% tolerance with correct units (${fmtSci(matchedDisplayVal, 4)} ${matchedDisplayUnit === 'No units' ? 'No units' : matchedDisplayUnit}${part.expectedDirection ? ', ' + part.expectedDirection : ''}).` };
+        logStudentProgressToSheet(qId, pState.attempts, true);
+      } else {
+        currentReviewApp.streak = 0; safeSetStorage("ap1ReviewStreak", "0");
+        let hintMsg = "Not quite. Check both your numerical calculation and your selected units (or click 'Guided Solution').";
+        if (numMatches && !unitMatches && dirMatches) hintMsg = "Your numerical value is correct, but check your selected units!";
+        else if (numMatches && unitMatches && !dirMatches) hintMsg = "Your numerical value and units are correct, but check the direction!";
+        else if (!numMatches && unitMatches && dirMatches) hintMsg = "Your units are right, but double-check your numerical calculation.";
+        pState.feedback = { correct: false, message: hintMsg };
+        logStudentProgressToSheet(qId, pState.attempts, false);
+      }
+      renderStudentReviewApp();
+    }
+
+    function togglePartSolution(qId, pIdx) {
+      const inst = currentReviewApp.instances[qId];
+      if (inst && inst.partStates[pIdx]) inst.partStates[pIdx].showSolution = !inst.partStates[pIdx].showSolution;
+      renderStudentReviewApp();
+    }
+
+    // "Solution Steps" button: shows (or hides) the guided solution for every part of the question, available before any attempt.
+    function toggleQuestionSolutions(qId) {
+      const inst = currentReviewApp.instances[qId], q = currentReviewApp.questions.find(item => item.id === qId);
+      if (!inst || !q) return;
+      const parts = q.parts || [];
+      const anyShown = parts.some((p, i) => typeof p.steps === "function" && inst.partStates[i] && inst.partStates[i].showSolution);
+      parts.forEach((p, i) => { if (typeof p.steps === "function" && inst.partStates[i]) inst.partStates[i].showSolution = !anyShown; });
+      renderStudentReviewApp();
+    }
+
+    function goToReviewQuestion(idx) { currentReviewApp.currentIndex = idx; renderStudentReviewApp(); }
+
+    function regenerateSingleQuestion(qId) {
+      if (randomizationMode === "static") return;
+      const q = currentReviewApp.questions.find(item => item.id === qId);
+      if (!q) return;
+      currentReviewApp.instances[qId] = createQuestionInstance(q);
+      // The spline graph drawing code now lives in the question data file, so check that it is present.
+      if (typeof syncSplineStateWithVars === "function") {
+        if (qId === "KIN-01") syncSplineStateWithVars(1, currentReviewApp.instances[qId].vars, true);
+        if (qId === "KIN-02") syncSplineStateWithVars(2, currentReviewApp.instances[qId].vars, true);
+      }
+      renderStudentReviewApp();
+    }
+
+    function regenerateAllStudentInstances() {
+      if (randomizationMode === "static") return;
+      currentReviewApp.questions.forEach(q => { currentReviewApp.instances[q.id] = createQuestionInstance(q); });
+      renderStudentReviewApp();
+    }
+
+    function openAddQuestionModal() { document.getElementById("addQuestionModal").classList.remove("hidden"); }
+    function closeAddQuestionModal() { document.getElementById("addQuestionModal").classList.add("hidden"); }
+
+    function saveCustomQuestion() {
+      const title = document.getElementById("customQTitle").value.trim() || "Custom Physics Problem", topic = document.getElementById("customQTopic").value;
+      const promptTemplate = document.getElementById("customQPrompt").value.trim();
+      const v1 = Number(document.getElementById("customQV1").value || 10), v2 = Number(document.getElementById("customQV2").value || 20);
+      const formula = document.getElementById("customQFormula").value.trim() || "v2 / v1", unit = normalizeUnit(document.getElementById("customQUnit").value.trim());
+      const solutionText = document.getElementById("customQSolution").value.trim() || "Substitute the given values into the formula.";
+
+      if (!promptTemplate) return showMessageModal("Please provide a question prompt.", "Missing Prompt");
+
+      const rawItem = { id: "CUST-" + Date.now().toString().slice(-4), docNum: "Custom #" + (questionLibrary.length - 61), title, topic, promptTemplate, v1, v2, formula, unit, solutionText, unitTag: getUnitTagFromTopic(topic) };
+      const savedRaw = JSON.parse(safeGetStorage(CUSTOM_Q_STORAGE_KEY, "[]") || "[]");
+      savedRaw.push(rawItem); safeSetStorage(CUSTOM_Q_STORAGE_KEY, JSON.stringify(savedRaw));
+
+      const hydrated = hydrateCustomQuestion(rawItem);
+      questionLibrary.push(hydrated); selectedQuestionIds.add(hydrated.id); saveLibraryOrder();
+      closeAddQuestionModal(); renderTagFilterPills(); renderLibraryList();
+    }
+
+    function hydrateCustomQuestion(item) {
+      const cleanUnit = normalizeUnit(item.unit);
+      if (!UNIT_OPTIONS.includes(cleanUnit)) UNIT_OPTIONS.push(cleanUnit);
+      const resolvedTopic = item.topic ? item.topic.replace(/^Unit 3: Circular Motion/, "Unit 2: Circular Motion") : "Unit 2: Dynamics and Forces";
+      return {
+        id: item.id, docNum: item.docNum || "Custom", title: item.title, topic: resolvedTopic, unitTag: getUnitTagFromTopic(resolvedTopic),
+        baseVars: { v1: Number(item.v1), v2: Number(item.v2) },
+        randomize: (b) => ({ v1: rnd(b.v1, 0.2, 2), v2: rnd(b.v2, 0.2, 2) }),
+        renderPrompt: (v) => item.promptTemplate.replace(/\{\{v1\}\}/g, `<strong>${v.v1}</strong>`).replace(/\{\{v2\}\}/g, `<strong>${v.v2}</strong>`),
+        parts: [{ label: "Answer", unit: cleanUnit, solve: (v) => (new Function("v1", "v2", "g", "G", `return (${item.formula});`))(v.v1, v.v2, G_ACCEL, G_CONST), steps: (v, ans) => `${item.solutionText} (With <em>v</em><sub>1</sub> = ${v.v1}, <em>v</em><sub>2</sub> = ${v.v2}: Answer = ${ans.toFixed(3)} ${cleanUnit})` }]
+      };
+    }
+
+    function exportLibraryJSON() {
+      const exportData = { exportedAt: new Date().toISOString(), totalQuestions: questionLibrary.length, libraryOrderIds: questionLibrary.map(q => q.id), selectedIds: questionLibrary.filter(q => selectedQuestionIds.has(q.id)).map(q => q.id) };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "physics-library-folders.json"; a.click(); URL.revokeObjectURL(url);
+    }
+
+    function buildAndDownloadStandalone() {
+      try {
+        initializeReviewAppFromSelection();
+        closeBuildModal();
+        downloadStandaloneReviewApp();
+      } catch (err) {
+        console.error(err);
+        showMessageModal("The standalone file could not be created: " + (err && err.message ? err.message : err), "Download Error");
+      }
+    }
+
+    // ---- Exporting: each review app carries its own questions and diagram code (nothing is loaded from GitHub). ----
+
+    // Turns a function into source text that can be pasted into a new page.
+    function functionSourceText(fn) {
+      const s = fn.toString();
+      try { new Function("return (" + s + ");"); return s; }
+      catch (e) { return "function " + s; }   // method shorthand such as  renderPrompt(v) { ... }
+    }
+
+    // Turns a question (or any part of one) into JavaScript source text. Fields starting with "_" are app bookkeeping and are skipped.
+    function serializeForExport(val) {
+      if (typeof val === "function") return functionSourceText(val);
+      if (Array.isArray(val)) return "[" + val.map(serializeForExport).join(",\n") + "]";
+      if (val && typeof val === "object") {
+        return "{" + Object.keys(val).filter(k => k.charAt(0) !== "_" && val[k] !== undefined)
+          .map(k => JSON.stringify(k) + ": " + serializeForExport(val[k])).join(",\n") + "}";
+      }
+      if (typeof val === "number" && !isFinite(val)) return String(val);
+      return val === undefined ? "undefined" : JSON.stringify(val);
+    }
+
+    // Builds the question-and-diagram script that gets written into an exported app.
+    function buildEmbeddedDataScript(ids) {
+      const bank = (typeof PHYSICS_QUESTIONS !== "undefined" && Array.isArray(PHYSICS_QUESTIONS)) ? PHYSICS_QUESTIONS : [];
+      const picked = ids.map(id => bank.find(q => q.id === id) || questionLibrary.find(q => q.id === id)).filter(Boolean);
+      const questionsText = "[" + picked.map(serializeForExport).join(",\n") + "]";
+
+      const usedDiagrams = [...new Set(picked.map(q => q.diagram).filter(d => typeof d === "string"))]
+        .filter(d => typeof DIAGRAM_DRAWERS !== "undefined" && DIAGRAM_DRAWERS[d]);
+      const drawersText = "const DIAGRAM_DRAWERS = {\n" + usedDiagrams.map(d => JSON.stringify(d) + ": " + functionSourceText(DIAGRAM_DRAWERS[d])).join(",\n") + "\n};\n"
+        + "function getDiagramSVG(type, v) { const draw = DIAGRAM_DRAWERS[type]; return draw ? draw(v) : ''; }\n";
+
+      let code = "";
+      const needsSpline = /\b(buildSplineModel|generateSplineProblemVars|buildInteractiveSplineSVG|syncSplineStateWithVars)\b/.test(questionsText + drawersText);
+      if (needsSpline && typeof installSplineEngine === "function") code += functionSourceText(installSplineEngine) + "\ninstallSplineEngine();\n";
+      if (typeof guidedSteps === "function") code += functionSourceText(guidedSteps) + "\n";
+      code += drawersText + "const PHYSICS_QUESTIONS = " + questionsText + ";\n";
+      return code.replace(/<\//g, "<\\/");   // keeps the browser from ending the script early
+    }
+
+    // Builds the complete HTML text of the review app as it currently stands in the library.
+    function buildStandaloneHTML() {
+      if (selectedQuestionsOrder.length === 0) syncSelectedQuestionsOrder();
+      const fixedSelectedArray = [...selectedQuestionsOrder];
+      const openScr = "<" + "script", closeScr = "<" + "/script>", closeBody = "<" + "/body>", docType = "<!DOC" + "TYPE html>\n";
+
+      let fullSource = document.documentElement.outerHTML;
+      // Google Sites (and similar hosts) can add their own tags to a page while it runs inside their frame, such as a <base> link back to a googleusercontent.com address.
+      // Those must not be saved into the exported app, or the copy looks for its parts in the wrong place. Remove them.
+      fullSource = fullSource.replace(/<base\b[^>]*>/gi, "");
+      fullSource = fullSource.replace(/<(script|link|meta|iframe)\b[^>]*googleusercontent\.com[^>]*>(\s*<\/(script|iframe)>)?/gi, "");
+      // Drop the old boot script (when this file is itself an exported app being edited).
+      fullSource = fullSource.replace(/<script>window\.STANDALONE_BOOT_CONFIG = [\s\S]*?;<\/script>/g, "");
+      // Drop the copy of the question file this page fetched from GitHub; the exported app gets its own embedded copy below.
+      fullSource = fullSource.replace(/<script id="fetchedQuestionData">[\s\S]*?<\/script>/, "");
+      // Replace the question file link (or an earlier embedded copy) with this app's own questions and diagrams.
+      const embedded = openScr + ' id="embeddedQuestionData">\n' + buildEmbeddedDataScript(fixedSelectedArray) + closeScr;
+      // (Built from pieces so this code never contains the exact text it searches for.)
+      const linkPattern = new RegExp("<" + "script[^>]*physics_questions_data\\.js[^>]*><" + "/script>");
+      const embeddedPattern = new RegExp("<" + "script id=\"embeddedQuestionData\">[\\s\\S]*?<" + "/script>");
+      if (embeddedPattern.test(fullSource)) fullSource = fullSource.replace(embeddedPattern, () => embedded);
+      else if (linkPattern.test(fullSource)) fullSource = fullSource.replace(linkPattern, () => embedded);
+      else throw new Error("Could not find the question data in this page.");
+
+      const bootConfig = { orderedIds: fixedSelectedArray, selectedIds: fixedSelectedArray, appName: currentReviewApp.name, template: currentReviewApp.template, randomizationMode: randomizationMode, staticVars: (randomizationMode === "static" ? staticVarsStore : null) };
+      const bootScript = openScr + ">window.STANDALONE_BOOT_CONFIG = " + JSON.stringify(bootConfig) + ";" + closeScr + closeBody;
+      return docType + fullSource.replace(closeBody, () => bootScript);
+    }
+
+    function downloadStandaloneReviewApp() {
+      const standaloneHTML = buildStandaloneHTML();
+      const blob = new Blob([standaloneHTML], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url;
+      a.download = (currentReviewApp.name || "Review_App").toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".html";
+      a.click(); URL.revokeObjectURL(url);
+    }
+
+    // Copies the app's HTML to the clipboard, ready to paste into a Google Sites "Embed code" box.
+    function copyStandaloneHtml() {
+      let html;
+      try { html = buildStandaloneHTML(); }
+      catch (err) { console.error(err); showMessageModal("The HTML could not be created: " + (err && err.message ? err.message : err), "Copy Error"); return; }
+      const done = () => {
+        const b = document.getElementById("copyHtmlBtn");
+        if (b) { const old = b.innerHTML; b.textContent = "Copied!"; setTimeout(() => { b.innerHTML = old; }, 1800); }
+      };
+      const fallback = () => {
+        const ta = document.createElement("textarea");
+        ta.value = html; ta.style.position = "fixed"; ta.style.left = "-9999px";
+        document.body.appendChild(ta); ta.select();
+        let ok = false;
+        try { ok = document.execCommand("copy"); } catch (e) {}
+        document.body.removeChild(ta);
+        if (ok) done(); else showMessageModal("Your browser blocked copying. Use Export Standalone HTML instead, then open that file in a text editor and copy its contents.", "Copy Blocked");
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(html).then(done, fallback); }
+      else { fallback(); }
+    }
+
+    // The Export and Copy buttons are for the creator only. Exported apps hide them unless opened in edit mode.
+    // =========================================================================
+    // SAVED RECIPES: a small text file that remembers a review app's name, template, number mode and question order,
+    // so the app can be rebuilt (and edited) later without picking every question again.
+    // =========================================================================
+    function buildRecipeObject(fromReview) {
+      let ids, name, template, mode;
+      if (fromReview && currentReviewApp && Array.isArray(currentReviewApp.questions) && currentReviewApp.questions.length > 0) {
+        ids = currentReviewApp.questions.map(q => q.id);
+        name = currentReviewApp.name;
+        template = currentReviewApp.template;
+        mode = randomizationMode;
+      } else {
+        if (selectedQuestionsOrder.length === 0) syncSelectedQuestionsOrder();
+        ids = [...selectedQuestionsOrder];
+        name = (document.getElementById("reviewAppNameInput").value || "").trim();
+        template = document.getElementById("templateSelect").value;
+        mode = document.getElementById("randomizationModeSelect").value;
+      }
+      if (mode !== "static") mode = "random";
+      const recipe = {
+        note: "Physics Review App Recipe. Open this file with the Load Recipe button in the Physics Question Library.",
+        recipeVersion: 1,
+        appName: name || "Review App",
+        template: template,
+        randomizationMode: mode,
+        questionCount: ids.length,
+        savedOn: new Date().toISOString().slice(0, 10),
+        questionIds: ids
+      };
+      if (mode === "static") {
+        const sv = {};
+        ids.forEach(id => { if (staticVarsStore && staticVarsStore[id]) sv[id] = staticVarsStore[id]; });
+        if (Object.keys(sv).length > 0) recipe.staticVars = sv;
+      }
+      return recipe;
+    }
+
+    function saveRecipe(source) {
+      try {
+        const recipe = buildRecipeObject(source === "review");
+        if (recipe.questionIds.length === 0) return showMessageModal("There are no questions to save yet. Check the box next to at least one question first.", "Nothing to Save");
+        const blob = new Blob([JSON.stringify(recipe, null, 2)], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = (recipe.appName.replace(/[^A-Za-z0-9 _-]+/g, "").trim().replace(/\s+/g, " ") || "Review App") + " Recipe.txt";
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (err) {
+        console.error(err);
+        showMessageModal("The recipe could not be saved: " + (err && err.message ? err.message : err), "Save Recipe Error");
+      }
+    }
+
+    function openLoadRecipe() {
+      const input = document.getElementById("recipeFileInput");
+      if (input) input.click();
+    }
+
+    function handleRecipeFile(ev) {
+      const input = ev.target, file = input.files && input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onerror = () => { input.value = ""; showMessageModal("That file could not be read.", "Load Recipe Error"); };
+      reader.onload = () => { input.value = ""; applyRecipeText(String(reader.result || "")); };
+      reader.readAsText(file);
+    }
+
+    function applyRecipeText(text) {
+      let recipe = null;
+      try { recipe = JSON.parse(text.replace(/^﻿/, "").trim()); } catch (e) {}
+      if (!recipe || typeof recipe !== "object" || !Array.isArray(recipe.questionIds)) {
+        return showMessageModal("That file doesn't look like a saved recipe. Choose a recipe file that was saved with the Save Recipe button.", "Load Recipe Error");
+      }
+      if (!questionLibrary || questionLibrary.length === 0) {
+        return showMessageModal("The question library hasn't finished loading yet. Wait a moment and try again.", "Load Recipe Error");
+      }
+      const have = new Set(questionLibrary.map(q => q.id));
+      const seen = new Set(), ids = [], missing = [];
+      recipe.questionIds.forEach(id => {
+        if (seen.has(id)) return;
+        seen.add(id);
+        if (have.has(id)) ids.push(id); else missing.push(id);
+      });
+      if (ids.length === 0) return showMessageModal("None of the questions in that recipe are in the library, so nothing was loaded.", "Load Recipe Error");
+
+      selectedQuestionIds = new Set(ids);
+      selectedQuestionsOrder = ids;
+
+      const templateName = TEMPLATE_CONFIG[recipe.template] ? recipe.template : document.getElementById("templateSelect").value;
+      document.getElementById("templateSelect").value = templateName;
+      const nameInput = document.getElementById("reviewAppNameInput");
+      if (nameInput) nameInput.value = "";
+      applyTemplateSettings(templateName);
+      if (nameInput && typeof recipe.appName === "string" && recipe.appName.trim()) nameInput.value = recipe.appName.trim();
+
+      const mode = recipe.randomizationMode === "static" ? "static" : "random";
+      document.getElementById("randomizationModeSelect").value = mode;
+      randomizationMode = mode;
+      staticVarsStore = {};
+      if (mode === "static" && recipe.staticVars && typeof recipe.staticVars === "object") {
+        ids.forEach(id => { if (recipe.staticVars[id] && typeof recipe.staticVars[id] === "object") staticVarsStore[id] = recipe.staticVars[id]; });
+      }
+
+      currentLibraryPage = 1;
+      renderLibraryList();
+      let msg = 'Loaded "' + (recipe.appName || "your recipe") + '": ' + ids.length + (ids.length === 1 ? " question is" : " questions are") + " now selected in your saved order. Click Build a Review App to continue.";
+      if (missing.length > 0) msg += " " + missing.length + (missing.length === 1 ? " question" : " questions") + " from the recipe could not be found in the library and " + (missing.length === 1 ? "was" : "were") + " skipped: " + missing.slice(0, 12).join(", ") + (missing.length > 12 ? ", and more" : "") + ".";
+      showMessageModal(msg, "Recipe Loaded");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function setCreatorToolsVisible(show) {
+      ["exportStandaloneBtn", "copyHtmlBtn", "saveRecipeBtn"].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = show ? "" : "none"; });
+    }
+
+    function openTeacherSetupModal() { document.getElementById("webAppUrlInput").value = currentReviewApp.webAppUrl; document.getElementById("teacherSetupModal").classList.remove("hidden"); }
+    function closeTeacherSetupModal() { document.getElementById("teacherSetupModal").classList.add("hidden"); }
+    function saveTeacherSetup() {
+      const url = document.getElementById("webAppUrlInput").value.trim();
+      currentReviewApp.webAppUrl = url; safeSetStorage("ap1TeacherWebappUrl", url); closeTeacherSetupModal();
+    }
+
+    function logStudentProgressToSheet(qId, attempts, completed) {
+      if (!currentReviewApp.webAppUrl) return;
+      try {
+        fetch(currentReviewApp.webAppUrl, {
+          method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ appName: currentReviewApp.name, questionId: qId, attempts, completed, streak: currentReviewApp.streak })
+        });
+      } catch (e) {}
+    }
+
+    // FBD Scratchpad Canvas
+    let isDrawing = false, lastX = 0, lastY = 0;
+    function toggleScratchpad() { document.getElementById("scratchpadDrawer").classList.toggle("hidden"); }
+    function clearScratchpad() {
+      const canvas = document.getElementById("fbdCanvas");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = 1;
+      for (let x = 20; x < canvas.width; x += 20) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
+      for (let y = 20; y < canvas.height; y += 20) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
+    }
+    function initScratchpadEvents() {
+      const canvas = document.getElementById("fbdCanvas");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      clearScratchpad();
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect(), clientX = e.touches ? e.touches[0].clientX : e.clientX, clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: ((clientX - rect.left) / rect.width) * canvas.width, y: ((clientY - rect.top) / rect.height) * canvas.height };
+      }
+      function start(e) { e.preventDefault(); isDrawing = true; const pos = getPos(e); lastX = pos.x; lastY = pos.y; }
+      function move(e) {
+        if (!isDrawing) return;
+        e.preventDefault(); const pos = getPos(e);
+        ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(pos.x, pos.y);
+        ctx.strokeStyle = document.getElementById("penColorPicker").value; ctx.lineWidth = Number(document.getElementById("penWidthSelect").value); ctx.lineCap = "round"; ctx.stroke();
+        lastX = pos.x; lastY = pos.y;
+      }
+      function stop() { isDrawing = false; }
+      canvas.addEventListener("mousedown", start); canvas.addEventListener("mousemove", move); window.addEventListener("mouseup", stop);
+      canvas.addEventListener("touchstart", start, { passive: false }); canvas.addEventListener("touchmove", move, { passive: false }); canvas.addEventListener("touchend", stop);
+    }
+
+    const DEFAULT_GITHUB_QUESTIONS_URL = "https://cdn.jsdelivr.net/gh/euler010/PhysicsQuestionBank@main/physics_questions_data.js";
+    const RAW_GITHUB_QUESTIONS_URL = "https://raw.githubusercontent.com/euler010/PhysicsQuestionBank/main/physics_questions_data.js";
+
+    function normalizeExternalQuestion(q, idx) {
+      const resolvedTopic = q.topic || "Unit 2: Dynamics and Forces";
+      return { ...q, docNum: q.docNum || q.id || `Q#${idx + 1}`, title: q.title || resolvedTopic, topic: resolvedTopic, unitTag: q.unitTag || q.tag || getUnitTagFromTopic(resolvedTopic) };
+    }
+
+    function mergeExternalQuestions(externalBank) {
+      if (!Array.isArray(externalBank) || externalBank.length === 0) return;
+      questionLibrary = externalBank.map((q, idx) => normalizeExternalQuestion(q, idx));
+      defaultGitHubIdOrder = questionLibrary.map(q => q.id);
+
+      try {
+        const savedRaw = JSON.parse(safeGetStorage(CUSTOM_Q_STORAGE_KEY, "[]") || "[]");
+        savedRaw.forEach(item => { if (!questionLibrary.some(q => q.id === item.id)) questionLibrary.push(hydrateCustomQuestion(item)); });
+      } catch (e) {}
+
+      loadSavedFolderState();
+      loadSavedLibraryOrder();
+      renderTagFilterPills();
+      renderLibraryList();
+
+      if (window.STANDALONE_BOOT_CONFIG) {
+        const cfg = window.STANDALONE_BOOT_CONFIG;
+        staticVarsStore = (cfg.staticVars && typeof cfg.staticVars === "object") ? cfg.staticVars : {};
+        applyLibraryOrderArray(cfg.orderedIds || []);
+        selectedQuestionIds = new Set(cfg.selectedIds || []);
+        selectedQuestionsOrder = cfg.selectedIds || [];
+        const tplSelect = document.getElementById("templateSelect");
+        if (tplSelect && cfg.template && TEMPLATE_CONFIG[cfg.template]) tplSelect.value = cfg.template;
+        const modeSelect = document.getElementById("randomizationModeSelect");
+        if (modeSelect && (cfg.randomizationMode === "random" || cfg.randomizationMode === "static" || cfg.randomizationMode === "original")) modeSelect.value = cfg.randomizationMode;
+        const nameInput = document.getElementById("reviewAppNameInput");
+        if (nameInput && cfg.appName) nameInput.value = cfg.appName;
+        initializeReviewAppFromSelection();
+        renderLibraryList();   // so the library shows this app's saved selection if the creator goes back to edit it
+        switchView("student");
+        // Students never see the "back" button. The creator opens the app with #edit on the address (or presses Ctrl+Shift+E).
+        const backBtn = document.getElementById("backToConstructorBtn");
+        const editMode = /[#?&]edit(?:=1|=true)?(?:&|$)/i.test(window.location.hash + window.location.search);
+        if (backBtn) backBtn.style.display = editMode ? "" : "none";
+        setCreatorToolsVisible(editMode);
+      }
+    }
+
+    function parseQuestionScriptText(rawText) {
+      if (!rawText) return null;
+      let cleaned = rawText.replace(/^\s*```(?:javascript|js)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+      cleaned = cleaned.replace(/\}\s*(\r?\n\s*\{\s*\r?\n?\s*(?:id|docNum|tag|title)\s*:)/g, "},$1");
+
+      const runnerSuffix = `
+        ; let ret = null;
+        if (typeof PHYSICS_QUESTIONS !== "undefined") ret = PHYSICS_QUESTIONS;
+        else if (typeof MASTER_QUESTIONS !== "undefined") ret = MASTER_QUESTIONS;
+        return ret;
+      `;
+
+      try {
+        return (new Function(cleaned + runnerSuffix))();
+      } catch (parseErr) {
+        let pos = cleaned.length, attempts = 0;
+        while ((pos = cleaned.lastIndexOf("},", pos - 1)) !== -1 && attempts < 60) {
+          attempts++;
+          const candidate = cleaned.slice(0, pos + 1) + "\n];" + runnerSuffix;
+          try { return (new Function(candidate))(); } catch (e2) {}
+        }
+      }
+      return null;
+    }
+
+    async function loadExternalGitHubQuestions() {
+      let globalBank = null;
+      try { if (typeof PHYSICS_QUESTIONS !== "undefined") globalBank = PHYSICS_QUESTIONS; } catch(e){}
+      if (!globalBank) { try { if (typeof window.PHYSICS_QUESTIONS !== "undefined") globalBank = window.PHYSICS_QUESTIONS; } catch(e){} }
+      if (!globalBank) { try { if (typeof MASTER_QUESTIONS !== "undefined") globalBank = MASTER_QUESTIONS; } catch(e){} }
+
+      if (Array.isArray(globalBank) && globalBank.length > 0) {
+        mergeExternalQuestions(globalBank);
+        return;
+      }
+
+      const container = document.getElementById("libraryListContainer");
+      if (container && questionLibrary.length === 0) {
+        container.innerHTML = `<div class="bg-white rounded-2xl p-8 text-center border border-slate-200 text-slate-500"><div class="inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-2"></div><p class="text-sm font-semibold text-slate-700">Loading question library from GitHub...</p></div>`;
+      }
+
+      const urlsToTry = [ `${RAW_GITHUB_QUESTIONS_URL}?t=${Date.now()}`, `${DEFAULT_GITHUB_QUESTIONS_URL}?t=${Date.now()}`, DEFAULT_GITHUB_QUESTIONS_URL ];
+      let bestBank = null;
+
+      for (const url of urlsToTry) {
+        try {
+          const res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) continue;
+          const text = await res.text();
+          if (typeof PHYSICS_QUESTIONS === "undefined") {
+            // Run the file as a normal script so the diagram code in it becomes available to the page.
+            const tag = document.createElement("script");
+            tag.id = "fetchedQuestionData";
+            tag.text = text;
+            document.head.appendChild(tag);
+          }
+          let parsed = null;
+          try { if (typeof PHYSICS_QUESTIONS !== "undefined" && Array.isArray(PHYSICS_QUESTIONS)) parsed = PHYSICS_QUESTIONS; } catch (e) {}
+          if (!parsed) parsed = parseQuestionScriptText(text);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            if (!bestBank || parsed.length > bestBank.length) bestBank = parsed;
+            if (parsed.length >= 115) break;
+          }
+        } catch (err) {}
+      }
+
+      if (bestBank && bestBank.length > 0) {
+        mergeExternalQuestions(bestBank);
+      } else if (container && questionLibrary.length === 0) {
+        container.innerHTML = `<div class="bg-rose-50 rounded-2xl p-8 text-center border border-rose-200 text-rose-700"><p class="text-sm font-bold mb-1">Unable to load questions from GitHub</p><p class="text-xs">Checked: <span class="mono">${DEFAULT_GITHUB_QUESTIONS_URL}</span></p></div>`;
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      initScratchpadEvents();
+      loadExternalGitHubQuestions();
+    });
+  </script>
+</body>
+</html>

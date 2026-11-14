@@ -386,6 +386,9 @@ img,video{max-width:100%;height:auto}
 @media (min-width:1024px){.lg\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}}
     /* ---- v28: app-type landing page, flow bar, Free-Body Diagram section ---- */
     .mg-hide { display: none !important; }
+    #landingView { position: relative; max-width: none; min-height: calc(100vh - 56px); display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 24px; padding-bottom: 24px; }
+    #landingFlare { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+    #landingView > *:not(canvas) { position: relative; z-index: 1; width: 100%; max-width: 760px; }
     .mg-landing { max-width: 760px; margin: 0 auto; padding: 56px 20px 40px; text-align: center; }
     .mg-landing h2 { font-size: 1.75rem; font-weight: 800; color: #0f172a; margin: 0 0 6px; }
     .mg-landing p.mg-sub { color: #64748b; font-size: 14px; margin: 0 0 26px; }
@@ -441,7 +444,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v41
+              Teacher Studio · v42
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -503,7 +506,7 @@ img,video{max-width:100%;height:auto}
   <!-- ===================================================================== -->
   <!-- VIEW 0: CHOOSE WHAT THE APP WILL CONTAIN (physics problems, FBDs, or both) -->
   <!-- ===================================================================== -->
-  <section id="landingView" class="mg-landing mg-hide">
+  <section id="landingView" class="mg-landing mg-hide"><canvas id="landingFlare" aria-hidden="true"></canvas>
     <h2>What would you like to build?</h2>
     <p class="mg-sub">Choose one or both. Your students get the sections you pick.</p>
     <div class="mg-cards">
@@ -1864,6 +1867,7 @@ img,video{max-width:100%;height:auto}
       navResizeTimer = setTimeout(() => { try { renderQuestionNav(); } catch (e) {} }, 150);
     });
 
+    let mgEvent = null, mgShared = null;   // combined app: the latest check result, and the shared score from the page around this app
     function renderStudentReviewApp() {
       const qs = currentReviewApp.questions;
       if (!qs || qs.length === 0) return;
@@ -1875,6 +1879,11 @@ img,video{max-width:100%;height:auto}
       });
       document.getElementById("progressCounter").textContent = `${completedProblems}/${qs.length}`;
       document.getElementById("streakCounter").textContent = currentReviewApp.streak;
+      if (window.STANDALONE_BOOT_CONFIG && window.STANDALONE_BOOT_CONFIG.sectionSwitch) {
+        try { window.parent.postMessage({ type: "mg-result", section: "physics", done: completedProblems, event: mgEvent }, "*"); } catch (e) {}
+        mgEvent = null;
+        if (mgShared) mgShowShared();
+      }
 
       renderQuestionNav();
 
@@ -2012,10 +2021,10 @@ img,video{max-width:100%;height:auto}
         const expectedUnit = normalizeUnit(part.unit), unitMatches = pState.userUnit === expectedUnit;
 
         if (matchedExpected.length === expectedList.length && allUserValid && unitMatches) {
-          pState.completed = true; currentReviewApp.streak++; safeSetStorage("ap1ReviewStreak", String(currentReviewApp.streak));
+          pState.completed = true; currentReviewApp.streak++; mgEvent = "correct"; safeSetStorage("ap1ReviewStreak", String(currentReviewApp.streak));
           pState.feedback = { correct: true, message: `Great job! Value(s) (${expectedList.map(r => Number(r).toFixed(2)).join(", ")} s) and units are within acceptable range.` };
         } else {
-          currentReviewApp.streak = 0; safeSetStorage("ap1ReviewStreak", "0");
+          currentReviewApp.streak = 0; mgEvent = "wrong"; safeSetStorage("ap1ReviewStreak", "0");
           if (matchedExpected.length === expectedList.length && allUserValid && !unitMatches) pState.feedback = { correct: false, message: `Your numerical value is correct, but check the units (expected ${expectedUnit}).` };
           else if (matchedExpected.length > 0) pState.feedback = { correct: false, message: `You found ${matchedExpected.length} correct ${matchedExpected.length === 1 ? "time" : "times"}, but ${!allUserValid ? "one or more values are incorrect. There " + (expectedList.length === 1 ? "is 1 time" : "are " + expectedList.length + " times") + " total" : "there " + (expectedList.length > 1 ? "are " + expectedList.length + " times total" : "is another point")} on the graph. Separate multiple values with a comma.` };
           else pState.feedback = { correct: false, message: "Not quite within tolerance. Check the graph carefully and separate multiple values with a comma." };
@@ -2058,10 +2067,10 @@ img,video{max-width:100%;height:auto}
       const dirMatches = !part.expectedDirection || pState.userDir === part.expectedDirection;
 
       if (numMatches && unitMatches && dirMatches) {
-        pState.completed = true; currentReviewApp.streak++; safeSetStorage("ap1ReviewStreak", String(currentReviewApp.streak));
+        pState.completed = true; currentReviewApp.streak++; mgEvent = "correct"; safeSetStorage("ap1ReviewStreak", String(currentReviewApp.streak));
         pState.feedback = { correct: true, message: `Correct! Within ±1% tolerance with correct units (${fmtSci(matchedDisplayVal, 4)} ${matchedDisplayUnit === 'No units' ? 'No units' : matchedDisplayUnit}${part.expectedDirection ? ', ' + part.expectedDirection : ''}).` };
       } else {
-        currentReviewApp.streak = 0; safeSetStorage("ap1ReviewStreak", "0");
+        currentReviewApp.streak = 0; mgEvent = "wrong"; safeSetStorage("ap1ReviewStreak", "0");
         let hintMsg = "Not quite. Check both your numerical calculation and your selected units (or click 'Guided Solution').";
         if (numMatches && !unitMatches && dirMatches) hintMsg = "Your numerical value is correct, but check your selected units!";
         else if (numMatches && unitMatches && !dirMatches) hintMsg = "Your numerical value and units are correct, but check the direction!";
@@ -2618,14 +2627,21 @@ img,video{max-width:100%;height:auto}
     // (fbd_scenarios_data.js, fbd_student_app.js, fbd_builder.js). They are loaded the first time they are needed.
     // =========================================================================
     // Combined app, physics half: put the "Physics Problems | Free-Body Diagrams" switch in the middle of the header line.
+    function mgShowShared() {
+      if (!mgShared) return;
+      const p = document.getElementById("progressCounter"), s = document.getElementById("streakCounter");
+      if (p) p.textContent = mgShared.done + "/" + mgShared.total;
+      if (s) s.textContent = mgShared.streak;
+    }
     function mgInstallSectionSwitch() {
+      window.addEventListener("message", ev => { const d = ev.data; if (d && d.type === "mg-score") { mgShared = d; mgShowShared(); } });
       const header = document.querySelector("header > div");
       if (!header || document.getElementById("mgSectionSwitch")) return;
       const st = document.createElement("style");
       st.textContent = ".mg-grid3{display:grid!important;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}.mg-grid3>:last-child{justify-self:end}" +
-        ".mg-seg{display:flex;border-radius:12px;overflow:hidden;border:1px solid #cbd5e1;background:#e2e8f0}" +
-        ".mg-seg button{padding:7px 16px;border:0;background:#e2e8f0;color:#64748b;font-weight:700;font-size:.82rem;font-family:inherit;cursor:pointer;white-space:nowrap}" +
-        ".mg-seg button:hover{background:#d5dde8}.mg-seg button.on{background:#2563eb;color:#fff;cursor:default}" +
+        ".mg-seg{display:flex;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;background:#f1f5f9}" +
+        ".mg-seg button{padding:7px 16px;border:0;background:#f1f5f9;color:#64748b;font-weight:700;font-size:.82rem;font-family:inherit;cursor:pointer;white-space:nowrap}" +
+        ".mg-seg button:hover{background:#e2e8f0}.mg-seg button.on{background:#2563eb;color:#fff;cursor:default}" +
         "@media(max-width:760px){.mg-grid3{grid-template-columns:1fr}.mg-grid3>:last-child{justify-self:start}}";
       document.head.appendChild(st);
       const seg = document.createElement("div");
@@ -2636,7 +2652,177 @@ img,video{max-width:100%;height:auto}
       header.insertBefore(seg, header.children[1] || null);
     }
 
-    const APP_VERSION = "v41";
+    // Background animation for the start screens (the library's start screen and the students' chooser page).
+    function mgFlareInit(cv,isVisible){
+    const ctx=cv.getContext('2d');
+    let W=0,H=0,DPR=1;
+    function resize(){const r=cv.getBoundingClientRect();DPR=window.devicePixelRatio||1;W=r.width;H=r.height;cv.width=W*DPR;cv.height=H*DPR;}
+    window.addEventListener('resize',resize);resize();
+    // pastel light blue palette
+    const LINE='#7fb6e3', MID='#9ccbee', FILL='#bddcf5', SOFT='#e4f0fb';
+    function stroke(w){ctx.strokeStyle=LINE;ctx.lineWidth=w||2.4;ctx.lineCap='round';ctx.lineJoin='round';}
+    function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+    function arrow(x1,y1,x2,y2){const a=Math.atan2(y2-y1,x2-x1);ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-9*Math.cos(a-.45),y2-9*Math.sin(a-.45));ctx.moveTo(x2,y2);ctx.lineTo(x2-9*Math.cos(a+.45),y2-9*Math.sin(a+.45));ctx.stroke();}
+    
+    /* ---------- the student (always on screen) ---------- */
+    const scribbles=[];let scribN=0,lastPage=0;
+    function student(t){
+      ctx.fillStyle=MID;rr(10,176,300,12,5);ctx.fill();
+      ctx.fillRect(36,188,7,34);ctx.fillRect(278,188,7,34);
+      ctx.save();ctx.shadowColor='rgba(127,182,227,.55)';ctx.shadowBlur=8;ctx.fillStyle='#fff';
+      ctx.beginPath();ctx.moveTo(120,174);ctx.lineTo(228,174);ctx.lineTo(218,140);ctx.lineTo(132,140);ctx.closePath();ctx.fill();ctx.restore();
+      const page=Math.floor(t/14),pt=(t%14)/14,nLines=5;
+      ctx.save();stroke(1.8);ctx.strokeStyle=MID;
+      for(let L=0;L<nLines;L++){
+        const lp=Math.min(1,Math.max(0,pt*nLines*1.1-L));if(lp<=0)continue;
+        const y=148+L*5.6,x0=136+L*1.7,len=(70-L*1.2)*lp;
+        ctx.beginPath();ctx.moveTo(x0,y);
+        for(let x=0;x<=len;x+=3.5)ctx.lineTo(x0+x,y+Math.sin(x*.9+L*2+page)*1.3);
+        ctx.stroke();
+      }
+      ctx.restore();
+      const lineNow=Math.min(nLines-1,Math.floor(pt*nLines*1.1)),lp2=Math.min(1,pt*nLines*1.1-lineNow);
+      const hx=140+lineNow*1.7+Math.max(0,lp2)*66+Math.sin(t*14)*1.4,hy=151+lineNow*5.6+Math.sin(t*19)*1;
+      const bob=Math.sin(t*1.3)*1.2;
+      ctx.fillStyle=MID;
+      ctx.beginPath();ctx.moveTo(78,176);ctx.quadraticCurveTo(70,120+bob,98,100+bob);ctx.quadraticCurveTo(128,96+bob,138,124+bob);ctx.lineTo(150,176);ctx.closePath();ctx.fill();
+      const hdx=112,hdy=70+bob;ctx.fillStyle=FILL;ctx.beginPath();ctx.arc(hdx,hdy,22,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=LINE;ctx.beginPath();ctx.arc(hdx-2,hdy-4,23,Math.PI*1.02,Math.PI*1.98);ctx.quadraticCurveTo(hdx+6,hdy-16,hdx-22,hdy-2);ctx.fill();
+      ctx.fillStyle='#fff';if(Math.sin(t*.9)>-.97){ctx.beginPath();ctx.arc(hdx+9,hdy+4,2,0,7);ctx.fill();}
+      stroke(6);ctx.strokeStyle=MID;ctx.beginPath();ctx.moveTo(122,112+bob);ctx.quadraticCurveTo(150,138,hx-3,hy-6);ctx.stroke();
+      ctx.fillStyle=FILL;ctx.beginPath();ctx.arc(hx,hy-4,4.5,0,7);ctx.fill();
+      stroke(3);ctx.strokeStyle=LINE;ctx.beginPath();ctx.moveTo(hx,hy-4);ctx.lineTo(hx+10,hy-24);ctx.stroke();
+      ctx.save();ctx.translate(250,153);ctx.rotate(-.07);ctx.scale(.46,.46);
+      ctx.fillStyle=LINE;rr(-24,-44,48,88,8);ctx.fill();
+      ctx.fillStyle='#fff';rr(-18,-38,36,22,3);ctx.fill();
+      const nums=['9.81','4.9','2.45','19.6','0.5','98.1'];
+      ctx.fillStyle=LINE;ctx.font='700 8px Inter,sans-serif';ctx.textAlign='right';ctx.fillText(nums[Math.floor(t/3)%nums.length],14,-24);
+      if(Math.floor(t*2)%2===0)ctx.fillRect(15,-30,2,8);
+      const press=Math.floor(t*1.6)%20;
+      for(let r=0;r<5;r++)for(let c=0;c<4;c++){const k=r*4+c;ctx.fillStyle=(k===press)?'#fff':SOFT;ctx.beginPath();ctx.arc(-13.5+c*9,-8+r*9.6,3.2,0,7);ctx.fill();}
+      ctx.restore();
+    }
+    
+    /* ---------- occasional physics scenes, each drawn in a 240 x 170 box ---------- */
+    const scenes={
+     'Projectile motion':{dur:8,draw(t){
+       stroke(2);ctx.beginPath();ctx.moveTo(0,150);ctx.lineTo(240,150);ctx.stroke();
+       const T=3.2,u=(t%T)/T,pos=v=>[20+200*v,150-4*115*v*(1-v)];
+       ctx.save();ctx.setLineDash([4,6]);stroke(1.8);ctx.beginPath();for(let v=0;v<=1.001;v+=.02){const p=pos(v);v?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]);}ctx.stroke();ctx.restore();
+       const p=pos(u);ctx.fillStyle=FILL;stroke(2.4);ctx.beginPath();ctx.arc(p[0],p[1]-8,8,0,7);ctx.fill();
+       stroke(2);arrow(p[0],p[1]-8,p[0]+34,p[1]-8-(1-2*u)*30);}},
+     'Spring and mass (SHM)':{dur:8,draw(t){
+       stroke(2.6);ctx.beginPath();ctx.moveTo(14,40);ctx.lineTo(14,150);ctx.lineTo(236,150);ctx.stroke();
+       const x=130+44*Math.sin(t*2.6);ctx.beginPath();ctx.moveTo(14,112);ctx.lineTo(28,112);
+       const n=11,x0=28,x1=x-2;for(let i=1;i<=n*2;i++){const xx=x0+(x1-x0)*i/(n*2+1);ctx.lineTo(xx,112+(i%2?-12:12));}ctx.lineTo(x1,112);ctx.stroke();
+       ctx.fillStyle=FILL;rr(x,92,40,40,5);ctx.fill();
+       ctx.setLineDash([3,5]);stroke(1.6);ctx.beginPath();ctx.moveTo(150,60);ctx.lineTo(150,150);ctx.stroke();ctx.setLineDash([]);}},
+     'Collision':{dur:8,draw(t){
+       stroke(2);ctx.beginPath();ctx.moveTo(0,150);ctx.lineTo(240,150);ctx.stroke();
+       const T=4.2,s=t%T,v=70;let a,b;
+       if(s<1.4){a=14+v*s;b=140}else{a=14+v*1.4;b=140+v*(s-1.4);}
+       if(s>1.4&&b>200)b=200;
+       const cart=(x,lbl)=>{ctx.fillStyle=FILL;stroke(2.4);rr(x,114,46,26,4);ctx.fill();ctx.fillStyle='#fff';[8,38].forEach(o=>{ctx.beginPath();ctx.arc(x+o,144,6,0,7);ctx.fill();});};
+       cart(a);cart(b);if(s<1.4)arrow(a+12,100,a+42,100);else arrow(b+12,100,b+42,100);}},
+     'Spinning galaxy':{dur:10,draw(t){
+       const base=ctx.globalAlpha;ctx.save();ctx.translate(120,85);ctx.scale(1,.55);
+       for(let arm=0;arm<2;arm++)for(let i=0;i<170;i++){const r=4+i*.62,th=r*.04+arm*Math.PI-t*(1.6/Math.sqrt(r/20));
+         const jx=Math.sin(i*12.9898+arm*5)*1.8,jy=Math.cos(i*78.233+arm*5)*1.8;
+         ctx.globalAlpha=base*(.35+.65*(1-i/170));ctx.fillStyle=i<18?'#8fc3ea':'#a9d1f2';
+         ctx.beginPath();ctx.arc(Math.cos(th)*r+jx,Math.sin(th)*r+jy,i<18?3.2:2.2,0,7);ctx.fill();}
+       ctx.restore();ctx.globalAlpha=base;}},
+     'Buoyancy':{dur:8,draw(t){
+       stroke(2.6);ctx.beginPath();ctx.moveTo(30,20);ctx.lineTo(30,150);ctx.lineTo(210,150);ctx.lineTo(210,20);ctx.stroke();
+       ctx.fillStyle=SOFT;ctx.fillRect(31,70,178,79);stroke(2);ctx.beginPath();for(let x=31;x<=209;x+=4)ctx.lineTo(x,70+Math.sin(x*.12+t*2)*2);ctx.stroke();
+       const y=88+7*Math.sin(t*1.9);ctx.fillStyle=FILL;stroke(2.4);rr(95,y,50,40,4);ctx.fill();
+       stroke(2);arrow(120,y+40,120,y+78>148?148:y+78);arrow(120,y,120,y-34);
+       ctx.fillStyle=LINE;for(let i=0;i<5;i++){const by=148-((t*30+i*37)%78);ctx.globalAlpha*=.8;ctx.beginPath();ctx.arc(48+i*34+Math.sin(t+i)*3,by,3,0,7);ctx.stroke();ctx.globalAlpha/=.8;}}},
+     'Pendulum':{dur:8,draw(t){
+       const th=.6*Math.cos(t*2.6),L=118,px=120,py=14,bx=px+L*Math.sin(th),by=py+L*Math.cos(th);
+       stroke(2.4);ctx.beginPath();ctx.moveTo(70,py);ctx.lineTo(170,py);ctx.stroke();
+       ctx.save();ctx.setLineDash([3,6]);stroke(1.6);ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(px,py+L+14);ctx.stroke();ctx.restore();
+       stroke(2);ctx.beginPath();ctx.moveTo(px,py);ctx.lineTo(bx,by);ctx.stroke();
+       ctx.fillStyle=FILL;stroke(2.4);ctx.beginPath();ctx.arc(bx,by,13,0,7);ctx.fill();
+       stroke(2);arrow(bx,by+13,bx,by+44);}},
+     'Orbit':{dur:9,draw(t){
+       const a=100,b=60,cx=120,cy=85;stroke(1.8);ctx.save();ctx.setLineDash([4,6]);ctx.beginPath();ctx.ellipse(cx,cy,a,b,0,0,7);ctx.stroke();ctx.restore();
+       const c=Math.sqrt(a*a-b*b);ctx.fillStyle=FILL;stroke(2.4);ctx.beginPath();ctx.arc(cx+c,cy,11,0,7);ctx.fill();
+       // Kepler: faster near the star
+       let M=t*1.1,E=M;for(let i=0;i<6;i++)E=M+.6*Math.sin(E);
+       const x=cx+a*Math.cos(E)-0+(-0),y=cy+b*Math.sin(E);ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x,y,6,0,7);ctx.fill();}},
+     'Waves':{dur:9,draw(t){
+       ctx.fillStyle=LINE;for(let i=0;i<34;i++){const x=6+i*7,y=85+34*Math.sin(i*.45-t*3);ctx.beginPath();ctx.arc(x,y,3.4,0,7);ctx.fill();}}},
+     'Circular motion':{dur:8,draw(t){
+       const cx=120,cy=85,r=62,th=t*1.8,x=cx+r*Math.cos(th),y=cy+r*Math.sin(th);
+       ctx.save();ctx.setLineDash([3,6]);stroke(1.6);ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.stroke();ctx.restore();
+       stroke(2);ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x,y);ctx.stroke();
+       ctx.fillStyle=MID;ctx.beginPath();ctx.arc(cx,cy,5,0,7);ctx.fill();ctx.fillStyle=FILL;ctx.beginPath();ctx.arc(x,y,11,0,7);ctx.fill();
+       stroke(2);arrow(x,y,x+(cx-x)*.35,y+(cy-y)*.35);}},
+     'Inclined plane':{dur:9,draw(t){
+       ctx.fillStyle=SOFT;ctx.beginPath();ctx.moveTo(14,150);ctx.lineTo(226,150);ctx.lineTo(226,50);ctx.closePath();ctx.fill();
+       const ang=Math.atan2(100,212),u=((t%3.6)/3.6),d=20+u*u*170;
+       const bx=226-d*Math.cos(ang),by=50+d*Math.sin(ang);
+       ctx.save();ctx.translate(bx,by);ctx.rotate(-ang);ctx.fillStyle=FILL;ctx.fillRect(-14,-24,28,24);
+       stroke(2);arrow(0,-12,-34,-12);ctx.restore();}},
+     "Atwood's machine":{dur:9,draw(t){
+       const off=26*Math.sin(t*1.5);stroke(2.4);ctx.beginPath();ctx.moveTo(120,10);ctx.lineTo(120,26);ctx.stroke();
+       ctx.fillStyle=MID;ctx.beginPath();ctx.arc(120,40,16,0,7);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(120,40,4,0,7);ctx.fill();
+       stroke(2);ctx.beginPath();ctx.moveTo(104,40);ctx.lineTo(104,86+off);ctx.moveTo(136,40);ctx.lineTo(136,86-off);ctx.stroke();
+       ctx.fillStyle=FILL;ctx.fillRect(86,86+off,36,36);ctx.fillStyle=MID;ctx.fillRect(122,86-off,28,28);}},
+     'Refraction':{dur:8,draw(t){
+       ctx.fillStyle=SOFT;ctx.fillRect(10,85,220,70);stroke(1.6);ctx.setLineDash([3,6]);ctx.beginPath();ctx.moveTo(120,20);ctx.lineTo(120,155);ctx.stroke();ctx.setLineDash([]);
+       const a=.75+.2*Math.sin(t*.9),b=Math.asin(Math.sin(a)/1.5),L=78;stroke(3);
+       ctx.beginPath();ctx.moveTo(120-L*Math.sin(a),85-L*Math.cos(a));ctx.lineTo(120,85);ctx.lineTo(120+L*Math.sin(b),85+L*Math.cos(b));ctx.stroke();}},
+     'Free-body diagram':{dur:9,draw(t){
+       const cx=120,cy=85,k=(t%6)/6,f=n=>Math.max(0,Math.min(1,k*6-n));
+       ctx.fillStyle=FILL;ctx.fillRect(cx-22,cy-22,44,44);stroke(3);
+       [[0,60,0],[0,-60,1],[-58,0,2],[58,0,3]].forEach(([dx,dy,n])=>{const p=f(n);if(p>0)arrow(cx,cy,cx+dx*p,cy+dy*p);});
+       ctx.fillStyle=LINE;ctx.font='700 14px Inter,sans-serif';ctx.textAlign='left';
+       if(f(0)>.9)ctx.fillText('Fᵍ',cx+8,cy+74);if(f(1)>.9)ctx.fillText('Fₙ',cx+8,cy-56);}},
+     'Ripples':{dur:9,draw(t){
+       const base=ctx.globalAlpha;for(let i=0;i<4;i++){const u=((t*.35)+i/4)%1;ctx.globalAlpha=base*(1-u);stroke(2.4);ctx.beginPath();ctx.arc(120,85,8+u*84,0,7);ctx.stroke();}
+       ctx.globalAlpha=base;ctx.fillStyle=LINE;ctx.beginPath();ctx.arc(120,85,5,0,7);ctx.fill();}},
+     'Free fall (strobe)':{dur:8,draw(t){
+       const base=ctx.globalAlpha,T=2.6,u=(t%T)/T;ctx.fillStyle=LINE;
+       for(let i=0;i<=8;i++){const v=i/8;if(v>u)break;ctx.globalAlpha=base*(.3+.7*(v/Math.max(u,.01)));ctx.beginPath();ctx.arc(120,14+138*v*v,9,0,7);ctx.fill();}
+       ctx.globalAlpha=base;stroke(2);ctx.beginPath();ctx.moveTo(60,158);ctx.lineTo(180,158);ctx.stroke();}},
+     'Seesaw (torque)':{dur:8,draw(t){
+       const a=.22*Math.sin(t*1.4);ctx.fillStyle=MID;ctx.beginPath();ctx.moveTo(120,150);ctx.lineTo(104,160);ctx.lineTo(136,160);ctx.closePath();ctx.fill();
+       ctx.save();ctx.translate(120,148);ctx.rotate(a);ctx.fillStyle=FILL;ctx.fillRect(-100,-6,200,10);
+       ctx.fillStyle=LINE;ctx.beginPath();ctx.arc(-78,-20,14,0,7);ctx.fill();ctx.fillStyle=MID;ctx.beginPath();ctx.arc(70,-14,8,0,7);ctx.fill();ctx.restore();}}
+    };
+    const names=Object.keys(scenes);
+    // slots: fractions of the stage, kept away from the centre block
+    const slots=[[.03,.03],[.03,.27],[.23,.02],[.43,.01],[.63,.02],[.80,.03],[.81,.27],[.81,.51],[.77,.67],[.50,.69],[.28,.69]];
+    const active=[];let lastSpawn=0,paused=false,clock=0;
+    function spawn(name){
+      const used=active.map(a=>a.slot);const free=slots.map((_,i)=>i).filter(i=>!used.includes(i)&&!(W<720&&i>1));
+      if(!free.length)return;const slot=free[Math.floor(Math.random()*free.length)];
+      active.push({name,slot,t0:clock,dur:scenes[name].dur});}
+    function nextScene(){const inUse=active.map(a=>a.name);const pool=names.filter(n=>!inUse.includes(n));spawn(pool[Math.floor(Math.random()*pool.length)]);}
+    nextScene();
+    const reduce=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);if(reduce)clock=3;
+    let last=performance.now();
+    function frame(now){
+      if(!isVisible()){last=now;requestAnimationFrame(frame);return;}
+      {const r=cv.getBoundingClientRect();if(Math.abs(r.width-W)>1||Math.abs(r.height-H)>1)resize();}
+      const dt=Math.min(.05,(now-last)/1000);last=now;if(!paused)clock+=dt;
+      ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
+      const s=Math.max(.55,Math.min(W/1150,H/680));
+      // keep up to 2 occasional scenes on screen
+      for(let i=active.length-1;i>=0;i--){if(clock-active[i].t0>active[i].dur)active.splice(i,1);}
+      if(!paused&&active.length<(W<720?1:4)&&clock-lastSpawn>2.2){lastSpawn=clock;nextScene();}
+      // student, bottom-left (hidden on very narrow screens)
+      if(W>=720){ctx.save();ctx.translate(W*.035,H-250*s-H*.03);ctx.scale(s*1.05,s*1.05);student(clock);ctx.restore();}
+      active.forEach(a=>{const age=clock-a.t0,f=Math.min(1,age/.9,(a.dur-age)/.9);if(f<=0)return;
+        const sl=slots[a.slot];const sc=s*1.05;ctx.save();ctx.translate(Math.max(4,Math.min(W*sl[0],W-250*sc)),Math.max(4,Math.min(H*sl[1],H-180*sc)));ctx.scale(sc,sc);ctx.globalAlpha=f;ctx.font='700 14px Inter,sans-serif';
+        scenes[a.name].draw(age);ctx.restore();});
+      if(!reduce)requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+    }
+    
+    const APP_VERSION = "v42";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off
@@ -2861,23 +3047,29 @@ img,video{max-width:100%;height:auto}
     }
 
     // ---- the combined student app: one page holding the physics app and the free-body diagram app ----
-    function buildWrapperHtml(name, physicsHtml, fbdHtml) {
+    function buildWrapperHtml(name, physicsHtml, fbdHtml, physTotal, fbdTotal) {
       const S = "<" + "script", E = "<" + "/script>";
       const css = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;background:#f8fafc;color:#0f172a}" +
         "body{display:flex;flex-direction:column}" +
-        "#choose{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}" +
+        "#choose{position:relative;overflow:hidden;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}" +
+        "#flare{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}#choose>*:not(canvas){position:relative;z-index:1}" +
         "#choose h1{font-size:29px;font-weight:800;margin:0 0 6px}#choose p{color:#64748b;font-size:14px;margin:0 0 28px}" +
         ".cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;max-width:640px}" +
         ".card{min-height:140px;border-radius:18px;border:2px solid #1d4ed8;background:#2563eb;color:#fff;font-weight:700;font-size:18px;font-family:inherit;cursor:pointer;padding:18px;box-shadow:0 8px 22px rgba(37,99,235,.25)}" +
         ".card:hover{background:#1d4ed8}.card small{display:block;font-weight:500;font-size:14px;opacity:.9;margin-top:6px}" +
                 "iframe{display:none;flex:1;width:100%;border:0;min-height:0}" +
         "@media(max-width:560px){.cards{grid-template-columns:1fr}}";
-      const body = "<div id=\"choose\"><h1 id=\"ttl\"></h1><p>Choose a practice set to begin.</p><div class=\"cards\">" +
+      const body = "<div id=\"choose\"><canvas id=\"flare\" aria-hidden=\"true\"></canvas><h1 id=\"ttl\"></h1><p>Choose a practice set to begin.</p><div class=\"cards\">" +
         "<button class=\"card\" id=\"pickPhysics\">Practice Physics Problems<small>Numerical problems with feedback</small></button>" +
         "<button class=\"card\" id=\"pickFbd\">Free-Body Diagram Practice<small>Draw and label the forces</small></button></div></div>" +
         "<iframe id=\"f-physics\" title=\"Physics problems\"></iframe><iframe id=\"f-fbd\" title=\"Free-body diagrams\"></iframe>";
       const script = "var PHYSICS_HTML=" + mgJsStr(physicsHtml) + ";var FBD_HTML=" + mgJsStr(fbdHtml) + ";var TITLE=" + mgJsStr(name) + ";" +
         "function el(i){return document.getElementById(i)}" +
+        "var TOT=" + (Number(physTotal) + Number(fbdTotal)) + ",DONE={physics:0,fbd:0},STREAK=0;" +
+        "function bc(){var m={type:'mg-score',done:DONE.physics+DONE.fbd,total:TOT,streak:STREAK};['physics','fbd'].forEach(function(k){var f=el('f-'+k);if(f&&f.contentWindow)f.contentWindow.postMessage(m,'*');});}" +
+        "['physics','fbd'].forEach(function(k){el('f-'+k).addEventListener('load',bc);});" +
+        "window.addEventListener('message',function(ev){var d=ev.data;if(!d||d.type!=='mg-result')return;if(ev.source!==el('f-physics').contentWindow&&ev.source!==el('f-fbd').contentWindow)return;if(d.section!=='physics'&&d.section!=='fbd')return;DONE[d.section]=Number(d.done)||0;if(d.event==='correct')STREAK++;else if(d.event==='wrong')STREAK=0;bc();});" +
+        mgFlareInit.toString() + ";try{mgFlareInit(el('flare'),function(){return el('choose').style.display!=='none';});}catch(e){}" +
         "el('ttl').textContent=TITLE;" +
         "function show(w){el('choose').style.display='none';" +
         "['physics','fbd'].forEach(function(k){var f=el('f-'+k);if(k===w){if(!f.getAttribute('data-loaded')){f.srcdoc=(k==='physics'?PHYSICS_HTML:FBD_HTML);f.setAttribute('data-loaded','1');}f.style.display='block';}else{f.style.display='none';}});" +
@@ -2892,7 +3084,7 @@ img,video{max-width:100%;height:auto}
       const name = (currentReviewApp && currentReviewApp.name) || "Review App";
       const physicsHtml = buildStandaloneHTML();
       const fbdHtml = buildFbdStudentHtml(Object.assign({}, fbdState.config, { title: name, sectionSwitch: true }), name);
-      return buildWrapperHtml(name, physicsHtml, fbdHtml);
+      return buildWrapperHtml(name, physicsHtml, fbdHtml, currentReviewApp.questions.length, fbdState.config.order.length);
     }
     // The HTML that Export, Copy and Download hand out: the plain physics app, or the combined page.
     function buildExportHTML() { return appMode === "both" ? buildCombinedHTML() : buildStandaloneHTML(); }
@@ -2916,6 +3108,8 @@ img,video{max-width:100%;height:auto}
       initScratchpadEvents();
       loadExternalGitHubQuestions();
       if (!window.STANDALONE_BOOT_CONFIG) showLanding();
+      const lf = mgEl("landingFlare"), lv = mgEl("landingView");
+      if (lf && lv && !window.STANDALONE_BOOT_CONFIG) { try { mgFlareInit(lf, () => !lv.classList.contains("mg-hide")); } catch (e) { console.error(e); } }
     });
   </script>
 </body>

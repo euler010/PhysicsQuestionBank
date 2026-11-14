@@ -386,7 +386,7 @@ img,video{max-width:100%;height:auto}
 @media (min-width:1024px){.lg\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}}
     /* ---- v28: app-type landing page, flow bar, Free-Body Diagram section ---- */
     .mg-hide { display: none !important; }
-    #landingView { position: relative; max-width: none; min-height: calc(100vh - 56px); display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 24px; padding-bottom: 24px; }
+    #landingView { position: relative; background: #f1f5f9; max-width: none; min-height: calc(100vh - 56px); display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 24px; padding-bottom: 24px; }
     #landingFlare { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
     #landingView > *:not(canvas) { position: relative; z-index: 1; width: 100%; max-width: 760px; }
     .mg-landing { max-width: 760px; margin: 0 auto; padding: 56px 20px 40px; text-align: center; }
@@ -444,7 +444,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v42
+              Teacher Studio · v43
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -2704,13 +2704,16 @@ img,video{max-width:100%;height:auto}
     }
     
     /* ---------- occasional physics scenes, each drawn in a 240 x 170 box ---------- */
+    function lab(main,sub,x,y,size){ctx.fillStyle=LINE;ctx.textAlign='left';ctx.font='700 '+(size||14)+'px Inter,sans-serif';ctx.fillText(main,x,y);const w=ctx.measureText(main).width;ctx.font='700 '+Math.round((size||14)*.72)+'px Inter,sans-serif';ctx.fillText(sub,x+w+1,y+4);}
     const scenes={
      'Projectile motion':{dur:8,draw(t){
        stroke(2);ctx.beginPath();ctx.moveTo(0,150);ctx.lineTo(240,150);ctx.stroke();
-       const T=3.2,u=(t%T)/T,pos=v=>[20+200*v,150-4*115*v*(1-v)];
-       ctx.save();ctx.setLineDash([4,6]);stroke(1.8);ctx.beginPath();for(let v=0;v<=1.001;v+=.02){const p=pos(v);v?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]);}ctx.stroke();ctx.restore();
-       const p=pos(u);ctx.fillStyle=FILL;stroke(2.4);ctx.beginPath();ctx.arc(p[0],p[1]-8,8,0,7);ctx.fill();
-       stroke(2);arrow(p[0],p[1]-8,p[0]+34,p[1]-8-(1-2*u)*30);}},
+       const T=3.2,u=(t%T)/T,x0=20,R=200,H=110,y0=142;                 // y0 = ground minus the ball's radius, so the ball sits on the path
+       const px=v=>x0+R*v, py=v=>y0-4*H*v*(1-v);
+       ctx.save();ctx.setLineDash([4,6]);stroke(1.8);ctx.beginPath();for(let v=0;v<=1.001;v+=.02){v?ctx.lineTo(px(v),py(v)):ctx.moveTo(px(v),py(v));}ctx.stroke();ctx.restore();
+       const bx=px(u),by=py(u);ctx.fillStyle=FILL;ctx.beginPath();ctx.arc(bx,by,8,0,7);ctx.fill();
+       const dx=R,dy=-4*H*(1-2*u),L=Math.hypot(dx,dy),vx=dx/L,vy=dy/L;   // velocity is tangent to the parabola
+       stroke(2);arrow(bx+vx*8,by+vy*8,bx+vx*44,by+vy*44);}},
      'Spring and mass (SHM)':{dur:8,draw(t){
        stroke(2.6);ctx.beginPath();ctx.moveTo(14,40);ctx.lineTo(14,150);ctx.lineTo(236,150);ctx.stroke();
        const x=130+44*Math.sin(t*2.6);ctx.beginPath();ctx.moveTo(14,112);ctx.lineTo(28,112);
@@ -2719,11 +2722,10 @@ img,video{max-width:100%;height:auto}
        ctx.setLineDash([3,5]);stroke(1.6);ctx.beginPath();ctx.moveTo(150,60);ctx.lineTo(150,150);ctx.stroke();ctx.setLineDash([]);}},
      'Collision':{dur:8,draw(t){
        stroke(2);ctx.beginPath();ctx.moveTo(0,150);ctx.lineTo(240,150);ctx.stroke();
-       const T=4.2,s=t%T,v=70;let a,b;
-       if(s<1.4){a=14+v*s;b=140}else{a=14+v*1.4;b=140+v*(s-1.4);}
-       if(s>1.4&&b>200)b=200;
-       const cart=(x,lbl)=>{ctx.fillStyle=FILL;stroke(2.4);rr(x,114,46,26,4);ctx.fill();ctx.fillStyle='#fff';[8,38].forEach(o=>{ctx.beginPath();ctx.arc(x+o,144,6,0,7);ctx.fill();});};
-       cart(a);cart(b);if(s<1.4)arrow(a+12,100,a+42,100);else arrow(b+12,100,b+42,100);}},
+       const T=4.4,s=t%T,v=70,W=46,a0=14,b0=140,tc=(b0-W-a0)/v;      // the carts touch exactly when A's front meets B's back
+       let a,b;if(s<tc){a=a0+v*s;b=b0;}else{a=b0-W;b=Math.min(194,b0+v*(s-tc));}
+       const cart=x=>{ctx.fillStyle=FILL;rr(x,114,W,26,4);ctx.fill();ctx.fillStyle=LINE;[8,W-8].forEach(o=>{ctx.beginPath();ctx.arc(x+o,144,6,0,7);ctx.fill();});};
+       cart(a);cart(b);stroke(2);if(s<tc)arrow(a+12,100,a+42,100);else if(b<194)arrow(b+12,100,b+42,100);}},
      'Spinning galaxy':{dur:10,draw(t){
        const base=ctx.globalAlpha;ctx.save();ctx.translate(120,85);ctx.scale(1,.55);
        for(let arm=0;arm<2;arm++)for(let i=0;i<170;i++){const r=4+i*.62,th=r*.04+arm*Math.PI-t*(1.6/Math.sqrt(r/20));
@@ -2731,12 +2733,17 @@ img,video{max-width:100%;height:auto}
          ctx.globalAlpha=base*(.35+.65*(1-i/170));ctx.fillStyle=i<18?'#8fc3ea':'#a9d1f2';
          ctx.beginPath();ctx.arc(Math.cos(th)*r+jx,Math.sin(th)*r+jy,i<18?3.2:2.2,0,7);ctx.fill();}
        ctx.restore();ctx.globalAlpha=base;}},
-     'Buoyancy':{dur:8,draw(t){
-       stroke(2.6);ctx.beginPath();ctx.moveTo(30,20);ctx.lineTo(30,150);ctx.lineTo(210,150);ctx.lineTo(210,20);ctx.stroke();
-       ctx.fillStyle=SOFT;ctx.fillRect(31,70,178,79);stroke(2);ctx.beginPath();for(let x=31;x<=209;x+=4)ctx.lineTo(x,70+Math.sin(x*.12+t*2)*2);ctx.stroke();
-       const y=88+7*Math.sin(t*1.9);ctx.fillStyle=FILL;stroke(2.4);rr(95,y,50,40,4);ctx.fill();
-       stroke(2);arrow(120,y+40,120,y+78>148?148:y+78);arrow(120,y,120,y-34);
-       ctx.fillStyle=LINE;for(let i=0;i<5;i++){const by=148-((t*30+i*37)%78);ctx.globalAlpha*=.8;ctx.beginPath();ctx.arc(48+i*34+Math.sin(t+i)*3,by,3,0,7);ctx.stroke();ctx.globalAlpha/=.8;}}},
+     'Buoyancy':{dur:9,draw(t){
+       // a rock denser than water: it falls in, the buoyant force grows as it submerges, and it sinks to the bottom
+       const surf=70,floor=150,bh=36,g=40;let y=4,v=0;
+       for(let tt=0;tt<t;tt+=.02){const f=Math.max(0,Math.min(1,(y+bh-surf)/bh));v+=(g*(1-.55*f)-1.3*v*f)*.02;y+=v*.02;if(y>floor-bh){y=floor-bh;v=0;}}
+       const f=Math.max(0,Math.min(1,(y+bh-surf)/bh));
+       stroke(2.6);ctx.beginPath();ctx.moveTo(30,14);ctx.lineTo(30,floor);ctx.lineTo(210,floor);ctx.lineTo(210,14);ctx.stroke();
+       ctx.fillStyle=SOFT;ctx.fillRect(31,surf,178,floor-surf-1);stroke(2);ctx.beginPath();for(let x=31;x<=209;x+=4)ctx.lineTo(x,surf+Math.sin(x*.12+t*2)*2);ctx.stroke();
+       ctx.fillStyle=FILL;rr(95,y,36,bh,4);ctx.fill();
+       const cx=113,cy=y+bh/2;stroke(2.4);arrow(cx,cy,cx,cy+34);if(f>.03)arrow(cx,cy,cx,cy-34*.55*f*1.15-2);
+       lab('F','g',cx+8,cy+34);if(f>.25)lab('F','B',cx+8,cy-34*.55*f);
+       ctx.fillStyle=LINE;ctx.globalAlpha*=.8;for(let i=0;i<5;i++){const by=floor-4-((t*26+i*37)%(floor-surf-8));ctx.beginPath();ctx.arc(48+i*34+Math.sin(t+i)*3,by,2.6,0,7);ctx.stroke();}ctx.globalAlpha/=.8;}},
      'Pendulum':{dur:8,draw(t){
        const th=.6*Math.cos(t*2.6),L=118,px=120,py=14,bx=px+L*Math.sin(th),by=py+L*Math.cos(th);
        stroke(2.4);ctx.beginPath();ctx.moveTo(70,py);ctx.lineTo(170,py);ctx.stroke();
@@ -2746,10 +2753,9 @@ img,video{max-width:100%;height:auto}
        stroke(2);arrow(bx,by+13,bx,by+44);}},
      'Orbit':{dur:9,draw(t){
        const a=100,b=60,cx=120,cy=85;stroke(1.8);ctx.save();ctx.setLineDash([4,6]);ctx.beginPath();ctx.ellipse(cx,cy,a,b,0,0,7);ctx.stroke();ctx.restore();
-       const c=Math.sqrt(a*a-b*b);ctx.fillStyle=FILL;stroke(2.4);ctx.beginPath();ctx.arc(cx+c,cy,11,0,7);ctx.fill();
-       // Kepler: faster near the star
+       const c=Math.sqrt(a*a-b*b);ctx.fillStyle=LINE;ctx.beginPath();ctx.arc(cx+c,cy,11,0,7);ctx.fill();
        let M=t*1.1,E=M;for(let i=0;i<6;i++)E=M+.6*Math.sin(E);
-       const x=cx+a*Math.cos(E)-0+(-0),y=cy+b*Math.sin(E);ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x,y,6,0,7);ctx.fill();}},
+       ctx.beginPath();ctx.arc(cx+a*Math.cos(E),cy+b*Math.sin(E),6,0,7);ctx.fill();}},
      'Waves':{dur:9,draw(t){
        ctx.fillStyle=LINE;for(let i=0;i<34;i++){const x=6+i*7,y=85+34*Math.sin(i*.45-t*3);ctx.beginPath();ctx.arc(x,y,3.4,0,7);ctx.fill();}}},
      'Circular motion':{dur:8,draw(t){
@@ -2765,10 +2771,14 @@ img,video{max-width:100%;height:auto}
        ctx.save();ctx.translate(bx,by);ctx.rotate(-ang);ctx.fillStyle=FILL;ctx.fillRect(-14,-24,28,24);
        stroke(2);arrow(0,-12,-34,-12);ctx.restore();}},
      "Atwood's machine":{dur:9,draw(t){
-       const off=26*Math.sin(t*1.5);stroke(2.4);ctx.beginPath();ctx.moveTo(120,10);ctx.lineTo(120,26);ctx.stroke();
-       ctx.fillStyle=MID;ctx.beginPath();ctx.arc(120,40,16,0,7);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(120,40,4,0,7);ctx.fill();
-       stroke(2);ctx.beginPath();ctx.moveTo(104,40);ctx.lineTo(104,86+off);ctx.moveTo(136,40);ctx.lineTo(136,86-off);ctx.stroke();
-       ctx.fillStyle=FILL;ctx.fillRect(86,86+off,36,36);ctx.fillStyle=MID;ctx.fillRect(122,86-off,28,28);}},
+       const d=Math.min(44,.7*t*t);                                  // the heavier block (left) speeds up downward; the lighter block rises
+       const cx=120,cy=40,R=14;
+       stroke(2.2);ctx.beginPath();ctx.moveTo(10,8);ctx.lineTo(230,8);ctx.stroke();
+       ctx.strokeStyle=MID;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(cx,8);ctx.lineTo(cx,cy);ctx.stroke();
+       ctx.fillStyle=MID;ctx.beginPath();ctx.arc(cx,cy,R,0,7);ctx.fill();ctx.fillStyle=SOFT;ctx.beginPath();ctx.arc(cx,cy,4,0,7);ctx.fill();
+       const lx=cx-R-1,rx=cx+R+1,ly=60+d,ry=104-d;                  // the string runs all the way around the top of the pulley
+       stroke(2);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(lx,cy);ctx.arc(cx,cy,R+1,Math.PI,0);ctx.lineTo(rx,ry);ctx.stroke();
+       ctx.fillStyle=FILL;ctx.fillRect(lx-13,ly,26,26);ctx.fillStyle=MID;ctx.fillRect(rx-9,ry,18,18);}},
      'Refraction':{dur:8,draw(t){
        ctx.fillStyle=SOFT;ctx.fillRect(10,85,220,70);stroke(1.6);ctx.setLineDash([3,6]);ctx.beginPath();ctx.moveTo(120,20);ctx.lineTo(120,155);ctx.stroke();ctx.setLineDash([]);
        const a=.75+.2*Math.sin(t*.9),b=Math.asin(Math.sin(a)/1.5),L=78;stroke(3);
@@ -2777,8 +2787,7 @@ img,video{max-width:100%;height:auto}
        const cx=120,cy=85,k=(t%6)/6,f=n=>Math.max(0,Math.min(1,k*6-n));
        ctx.fillStyle=FILL;ctx.fillRect(cx-22,cy-22,44,44);stroke(3);
        [[0,60,0],[0,-60,1],[-58,0,2],[58,0,3]].forEach(([dx,dy,n])=>{const p=f(n);if(p>0)arrow(cx,cy,cx+dx*p,cy+dy*p);});
-       ctx.fillStyle=LINE;ctx.font='700 14px Inter,sans-serif';ctx.textAlign='left';
-       if(f(0)>.9)ctx.fillText('Fᵍ',cx+8,cy+74);if(f(1)>.9)ctx.fillText('Fₙ',cx+8,cy-56);}},
+       if(f(0)>.9)lab('F','g',cx+8,cy+74);if(f(1)>.9)lab('F','N',cx+8,cy-56);if(f(2)>.9)lab('F','f',cx-84,cy-8);if(f(3)>.9)lab('F','A',cx+64,cy-8);}},
      'Ripples':{dur:9,draw(t){
        const base=ctx.globalAlpha;for(let i=0;i<4;i++){const u=((t*.35)+i/4)%1;ctx.globalAlpha=base*(1-u);stroke(2.4);ctx.beginPath();ctx.arc(120,85,8+u*84,0,7);ctx.stroke();}
        ctx.globalAlpha=base;ctx.fillStyle=LINE;ctx.beginPath();ctx.arc(120,85,5,0,7);ctx.fill();}},
@@ -2787,8 +2796,11 @@ img,video{max-width:100%;height:auto}
        for(let i=0;i<=8;i++){const v=i/8;if(v>u)break;ctx.globalAlpha=base*(.3+.7*(v/Math.max(u,.01)));ctx.beginPath();ctx.arc(120,14+138*v*v,9,0,7);ctx.fill();}
        ctx.globalAlpha=base;stroke(2);ctx.beginPath();ctx.moveTo(60,158);ctx.lineTo(180,158);ctx.stroke();}},
      'Seesaw (torque)':{dur:8,draw(t){
-       const a=.22*Math.sin(t*1.4);ctx.fillStyle=MID;ctx.beginPath();ctx.moveTo(120,150);ctx.lineTo(104,160);ctx.lineTo(136,160);ctx.closePath();ctx.fill();
-       ctx.save();ctx.translate(120,148);ctx.rotate(a);ctx.fillStyle=FILL;ctx.fillRect(-100,-6,200,10);
+       // the heavier mass (left) drops, bounces a little, and settles; the lighter mass rises
+       const a=-.16*(1-Math.exp(-1.6*t)*Math.cos(4.5*t)),py=134;
+       stroke(2);ctx.beginPath();ctx.moveTo(10,152);ctx.lineTo(230,152);ctx.stroke();
+       ctx.fillStyle=MID;ctx.beginPath();ctx.moveTo(120,py);ctx.lineTo(104,152);ctx.lineTo(136,152);ctx.closePath();ctx.fill();
+       ctx.save();ctx.translate(120,py);ctx.rotate(a);ctx.fillStyle=FILL;ctx.fillRect(-100,-6,200,10);
        ctx.fillStyle=LINE;ctx.beginPath();ctx.arc(-78,-20,14,0,7);ctx.fill();ctx.fillStyle=MID;ctx.beginPath();ctx.arc(70,-14,8,0,7);ctx.fill();ctx.restore();}}
     };
     const names=Object.keys(scenes);
@@ -2822,7 +2834,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v42";
+    const APP_VERSION = "v43";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off
@@ -3049,7 +3061,7 @@ img,video{max-width:100%;height:auto}
     // ---- the combined student app: one page holding the physics app and the free-body diagram app ----
     function buildWrapperHtml(name, physicsHtml, fbdHtml, physTotal, fbdTotal) {
       const S = "<" + "script", E = "<" + "/script>";
-      const css = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;background:#f8fafc;color:#0f172a}" +
+      const css = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;background:#f1f5f9;color:#0f172a}" +
         "body{display:flex;flex-direction:column}" +
         "#choose{position:relative;overflow:hidden;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}" +
         "#flare{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}#choose>*:not(canvas){position:relative;z-index:1}" +

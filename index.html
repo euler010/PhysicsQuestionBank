@@ -444,7 +444,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v49
+              Teacher Studio · v50
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -2813,17 +2813,19 @@ img,video{max-width:100%;height:auto}
     // slots: fractions of the stage, kept away from the centre block
     const slots=[[.03,.03],[.03,.27],[.23,.02],[.43,.01],[.63,.02],[.80,.03],[.81,.27],[.81,.51],[.77,.67],[.50,.69],[.28,.69]];
     const active=[];let lastSpawn=0,paused=false,clock=0;
-    function spawn(name){
+    function spawn(name,age){
       const used=active.map(a=>a.slot);const free=slots.map((_,i)=>i).filter(i=>!used.includes(i)&&!(W<720&&i>1));
       if(!free.length)return;const slot=free[Math.floor(Math.random()*free.length)];
-      active.push({name,slot,t0:clock,dur:scenes[name].dur});}
-    function nextScene(){const inUse=active.map(a=>a.name);const pool=names.filter(n=>!inUse.includes(n));spawn(pool[Math.floor(Math.random()*pool.length)]);}
-    nextScene();
+      active.push({name,slot,t0:clock-(age||0),dur:scenes[name].dur});}
+    function nextScene(age){const inUse=active.map(a=>a.name);const pool=names.filter(n=>!inUse.includes(n));spawn(pool[Math.floor(Math.random()*pool.length)],age);}
+    let seeded=false;
     const reduce=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);if(reduce)clock=3;
     let last=performance.now();
     function frame(now){
       if(!isVisible()){last=now;requestAnimationFrame(frame);return;}
       {const r=cv.getBoundingClientRect();if(Math.abs(r.width-W)>1||Math.abs(r.height-H)>1)resize();}
+      // first visible frame: start with 4 scenes already on screen (2 on narrow screens), each part-way through its cycle
+      if(!seeded){seeded=true;lastSpawn=clock;const n=W<720?2:4;for(let i=0;i<n;i++)nextScene(1.2+Math.random()*3.6);}
       const dt=Math.min(.05,(now-last)/1000);last=now;if(!paused)clock+=dt;
       ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,W,H);
       const s=Math.max(.55,Math.min(W/1150,H/680));
@@ -2840,7 +2842,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v49";
+    const APP_VERSION = "v50";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off

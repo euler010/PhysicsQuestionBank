@@ -444,7 +444,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v45
+              Teacher Studio · v46
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -2768,7 +2768,6 @@ img,video{max-width:100%;height:auto}
      'Circular motion':{dur:8,draw(t){
        const cx=120,cy=85,r=62,th=t*1.8,x=cx+r*Math.cos(th),y=cy+r*Math.sin(th);
        ctx.save();ctx.setLineDash([3,6]);stroke(1.6);ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.stroke();ctx.restore();
-       stroke(2);ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(x,y);ctx.stroke();
        ctx.fillStyle=MID;ctx.beginPath();ctx.arc(cx,cy,5,0,7);ctx.fill();ctx.fillStyle=FILL;ctx.beginPath();ctx.arc(x,y,11,0,7);ctx.fill();
        stroke(2);arrow(x,y,x+(cx-x)*.35,y+(cy-y)*.35);}},
      'Inclined plane':{dur:9,draw(t){
@@ -2841,7 +2840,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v45";
+    const APP_VERSION = "v46";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off

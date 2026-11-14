@@ -444,7 +444,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v43
+              Teacher Studio · v44
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -2005,6 +2005,7 @@ img,video{max-width:100%;height:auto}
       const part = q.parts[pIdx];
       const pState = inst.partStates[pIdx];
       if (!part || !pState) return;
+      if (pState.completed) return;   // a finished part can't be graded again (it would add to the streak twice)
 
       updatePartDraft(qId, pIdx);
       const rawInput = pState.userVal.trim();
@@ -2642,7 +2643,7 @@ img,video{max-width:100%;height:auto}
         ".mg-seg{display:flex;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;background:#f1f5f9}" +
         ".mg-seg button{padding:7px 16px;border:0;background:#f1f5f9;color:#64748b;font-weight:700;font-size:.82rem;font-family:inherit;cursor:pointer;white-space:nowrap}" +
         ".mg-seg button:hover{background:#e2e8f0}.mg-seg button.on{background:#2563eb;color:#fff;cursor:default}" +
-        "@media(max-width:760px){.mg-grid3{grid-template-columns:1fr}.mg-grid3>:last-child{justify-self:start}}";
+        "@media(max-width:760px){.mg-grid3{grid-template-columns:1fr}.mg-grid3>:last-child,.mg-seg{justify-self:start}}";
       document.head.appendChild(st);
       const seg = document.createElement("div");
       seg.id = "mgSectionSwitch"; seg.className = "mg-seg";
@@ -2834,7 +2835,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v43";
+    const APP_VERSION = "v44";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off

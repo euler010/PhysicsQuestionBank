@@ -384,6 +384,51 @@ img,video{max-width:100%;height:auto}
 @media (min-width:768px){.md\:items-center{align-items:center}}
 @media (min-width:1024px){.lg\:col-span-2{grid-column:span 2 / span 2}}
 @media (min-width:1024px){.lg\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}}
+    /* ---- v28: app-type landing page, flow bar, Free-Body Diagram section ---- */
+    .mg-hide { display: none !important; }
+    .mg-landing { max-width: 760px; margin: 0 auto; padding: 56px 20px 40px; text-align: center; }
+    .mg-landing h2 { font-size: 1.75rem; font-weight: 800; color: #0f172a; margin: 0 0 6px; }
+    .mg-landing p.mg-sub { color: #64748b; font-size: 14px; margin: 0 0 26px; }
+    .mg-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 560px) { .mg-cards { grid-template-columns: 1fr; } }
+    .mg-card { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 150px; padding: 22px 16px;
+      border-radius: 18px; border: 2px solid #cbd5e1; background: #e2e8f0; color: #64748b; cursor: pointer; transition: all .15s ease; font-family: inherit; }
+    .mg-card strong { font-size: 1.15rem; font-weight: 800; }
+    .mg-card small { font-size: 14px; font-weight: 500; opacity: .9; }
+    .mg-card:hover { background: #dbe3ee; }
+    .mg-card.on { background: #2563eb; border-color: #1d4ed8; color: #fff; box-shadow: 0 8px 22px rgba(37,99,235,.28); }
+    .mg-card.on:hover { background: #1d4ed8; }
+    .mg-tick { position: absolute; top: 10px; right: 12px; width: 22px; height: 22px; border-radius: 999px; border: 2px solid #94a3b8; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: transparent; }
+    .mg-card.on .mg-tick { border-color: #fff; color: #fff; }
+    .mg-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+    .mg-btn { padding: 11px 22px; border-radius: 12px; font-weight: 700; font-size: .9rem; border: 1px solid #cbd5e1; background: #fff; color: #334155; cursor: pointer; font-family: inherit; }
+    .mg-btn:hover { background: #f1f5f9; }
+    .mg-btn.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+    .mg-btn.primary:hover { background: #1d4ed8; }
+    .mg-btn[disabled] { opacity: .45; cursor: not-allowed; }
+    .mg-hint { color: #64748b; font-size: 14px; margin-top: 16px; min-height: 1.2em; }
+    .mg-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 10px; font-size: .75rem; font-weight: 700; border: 1px solid #cbd5e1; background: #f8fafc; color: #475569; cursor: pointer; font-family: inherit; }
+    .mg-ghost:hover { background: #e2e8f0; }
+    .mg-flow { background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .mg-flow-in { max-width: 80rem; margin: 0 auto; padding: 8px 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .mg-step { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; font-size: .78rem; font-weight: 700; border: 1px solid #cbd5e1; background: #f1f5f9; color: #64748b; cursor: pointer; font-family: inherit; }
+    .mg-step span { display: inline-flex; width: 20px; height: 20px; border-radius: 999px; background: #cbd5e1; color: #fff; align-items: center; justify-content: center; font-size: .7rem; }
+    .mg-step.cur { background: #2563eb; border-color: #2563eb; color: #fff; }
+    .mg-step.cur span { background: #fff; color: #2563eb; }
+    .mg-step.done { background: #ecfdf5; border-color: #6ee7b7; color: #047857; }
+    .mg-step.done span { background: #10b981; }
+    .mg-sep { width: 22px; height: 2px; background: #cbd5e1; border-radius: 2px; }
+    #fbdView iframe { display: block; width: 100%; border: 0; background: #f8fafc; }
+    .mg-loading { padding: 70px 20px; text-align: center; color: #64748b; font-weight: 600; }
+    #combinedPreview { position: fixed; inset: 0; z-index: 40; background: #f8fafc; display: flex; flex-direction: column; }
+    #combinedPreview .mg-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 8px 16px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    #combinedPreview iframe { flex: 1; width: 100%; border: 0; }
+    .mg-green { background: #059669; border-color: #059669; color: #fff; }
+    .mg-green:hover { background: #047857; }
+    /* Uniform text sizes: chips, hints and small labels are 14 px. Buttons and links keep their own size. */
+    .text-\[11px\], .text-\[10px\] { font-size: 14px; line-height: 1.35; }
+    .text-xs:not(button):not(a) { font-size: 14px; line-height: 1.35; }
+    button.text-xs.rounded-full { font-size: 14px; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen">
@@ -396,14 +441,16 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg sm:text-xl font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v27
+              Teacher Studio · v39
             </span>
           </div>
-          <p id="headerSubtitle" class="hidden text-xs text-slate-500"></p>
+          <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
         </div>
       </div>
 
       <div class="flex items-center gap-2 flex-wrap">
+        <button type="button" id="saveRecipeTopBtn" class="mg-ghost mg-green mg-hide" onclick="saveRecipeFromHeader()" title="Save what you have chosen so far, so you can pick up later with Load Recipe">&#128190; Save Recipe</button>
+        <button type="button" id="appTypeBtn" class="mg-ghost mg-hide" onclick="showLanding()" title="Add or remove the Physics Problems or Free-Body Diagrams section. Your choices are kept.">&#8634; Add / Remove Sections</button>
         <!-- Back to Constructor Button -->
         <button id="backToConstructorBtn" onclick="switchView('constructor')" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"/></svg>
@@ -441,14 +488,61 @@ img,video{max-width:100%;height:auto}
           <button id="saveRecipeBtn" onclick="saveRecipe('review')" title="Download a small file that remembers this app's questions, order and settings" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white border border-transparent transition flex items-center gap-1.5">
             Save Recipe
           </button>
-
-          <button onclick="openTeacherSetupModal()" title="Teacher Setup and Google Sheet Logging" class="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200 transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          </button>
         </div>
       </div>
     </div>
   </header>
+
+  <!-- Progress bar shown while building a combined (physics + free-body diagram) app -->
+  <div id="flowBar" class="mg-flow mg-hide"><div class="mg-flow-in">
+    <button type="button" id="flowStep1" class="mg-step" onclick="flowGo('fbd')"><span>1</span>Free-Body Diagrams</button><i class="mg-sep"></i>
+    <button type="button" id="flowStep2" class="mg-step" onclick="flowGo('phys')"><span>2</span>Physics Questions</button><i class="mg-sep"></i>
+    <button type="button" id="flowStep3" class="mg-step" onclick="flowGo('order')"><span>3</span>Order &amp; Create</button>
+  </div></div>
+
+  <!-- ===================================================================== -->
+  <!-- VIEW 0: CHOOSE WHAT THE APP WILL CONTAIN (physics problems, FBDs, or both) -->
+  <!-- ===================================================================== -->
+  <section id="landingView" class="mg-landing mg-hide">
+    <h2>What would you like to build?</h2>
+    <p class="mg-sub">Choose one or both. Your students get the sections you pick.</p>
+    <div class="mg-cards">
+      <button type="button" id="cardPhysics" class="mg-card" onclick="toggleLandingCard('physics')" aria-pressed="false">
+        <span class="mg-tick">&#10003;</span><strong>Practice Physics Problems</strong><small>Pick questions from the library folders</small>
+      </button>
+      <button type="button" id="cardFbd" class="mg-card" onclick="toggleLandingCard('fbd')" aria-pressed="false">
+        <span class="mg-tick">&#10003;</span><strong>Free-Body Diagrams</strong><small>Choose and order free-body diagram scenarios</small>
+      </button>
+    </div>
+    <div class="mg-actions">
+      <button type="button" id="landingContinue" class="mg-btn primary" onclick="landingContinue()" disabled>Continue &#9654;</button>
+      <button type="button" class="mg-btn" onclick="openLoadRecipe()" title="Open a recipe file you saved earlier (physics, free-body diagram, or combined)">Load a Saved Recipe</button>
+    </div>
+    <p id="landingHint" class="mg-hint">Select at least one.</p>
+  </section>
+
+  <!-- Free-Body Diagram builder (loaded on demand from the GitHub files) -->
+  <section id="fbdView" class="mg-hide">
+    <div id="fbdLoading" class="mg-loading">Loading the Free-Body Diagram builder&hellip;</div>
+    <div id="fbdFrameHost"></div>
+  </section>
+
+  <!-- Combined app preview (physics + free-body diagrams) -->
+  <div id="combinedPreview" class="mg-hide">
+    <div class="mg-bar">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button type="button" class="mg-ghost" onclick="closeCombinedPreview()">&#9664; Back to Question Order</button>
+        <strong id="combinedPreviewTitle" style="font-size:.95rem;color:#0f172a"></strong>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button type="button" class="mg-ghost mg-green" onclick="downloadStandaloneReviewApp()">Export Standalone HTML</button>
+        <button type="button" id="cpCopyBtn" class="mg-ghost mg-green" onclick="copyStandaloneHtml()">Copy HTML</button>
+        <button type="button" class="mg-ghost mg-green" onclick="saveRecipe('review')">Save Recipe</button>
+      </div>
+    </div>
+    <iframe id="combinedPreviewFrame" title="Combined app preview"></iframe>
+  </div>
+
 
   <!-- ===================================================================== -->
   <!-- VIEW 1: TEACHER QUESTION LIBRARY & REVIEW APP CONSTRUCTOR             -->
@@ -552,7 +646,7 @@ img,video{max-width:100%;height:auto}
       </div>
 
       <!-- Order Status Strip -->
-      <div class="flex items-center justify-between gap-2 mt-3 pt-2 text-[11px] text-slate-500 border-t border-slate-100">
+      <div class="flex items-center justify-between gap-2 mt-3 pt-2 text-sm text-slate-500 border-t border-slate-100">
         <span id="orderSavedIndicator">
           Use folder headers to expand/collapse units or bulk select problems. Reorder with <strong class="text-slate-700">&uarr; / &darr;</strong> or drag cards.
         </span>
@@ -585,7 +679,7 @@ img,video{max-width:100%;height:auto}
             </span>
           </div>
           <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 mt-1">Order Selected Questions</h2>
-          <p class="text-xs sm:text-sm text-slate-600 mt-1">
+          <p class="text-sm text-slate-600 mt-1">
             Click any blue <strong>Q#</strong> badge to type a new question number, drag questions up or down, or click <strong>Randomize Order</strong> to shuffle them. When finished, press <strong>Create App</strong> in the top right.
           </p>
         </div>
@@ -605,7 +699,7 @@ img,video{max-width:100%;height:auto}
         </div>
       </div>
 
-      <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+      <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">
         <span id="reorderStatusIndicator">
           Click any blue <strong>Q#</strong> box to type a new position, or drag cards up or down to customize your review app question order.
         </span>
@@ -622,7 +716,7 @@ img,video{max-width:100%;height:auto}
   <!-- ===================================================================== -->
   <section id="studentReviewView" class="hidden max-w-6xl mx-auto px-4 sm:px-6 py-5">
     <div class="bg-white rounded-2xl p-4 sm:p-5 mb-5 border border-slate-200 shadow-sm">
-      <p class="text-xs sm:text-sm text-slate-600">
+      <p class="text-sm text-slate-600">
         <strong>Instructions:</strong> Enter your numerical answer and select the appropriate <strong>units</strong> from the dropdown menu. For scientific notation, enter values like <span class="mono font-semibold text-indigo-700">2.45e-7</span>.
       </p>
 
@@ -670,7 +764,7 @@ img,video{max-width:100%;height:auto}
           </div>
         </div>
 
-        <div class="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 text-xs text-slate-700 space-y-1">
+        <div class="p-3.5 rounded-xl bg-blue-50/70 border border-blue-200 text-sm text-slate-700 space-y-1">
           <div id="modalTemplateSettingsTitle" class="font-bold text-blue-800">Included "AP Physics 1" Template Settings:</div>
           <div>&bull; Preserves your exact selected problem sequence across unit folders</div>
           <div>&bull; Dynamic &plusmn;20% variable randomization per problem instance</div>
@@ -805,32 +899,6 @@ img,video{max-width:100%;height:auto}
   </div>
 
   <!-- ===================================================================== -->
-  <!-- MODAL 3: TEACHER SETUP (GOOGLE SHEETS LOGGING)                        -->
-  <!-- ===================================================================== -->
-  <div id="teacherSetupModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl max-w-lg w-full p-6 border border-slate-200 shadow-2xl">
-      <div class="flex items-center justify-between pb-3 border-b border-slate-200">
-        <h3 class="text-lg font-bold text-slate-900">Teacher Setup and Student Data Logging</h3>
-        <button onclick="closeTeacherSetupModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
-      </div>
-      <div class="py-4 space-y-3 text-xs">
-        <p class="text-slate-600">
-          Link a Google Apps Script Web App URL to automatically record student attempts, accuracy, and completion streaks into Google Sheets.
-        </p>
-        <div>
-          <label class="font-bold block mb-1 text-slate-700">Google Web App URL (Optional)</label>
-          <input id="webAppUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec"
-                 class="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-300 mono" />
-        </div>
-      </div>
-      <div class="pt-3 border-t border-slate-200 flex justify-end gap-2">
-        <button onclick="closeTeacherSetupModal()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">Close</button>
-        <button onclick="saveTeacherSetup()" class="px-4 py-2 rounded-lg text-xs font-bold bg-blue-600 text-white">Save Settings</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===================================================================== -->
   <!-- MODAL 4: NOTIFICATION MESSAGE MODAL                                   -->
   <!-- ===================================================================== -->
   <div id="messageModal" class="fixed inset-0 z-50 hidden bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
@@ -840,7 +908,7 @@ img,video{max-width:100%;height:auto}
         <button onclick="closeMessageModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
       </div>
       <div class="py-4">
-        <p id="messageModalBody" class="text-xs sm:text-sm text-slate-700 leading-relaxed"></p>
+        <p id="messageModalBody" class="text-sm text-slate-700 leading-relaxed"></p>
       </div>
       <div class="pt-3 border-t border-slate-200 flex justify-end">
         <button onclick="closeMessageModal()" class="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700">OK</button>
@@ -1161,8 +1229,7 @@ img,video{max-width:100%;height:auto}
       questions: [],
       instances: {},
       currentIndex: 0,
-      streak: Number(safeGetStorage("ap1ReviewStreak", "0") || 0),
-      webAppUrl: safeGetStorage("ap1TeacherWebappUrl", "") || ""
+      streak: Number(safeGetStorage("ap1ReviewStreak", "0") || 0)
     };
 
     function getUniqueTopics() {
@@ -1359,7 +1426,7 @@ img,video{max-width:100%;height:auto}
                   <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">${q.parts.length} Parts</span>
                 </div>
               </div>
-              <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">${basePrompt}</p>${diagramPreviewHTML}
+              <p class="text-base text-slate-700 leading-relaxed">${basePrompt}</p>${diagramPreviewHTML}
               <div class="mt-2.5 flex flex-wrap items-center gap-1.5"><span class="text-[11px] font-semibold text-slate-400 mr-1">Base Key:</span>${sampleSolutions}</div>
             </div>
           </div>
@@ -1425,13 +1492,13 @@ img,video{max-width:100%;height:auto}
       const topEl = document.getElementById("libraryPaginationTop"), bottomEl = document.getElementById("libraryPaginationBottom");
       if (!topEl || !bottomEl) return;
       if (totalItems === 0 || totalPages <= 1) {
-        const simpleBar = totalItems > 0 ? `<div class="bg-white rounded-xl px-4 py-2.5 border border-slate-200 shadow-xs flex items-center justify-between text-xs text-slate-600"><span>Showing <strong>1&ndash;${totalItems}</strong> of <strong>${totalItems}</strong> problems</span><span class="font-semibold text-slate-500">Page 1 of 1</span></div>` : "";
+        const simpleBar = totalItems > 0 ? `<div class="bg-white rounded-xl px-4 py-2.5 border border-slate-200 shadow-xs flex items-center justify-between text-sm text-slate-600"><span>Showing <strong>1&ndash;${totalItems}</strong> of <strong>${totalItems}</strong> problems</span><span class="font-semibold text-slate-500">Page 1 of 1</span></div>` : "";
         topEl.innerHTML = simpleBar; bottomEl.innerHTML = "";
         return;
       }
       let pageBtns = "";
       for (let p = 1; p <= totalPages; p++) pageBtns += `<button type="button" onclick="goToLibraryPage(${p})" class="w-8 h-8 rounded-lg text-xs font-bold border transition ${p === currentLibraryPage ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'}">${p}</button>`;
-      const barHTML = `<div class="bg-white rounded-xl px-4 py-2.5 border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600"><span>Showing <strong>${startIdx + 1}&ndash;${endIdx}</strong> of <strong>${totalItems}</strong> problems &bull; Page <strong>${currentLibraryPage}</strong> of <strong>${totalPages}</strong></span><div class="flex items-center gap-1.5"><button type="button" onclick="goToLibraryPage(${Math.max(1, currentLibraryPage - 1)})" ${currentLibraryPage === 1 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg font-semibold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 disabled:opacity-40 transition">&larr; Prev</button>${pageBtns}<button type="button" onclick="goToLibraryPage(${Math.min(totalPages, currentLibraryPage + 1)})" ${currentLibraryPage === totalPages ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg font-semibold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 disabled:opacity-40 transition">Next &rarr;</button></div></div>`;
+      const barHTML = `<div class="bg-white rounded-xl px-4 py-2.5 border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600"><span>Showing <strong>${startIdx + 1}&ndash;${endIdx}</strong> of <strong>${totalItems}</strong> problems &bull; Page <strong>${currentLibraryPage}</strong> of <strong>${totalPages}</strong></span><div class="flex items-center gap-1.5"><button type="button" onclick="goToLibraryPage(${Math.max(1, currentLibraryPage - 1)})" ${currentLibraryPage === 1 ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg font-semibold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 disabled:opacity-40 transition">&larr; Prev</button>${pageBtns}<button type="button" onclick="goToLibraryPage(${Math.min(totalPages, currentLibraryPage + 1)})" ${currentLibraryPage === totalPages ? 'disabled' : ''} class="px-3 py-1.5 rounded-lg font-semibold bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 disabled:opacity-40 transition">Next &rarr;</button></div></div>`;
       topEl.innerHTML = barHTML; bottomEl.innerHTML = barHTML;
     }
 
@@ -1509,7 +1576,7 @@ img,video{max-width:100%;height:auto}
                     <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">${q.parts.length} Parts</span>
                   </div>
                 </div>
-                <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">${basePrompt}</p>${diagramPreviewHTML}
+                <p class="text-base text-slate-700 leading-relaxed">${basePrompt}</p>${diagramPreviewHTML}
                 <div class="mt-2.5 flex flex-wrap items-center gap-1.5"><span class="text-[11px] font-semibold text-slate-400 mr-1">Base Key:</span>${sampleSolutions}</div>
               </div>
             </div>
@@ -1602,6 +1669,7 @@ img,video{max-width:100%;height:auto}
     function onTemplateChanged() { applyTemplateSettings(document.getElementById("templateSelect").value); }
 
     function openBuildModal() {
+      if (appMode === "both" && !(fbdState && fbdState.count > 0)) return showMessageModal("Choose at least one free-body diagram scenario first (step 1 of 3), then come back to create the app.", "No Free-Body Diagrams Selected");
       if (selectedQuestionIds.size === 0) return showMessageModal("Please check the box next to at least one question in the library before building a review app.", "No Questions Selected");
       if (selectedQuestionsOrder.length === 0) syncSelectedQuestionsOrder();
       applyTemplateSettings(document.getElementById("templateSelect").value);
@@ -1662,7 +1730,7 @@ img,video{max-width:100%;height:auto}
       try {
         initializeReviewAppFromSelection();
         closeBuildModal();
-        switchView("student");
+        if (appMode === "both") openCombinedPreview(); else switchView("student");
       } catch (err) {
         console.error(err);
         showMessageModal("The review app could not be built: " + (err && err.message ? err.message : err), "Build Error");
@@ -1685,6 +1753,7 @@ img,video{max-width:100%;height:auto}
       const constructorView = document.getElementById("constructorView"), reorderView = document.getElementById("reorderView"), studentView = document.getElementById("studentReviewView");
       const backBtn = document.getElementById("backToConstructorBtn"), reviewToolbar = document.getElementById("reviewToolbarItems");
       const headerTitle = document.getElementById("headerTitle"), headerSubtitle = document.getElementById("headerSubtitle"), modeBadge = document.getElementById("modeBadge");
+      hideExtraViews();
 
       if (target === "student") {
         constructorView.classList.add("hidden"); reorderView.classList.add("hidden"); studentView.classList.remove("hidden");
@@ -1695,7 +1764,7 @@ img,video{max-width:100%;height:auto}
         constructorView.classList.add("hidden"); studentView.classList.add("hidden"); reorderView.classList.remove("hidden");
         backBtn.classList.remove("hidden"); backBtn.classList.add("flex"); reviewToolbar.classList.add("hidden"); reviewToolbar.classList.remove("flex");
         headerTitle.textContent = "Arrange Selected Questions"; headerSubtitle.textContent = "Drag questions up or down or randomize their sequence before creating your review app.";
-        headerSubtitle.classList.remove("hidden"); modeBadge.textContent = "Step 2 of 2"; modeBadge.classList.remove("hidden");
+        headerSubtitle.classList.remove("hidden"); modeBadge.textContent = (appMode === "both" ? "Step 3 of 3" : "Step 2 of 2") + " \u00b7 " + APP_VERSION; modeBadge.classList.remove("hidden");
         // Show every selected problem's diagram expanded while arranging (remember the library's own choices to restore on the way back).
         if (!diagramStateBeforeArrange) diagramStateBeforeArrange = new Set(visibleDiagramIds);
         const qById = new Map(questionLibrary.map(q => [q.id, q]));
@@ -1706,8 +1775,9 @@ img,video{max-width:100%;height:auto}
         if (diagramStateBeforeArrange) { visibleDiagramIds = diagramStateBeforeArrange; diagramStateBeforeArrange = null; }
         backBtn.classList.add("hidden"); backBtn.classList.remove("flex"); reviewToolbar.classList.add("hidden"); reviewToolbar.classList.remove("flex");
         headerTitle.textContent = "Physics Question Library and Constructor"; headerSubtitle.textContent = "";
-        headerSubtitle.classList.add("hidden"); modeBadge.textContent = "Teacher Studio"; modeBadge.classList.remove("hidden");
+        headerSubtitle.classList.add("hidden"); modeBadge.textContent = appMode === "both" ? "Step 2 of 3 \u00b7 " + APP_VERSION : STUDIO_BADGE; modeBadge.classList.remove("hidden");
       }
+      updateChrome(target === "student" ? "student" : target === "reorder" ? "reorder" : "constructor");
     }
 
     // =========================================================================
@@ -1826,12 +1896,12 @@ img,video{max-width:100%;height:auto}
         const unitSelectHTML = `<select id="unit-${activeQ.id}-${pIdx}" onchange="updatePartDraft('${activeQ.id}', ${pIdx})" ${pState.completed ? 'disabled' : ''} class="part-unit-select px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-medium text-slate-800 mono focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="">Units</option>${UNIT_OPTIONS.map(u => `<option value="${u}" ${pState.userUnit === u ? 'selected' : ''}>${u}</option>`).join("")}</select>`;
         const dirSelectHTML = part.directionOptions ? `<select id="dir-${activeQ.id}-${pIdx}" onchange="updatePartDraft('${activeQ.id}', ${pIdx})" ${pState.completed ? 'disabled' : ''} class="part-dir-select px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="">Select Direction...</option>${part.directionOptions.map(opt => `<option value="${opt}" ${pState.userDir === opt ? 'selected' : ''}>${opt}</option>`).join("")}</select>` : "";
         let feedbackHTML = "";
-        if (pState.feedback) feedbackHTML = `<div class="mt-2 text-xs font-semibold px-3 py-2 rounded-lg border ${pState.feedback.correct ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}">${pState.feedback.message}</div>`;
+        if (pState.feedback) feedbackHTML = `<div class="mt-2 text-sm font-semibold px-3 py-2 rounded-lg border ${pState.feedback.correct ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'}">${pState.feedback.message}</div>`;
         let solutionHTML = "";
         if (pState.showSolution && typeof part.steps === "function") {
           const trueAns = typeof part.solve === "function" ? part.solve(inst.vars) : 0, trueUnit = normalizeUnit(part.unit);
           const exactDisplayStr = part.solveMulti ? part.solveMulti(inst.vars).map(r => Number(r).toFixed(2)).join(", ") + " s" : (part.multiVals ? part.multiVals.map(k => inst.vars[k]).join(" s and ") + " s" : `${fmtSci(trueAns, 4)} ${trueUnit === 'No units' ? '(No units)' : trueUnit}`);
-          solutionHTML = `<div class="mt-3 p-3.5 rounded-xl bg-blue-50/50 border border-blue-200 text-xs space-y-1"><div class="font-bold text-blue-700 uppercase tracking-wider">Guided Step-by-Step Solution:</div><p class="text-slate-700 leading-relaxed">${interpolateBrokenTokens(part.steps(inst.vars, trueAns), inst.vars)}</p><div class="pt-1 font-bold mono text-emerald-700">Exact Answer: ${exactDisplayStr} ${part.expectedDirection ? '(' + part.expectedDirection + ')' : ''}</div></div>`;
+          solutionHTML = `<div class="mt-3 p-3.5 rounded-xl bg-blue-50/50 border border-blue-200 text-sm space-y-1"><div class="font-bold text-blue-700 uppercase tracking-wider">Guided Step-by-Step Solution:</div><p class="text-slate-700 leading-relaxed">${interpolateBrokenTokens(part.steps(inst.vars, trueAns), inst.vars)}</p><div class="pt-1 font-bold mono text-emerald-700">Exact Answer: ${exactDisplayStr} ${part.expectedDirection ? '(' + part.expectedDirection + ')' : ''}</div></div>`;
         }
 
         return `
@@ -1868,7 +1938,7 @@ img,video{max-width:100%;height:auto}
           </div>
           <button type="button" ${randomizationMode === "random" ? "" : 'style="display:none"'} onclick="regenerateSingleQuestion('${activeQ.id}')" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-800 border border-slate-200 transition flex items-center gap-1.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>Try New Numbers for This Problem</button>
         </div>
-        <div class="py-4"><p class="text-sm sm:text-base leading-relaxed text-slate-800">${renderFormattedPrompt(activeQ, inst.vars)}</p>${diagramHTML}</div>
+        <div class="py-4"><p class="text-base leading-relaxed text-slate-800">${renderFormattedPrompt(activeQ, inst.vars)}</p>${diagramHTML}</div>
         <div class="parts-grid">${partsHTML}</div>
         <div class="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
           <div class="flex items-center gap-2 flex-wrap">
@@ -1944,13 +2014,11 @@ img,video{max-width:100%;height:auto}
         if (matchedExpected.length === expectedList.length && allUserValid && unitMatches) {
           pState.completed = true; currentReviewApp.streak++; safeSetStorage("ap1ReviewStreak", String(currentReviewApp.streak));
           pState.feedback = { correct: true, message: `Great job! Value(s) (${expectedList.map(r => Number(r).toFixed(2)).join(", ")} s) and units are within acceptable range.` };
-          logStudentProgressToSheet(qId, pState.attempts, true);
         } else {
           currentReviewApp.streak = 0; safeSetStorage("ap1ReviewStreak", "0");
           if (matchedExpected.length === expectedList.length && allUserValid && !unitMatches) pState.feedback = { correct: false, message: `Your numerical value is correct, but check the units (expected ${expectedUnit}).` };
           else if (matchedExpected.length > 0) pState.feedback = { correct: false, message: `You found ${matchedExpected.length} correct ${matchedExpected.length === 1 ? "time" : "times"}, but ${!allUserValid ? "one or more values are incorrect. There " + (expectedList.length === 1 ? "is 1 time" : "are " + expectedList.length + " times") + " total" : "there " + (expectedList.length > 1 ? "are " + expectedList.length + " times total" : "is another point")} on the graph. Separate multiple values with a comma.` };
           else pState.feedback = { correct: false, message: "Not quite within tolerance. Check the graph carefully and separate multiple values with a comma." };
-          logStudentProgressToSheet(qId, pState.attempts, false);
         }
         renderStudentReviewApp(); return;
       }
@@ -1992,7 +2060,6 @@ img,video{max-width:100%;height:auto}
       if (numMatches && unitMatches && dirMatches) {
         pState.completed = true; currentReviewApp.streak++; safeSetStorage("ap1ReviewStreak", String(currentReviewApp.streak));
         pState.feedback = { correct: true, message: `Correct! Within ±1% tolerance with correct units (${fmtSci(matchedDisplayVal, 4)} ${matchedDisplayUnit === 'No units' ? 'No units' : matchedDisplayUnit}${part.expectedDirection ? ', ' + part.expectedDirection : ''}).` };
-        logStudentProgressToSheet(qId, pState.attempts, true);
       } else {
         currentReviewApp.streak = 0; safeSetStorage("ap1ReviewStreak", "0");
         let hintMsg = "Not quite. Check both your numerical calculation and your selected units (or click 'Guided Solution').";
@@ -2000,7 +2067,6 @@ img,video{max-width:100%;height:auto}
         else if (numMatches && unitMatches && !dirMatches) hintMsg = "Your numerical value and units are correct, but check the direction!";
         else if (!numMatches && unitMatches && dirMatches) hintMsg = "Your units are right, but double-check your numerical calculation.";
         pState.feedback = { correct: false, message: hintMsg };
-        logStudentProgressToSheet(qId, pState.attempts, false);
       }
       renderStudentReviewApp();
     }
@@ -2140,7 +2206,10 @@ img,video{max-width:100%;height:auto}
       const fixedSelectedArray = [...selectedQuestionsOrder];
       const openScr = "<" + "script", closeScr = "<" + "/script>", closeBody = "<" + "/body>", docType = "<!DOC" + "TYPE html>\n";
 
-      let fullSource = document.documentElement.outerHTML;
+      // Work on a copy of the page, minus the teacher-only sections added in v28 (start page, free-body diagram builder, preview).
+      const docClone = document.documentElement.cloneNode(true);
+      ["#landingView", "#fbdView", "#flowBar", "#combinedPreview", "#appTypeBtn", "#saveRecipeTopBtn", "script[id^='fbdFile_']"].forEach(sel => docClone.querySelectorAll(sel).forEach(n => n.remove()));
+      let fullSource = docClone.outerHTML;
       // Google Sites (and similar hosts) can add their own tags to a page while it runs inside their frame, such as a <base> link back to a googleusercontent.com address.
       // Those must not be saved into the exported app, or the copy looks for its parts in the wrong place. Remove them.
       fullSource = fullSource.replace(/<base\b[^>]*>/gi, "");
@@ -2158,13 +2227,15 @@ img,video{max-width:100%;height:auto}
       else if (linkPattern.test(fullSource)) fullSource = fullSource.replace(linkPattern, () => embedded);
       else throw new Error("Could not find the question data in this page.");
 
-      const bootConfig = { orderedIds: fixedSelectedArray, selectedIds: fixedSelectedArray, appName: currentReviewApp.name, template: currentReviewApp.template, randomizationMode: randomizationMode, staticVars: (randomizationMode === "static" ? staticVarsStore : null) };
+      const bootConfig = { orderedIds: fixedSelectedArray, selectedIds: fixedSelectedArray, appName: currentReviewApp.name, template: currentReviewApp.template, randomizationMode: randomizationMode, staticVars: (randomizationMode === "static" ? staticVarsStore : null), sectionSwitch: appMode === "both" };
       const bootScript = openScr + ">window.STANDALONE_BOOT_CONFIG = " + JSON.stringify(bootConfig) + ";" + closeScr + closeBody;
       return docType + fullSource.replace(closeBody, () => bootScript);
     }
 
     function downloadStandaloneReviewApp() {
-      const standaloneHTML = buildStandaloneHTML();
+      let standaloneHTML;
+      try { standaloneHTML = buildExportHTML(); }
+      catch (err) { console.error(err); showMessageModal("The HTML could not be created: " + (err && err.message ? err.message : err), "Download Error"); return; }
       const blob = new Blob([standaloneHTML], { type: "text/html" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a"); a.href = url;
@@ -2175,10 +2246,10 @@ img,video{max-width:100%;height:auto}
     // Copies the app's HTML to the clipboard, ready to paste into a Google Sites "Embed code" box.
     function copyStandaloneHtml() {
       let html;
-      try { html = buildStandaloneHTML(); }
+      try { html = buildExportHTML(); }
       catch (err) { console.error(err); showMessageModal("The HTML could not be created: " + (err && err.message ? err.message : err), "Copy Error"); return; }
       const done = () => {
-        const b = document.getElementById("copyHtmlBtn");
+        const b = document.getElementById(appMode === "both" ? "cpCopyBtn" : "copyHtmlBtn");
         if (b) { const old = b.innerHTML; b.textContent = "Copied!"; setTimeout(() => { b.innerHTML = old; }, 1800); }
       };
       const fallback = () => {
@@ -2199,6 +2270,16 @@ img,video{max-width:100%;height:auto}
     // SAVED RECIPES: a small text file that remembers a review app's name, template, number mode and question order,
     // so the app can be rebuilt (and edited) later without picking every question again.
     // =========================================================================
+    function fbdRecipeForSave() {
+      let r = null;
+      if (fbdState && fbdState.recipe) r = fbdState.recipe;
+      else if (fbdStash) { try { r = JSON.parse(fbdStash); } catch (e) {} }
+      return (r && Array.isArray(r.scenarioIds) && r.scenarioIds.length > 0) ? r : null;
+    }
+    function orderedPhysicsIds() {
+      if (selectedQuestionsOrder.length === 0) syncSelectedQuestionsOrder();
+      return [...selectedQuestionsOrder];
+    }
     function buildRecipeObject(fromReview) {
       let ids, name, template, mode;
       if (fromReview && currentReviewApp && Array.isArray(currentReviewApp.questions) && currentReviewApp.questions.length > 0) {
@@ -2229,24 +2310,49 @@ img,video{max-width:100%;height:auto}
         ids.forEach(id => { if (staticVarsStore && staticVarsStore[id]) sv[id] = staticVarsStore[id]; });
         if (Object.keys(sv).length > 0) recipe.staticVars = sv;
       }
+      // Free-body diagram choices are saved even when that section is switched off, so they are there if it is turned back on.
+      const fr = fbdRecipeForSave();
+      if (fr) recipe.fbd = fr;
+      if (appMode === "both" && fr) recipe.sections = ["physics", "fbd"];
+      // Remember which sections the teacher chose at the start, and where they were, so Load Recipe can pick up there.
+      if (appMode) recipe.appMode = appMode;
+      recipe.resumeAt = currentChromeTarget === "fbd" ? "fbd" : currentChromeTarget === "constructor" ? "physics" : "order";
       return recipe;
     }
 
     function saveRecipe(source) {
       try {
         const recipe = buildRecipeObject(source === "review");
-        if (recipe.questionIds.length === 0) return showMessageModal("There are no questions to save yet. Check the box next to at least one question first.", "Nothing to Save");
+        const fbdIdsToSave = (recipe.fbd && Array.isArray(recipe.fbd.scenarioIds)) ? recipe.fbd.scenarioIds.length : 0;
+        if (recipe.questionIds.length === 0 && fbdIdsToSave === 0) return showMessageModal(appMode === "both" ? "There is nothing to save yet. Choose at least one free-body diagram scenario or one physics question first." : "There are no questions to save yet. Check the box next to at least one question first.", "Nothing to Save");
         const blob = new Blob([JSON.stringify(recipe, null, 2)], { type: "text/plain" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = (recipe.appName.replace(/[^A-Za-z0-9 _-]+/g, "").trim().replace(/\s+/g, " ") || "Review App") + " Recipe.txt";
+        a.download = (recipe.appName.replace(/[\\/:*?"<>|]+/g, " ").replace(/_+/g, " ").replace(/\s+/g, " ").trim().replace(/^[.\s]+|[.\s]+$/g, "") || "Review App") + ".txt";
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       } catch (err) {
         console.error(err);
         showMessageModal("The recipe could not be saved: " + (err && err.message ? err.message : err), "Save Recipe Error");
       }
+    }
+
+    // The always-visible Save Recipe button: saves whatever has been chosen so far, from any step.
+    function saveRecipeFromHeader() {
+      if (appMode === "fbd") {
+        const f = mgEl("fbdBuilderFrame");
+        if (f && f.contentWindow) f.contentWindow.postMessage({ type: "fbd-save", extra: { physicsQuestionIds: orderedPhysicsIds() } }, "*");
+        return;
+      }
+      if (appMode === "both" && currentChromeTarget === "fbd") {
+        // Make sure the latest free-body diagram choices are included.
+        const f = mgEl("fbdBuilderFrame");
+        if (f && f.contentWindow) f.contentWindow.postMessage({ type: "fbd-sync" }, "*");
+        setTimeout(() => saveRecipe("build"), 150);
+        return;
+      }
+      saveRecipe("build");
     }
 
     function openLoadRecipe() {
@@ -2266,6 +2372,27 @@ img,video{max-width:100%;height:auto}
     function applyRecipeText(text) {
       let recipe = null;
       try { recipe = JSON.parse(text.replace(/^﻿/, "").trim()); } catch (e) {}
+      if (recipe && typeof recipe === "object" && Array.isArray(recipe.scenarioIds) && !Array.isArray(recipe.questionIds)) {
+        // A recipe saved from the free-body diagram builder (it may also carry physics choices kept for later).
+        if (Array.isArray(recipe.physicsQuestionIds) && questionLibrary && questionLibrary.length) {
+          const haveQ = new Set(questionLibrary.map(q => q.id));
+          const keep = recipe.physicsQuestionIds.filter((id, i, a) => haveQ.has(id) && a.indexOf(id) === i);
+          if (keep.length) { selectedQuestionIds = new Set(keep); selectedQuestionsOrder = keep; renderLibraryList(); }
+        }
+        enterMode(appMode === "both" ? "both" : "fbd", { fbdText: JSON.stringify(recipe), startAt: "fbd" });
+        return;
+      }
+      fbdStash = null;
+      const wantsBoth = !!(recipe && (recipe.appMode === "both" || (!recipe.appMode && Array.isArray(recipe.sections) && recipe.sections.indexOf("fbd") >= 0)));
+      if (recipe && recipe.fbd && Array.isArray(recipe.fbd.scenarioIds) && recipe.fbd.scenarioIds.length > 0 && !wantsBoth) fbdStash = JSON.stringify(recipe.fbd);
+      const resumeAt = recipe && ["fbd", "physics", "order"].indexOf(recipe.resumeAt) >= 0 ? recipe.resumeAt : null;
+      if (recipe && typeof recipe === "object" && Array.isArray(recipe.questionIds) && recipe.questionIds.length === 0 && wantsBoth) {
+        // A combined recipe saved before any physics questions were chosen.
+        const ids = recipe.fbd && Array.isArray(recipe.fbd.scenarioIds) ? recipe.fbd.scenarioIds : [];
+        enterMode("both", { fbdText: ids.length ? JSON.stringify(recipe.fbd) : undefined, startAt: resumeAt === "physics" ? "fbd" : (resumeAt || "fbd") });
+        showMessageModal("Loaded your saved progress. No physics questions were chosen yet; use the progress bar at the top to move between the steps.", "Recipe Loaded");
+        return;
+      }
       if (!recipe || typeof recipe !== "object" || !Array.isArray(recipe.questionIds)) {
         return showMessageModal("That file doesn't look like a saved recipe. Choose a recipe file that was saved with the Save Recipe button.", "Load Recipe Error");
       }
@@ -2279,6 +2406,7 @@ img,video{max-width:100%;height:auto}
         seen.add(id);
         if (have.has(id)) ids.push(id); else missing.push(id);
       });
+      if (ids.length === 0 && fbdStash && !missing.length) { enterMode("fbd", { fbdText: fbdStash, startAt: "fbd" }); return; }
       if (ids.length === 0) return showMessageModal("None of the questions in that recipe are in the library, so nothing was loaded.", "Load Recipe Error");
 
       selectedQuestionIds = new Set(ids);
@@ -2303,29 +2431,20 @@ img,video{max-width:100%;height:auto}
       renderLibraryList();
       let msg = 'Loaded "' + (recipe.appName || "your recipe") + '": ' + ids.length + (ids.length === 1 ? " question is" : " questions are") + " now selected in your saved order. Click Build a Review App to continue.";
       if (missing.length > 0) msg += " " + missing.length + (missing.length === 1 ? " question" : " questions") + " from the recipe could not be found in the library and " + (missing.length === 1 ? "was" : "were") + " skipped: " + missing.slice(0, 12).join(", ") + (missing.length > 12 ? ", and more" : "") + ".";
+      const fromLanding = mgEl("landingView") && !mgEl("landingView").classList.contains("mg-hide");
+      const fbdIdList = (recipe.fbd && typeof recipe.fbd === "object" && Array.isArray(recipe.fbd.scenarioIds)) ? recipe.fbd.scenarioIds : [];
+      if (wantsBoth) {
+        if (fbdIdList.length > 0) msg += " Its free-body diagram scenarios were loaded too (use the progress bar at the top to move between the steps).";
+        enterMode("both", { fbdText: fbdIdList.length ? JSON.stringify(recipe.fbd) : undefined, startAt: fromLanding ? (resumeAt || "fbd") : "physics" });
+      } else if (fromLanding) {
+        enterMode("physics", { startAt: resumeAt === "order" ? "order" : "physics" });
+      }
       showMessageModal(msg, "Recipe Loaded");
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     function setCreatorToolsVisible(show) {
       ["exportStandaloneBtn", "copyHtmlBtn", "saveRecipeBtn"].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = show ? "" : "none"; });
-    }
-
-    function openTeacherSetupModal() { document.getElementById("webAppUrlInput").value = currentReviewApp.webAppUrl; document.getElementById("teacherSetupModal").classList.remove("hidden"); }
-    function closeTeacherSetupModal() { document.getElementById("teacherSetupModal").classList.add("hidden"); }
-    function saveTeacherSetup() {
-      const url = document.getElementById("webAppUrlInput").value.trim();
-      currentReviewApp.webAppUrl = url; safeSetStorage("ap1TeacherWebappUrl", url); closeTeacherSetupModal();
-    }
-
-    function logStudentProgressToSheet(qId, attempts, completed) {
-      if (!currentReviewApp.webAppUrl) return;
-      try {
-        fetch(currentReviewApp.webAppUrl, {
-          method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ appName: currentReviewApp.name, questionId: qId, attempts, completed, streak: currentReviewApp.streak })
-        });
-      } catch (e) {}
     }
 
     // FBD Scratchpad Canvas
@@ -2400,6 +2519,7 @@ img,video{max-width:100%;height:auto}
         initializeReviewAppFromSelection();
         renderLibraryList();   // so the library shows this app's saved selection if the creator goes back to edit it
         switchView("student");
+        if (cfg.sectionSwitch) mgInstallSectionSwitch();
         // Students never see the "back" button. The creator opens the app with #edit on the address (or presses Ctrl+Shift+E).
         const backBtn = document.getElementById("backToConstructorBtn");
         const editMode = /[#?&]edit(?:=1|=true)?(?:&|$)/i.test(window.location.hash + window.location.search);
@@ -2481,9 +2601,310 @@ img,video{max-width:100%;height:auto}
       }
     }
 
+    // =========================================================================
+    // v28: PHYSICS PROBLEMS + FREE-BODY DIAGRAMS IN ONE APP
+    // The Free-Body Diagram scenarios, student app and builder live in three files in the GitHub repository
+    // (fbd_scenarios_data.js, fbd_student_app.js, fbd_builder.js). They are loaded the first time they are needed.
+    // =========================================================================
+    // Combined app, physics half: put the "Physics Problems | Free-Body Diagrams" switch in the middle of the header line.
+    function mgInstallSectionSwitch() {
+      const header = document.querySelector("header > div");
+      if (!header || document.getElementById("mgSectionSwitch")) return;
+      const st = document.createElement("style");
+      st.textContent = ".mg-grid3{display:grid!important;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}.mg-grid3>:last-child{justify-self:end}" +
+        ".mg-seg{display:flex;border-radius:12px;overflow:hidden;border:1px solid #cbd5e1;background:#e2e8f0}" +
+        ".mg-seg button{padding:7px 16px;border:0;background:#e2e8f0;color:#64748b;font-weight:700;font-size:.82rem;font-family:inherit;cursor:pointer;white-space:nowrap}" +
+        ".mg-seg button:hover{background:#d5dde8}.mg-seg button.on{background:#2563eb;color:#fff;cursor:default}" +
+        "@media(max-width:760px){.mg-grid3{grid-template-columns:1fr}.mg-grid3>:last-child{justify-self:start}}";
+      document.head.appendChild(st);
+      const seg = document.createElement("div");
+      seg.id = "mgSectionSwitch"; seg.className = "mg-seg";
+      seg.innerHTML = '<button type="button" class="on">Physics Problems</button><button type="button">Free-Body Diagrams</button>';
+      seg.lastChild.onclick = () => { try { window.parent.postMessage({ type: "mg-switch", to: "fbd" }, "*"); } catch (e) {} };
+      header.classList.add("mg-grid3");
+      header.insertBefore(seg, header.children[1] || null);
+    }
+
+    const APP_VERSION = "v39";
+    const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
+    let appMode = null;                       // "physics" | "fbd" | "both"
+    let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off
+    let suppressFbdLoadedNote = false, fbdPendingQuiet = false;
+    let landingSel = { physics: false, fbd: false };
+    let fbdState = null;                      // latest settings reported by the builder: { recipe, config, count }
+    let fbdFrameMode = null, fbdFilesPromise = null, fbdReadyFlag = false, fbdPendingLoad = null, currentChromeTarget = "landing";
+    const FBD_FILE_NAMES = ["fbd_scenarios_data.js", "fbd_student_app.js", "fbd_builder.js"];
+    const FBD_GLOBALS = ["FBD_SCENARIO_DATA_FN", "FBD_STUDENT_TEMPLATE", "FBD_BUILDER_TEMPLATE"];
+    const mgEl = id => document.getElementById(id);
+    const mgEsc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const mgJsStr = s => JSON.stringify(s).replace(/<\//g, "<\\/").replace(/<!--/g, "<\\!--").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
+
+    function loadFbdFiles() {
+      if (FBD_GLOBALS.every(g => window[g])) return Promise.resolve();
+      if (fbdFilesPromise) return fbdFilesPromise;
+      fbdFilesPromise = (async () => {
+        for (let i = 0; i < FBD_FILE_NAMES.length; i++) {
+          if (window[FBD_GLOBALS[i]]) continue;
+          const name = FBD_FILE_NAMES[i];
+          const urls = [RAW_GITHUB_QUESTIONS_URL.replace("physics_questions_data.js", name) + "?t=" + Date.now(), DEFAULT_GITHUB_QUESTIONS_URL.replace("physics_questions_data.js", name)];
+          let ok = false;
+          for (const url of urls) {
+            try {
+              const res = await fetch(url, { cache: "no-store" });
+              if (!res.ok) continue;
+              const tag = document.createElement("script");
+              tag.id = "fbdFile_" + name;
+              tag.text = await res.text();
+              document.head.appendChild(tag);
+              if (window[FBD_GLOBALS[i]]) { ok = true; break; }
+              tag.remove();
+            } catch (err) {}
+          }
+          if (!ok) throw new Error("Could not load " + name + " from GitHub.");
+        }
+      })();
+      fbdFilesPromise.catch(() => { fbdFilesPromise = null; });
+      return fbdFilesPromise;
+    }
+
+    // ---- assembling the Free-Body Diagram pages from the three files ----
+    function fbdDataSource() { return "const { buildScenarioLibrary, ALL_FORCES, makeFrictionHelpers } = (" + window.FBD_SCENARIO_DATA_FN.toString() + ")();"; }
+    function fbdStudentTemplate() { return window.FBD_STUDENT_TEMPLATE.replace("/*__FBD_DATA__*/", () => fbdDataSource()); }
+    function fbdBuilderHtml(mode) {
+      return window.FBD_BUILDER_TEMPLATE
+        .replace("/*__FBD_DATA__*/", () => fbdDataSource())
+        .replace("/*__STUDENT_TEMPLATE__*/null", () => mgJsStr(fbdStudentTemplate()))
+        .replace("/*__EMBED_MODE__*/null", () => JSON.stringify(mode));
+    }
+    function buildFbdStudentHtml(config, title) {
+      const cfgJs = "        const CONFIG = " + JSON.stringify(config, null, 4).replace(/</g, "\\u003c").replace(/\n/g, "\n        ") + ";";
+      return fbdStudentTemplate().replace("/*__CONFIG__*/", () => cfgJs).split("__APP_TITLE__").join(mgEsc(title || "Free-Body Diagram Practice"));
+    }
+
+    // ---- which screen is showing ----
+    function hideMainViews() { ["constructorView", "reorderView", "studentReviewView"].forEach(id => { const e = mgEl(id); if (e) e.classList.add("hidden"); }); }
+    function hideExtraViews() { ["landingView", "fbdView", "combinedPreview"].forEach(id => { const e = mgEl(id); if (e) e.classList.add("mg-hide"); }); }
+
+    function updateChrome(target) {
+      currentChromeTarget = target;
+      const both = appMode === "both";
+      const flow = mgEl("flowBar");
+      if (flow) {
+        flow.classList.toggle("mg-hide", !(both && (target === "fbd" || target === "constructor" || target === "reorder")));
+        const cur = target === "fbd" ? 1 : target === "constructor" ? 2 : 3;
+        const done = [(fbdState && fbdState.count > 0), selectedQuestionIds.size > 0, false];
+        [1, 2, 3].forEach(n => {
+          const b = mgEl("flowStep" + n);
+          if (!b) return;
+          b.classList.toggle("cur", n === cur);
+          b.classList.toggle("done", n !== cur && n < cur && done[n - 1]);
+        });
+      }
+      const at = mgEl("appTypeBtn");
+      if (at) at.classList.toggle("mg-hide", !(appMode && target !== "student" && target !== "landing"));
+      const sr = mgEl("saveRecipeTopBtn");
+      if (sr) sr.classList.toggle("mg-hide", !(appMode && target !== "student" && target !== "landing"));
+      sizeFbdFrame();
+    }
+
+    function setHeaderPlain(title, sub, badge) {
+      const t = mgEl("headerTitle"), s = mgEl("headerSubtitle"), b = mgEl("modeBadge");
+      if (t) t.textContent = title;
+      if (s) { s.textContent = sub || ""; s.classList.toggle("hidden", !sub); }
+      if (b) { b.textContent = (badge ? badge + " \u00b7 " + APP_VERSION : STUDIO_BADGE); b.classList.remove("hidden"); }
+      ["backToConstructorBtn", "reviewToolbarItems"].forEach(id => { const e = mgEl(id); if (e) { e.classList.add("hidden"); e.classList.remove("flex"); } });
+    }
+
+    function showLanding() {
+      hideMainViews(); hideExtraViews();
+      mgEl("landingView").classList.remove("mg-hide");
+      setHeaderPlain("Physics Question Library and Constructor", "", "");
+      landingSel = { physics: appMode === "physics" || appMode === "both", fbd: appMode === "fbd" || appMode === "both" };
+      refreshLanding();
+      const h2 = document.querySelector("#landingView h2"), sub = document.querySelector("#landingView .mg-sub");
+      if (h2) h2.textContent = appMode ? "Which sections should this app include?" : "What would you like to build?";
+      if (sub) sub.textContent = appMode ? "Add or remove a section at any time. Whatever you already chose is kept, even for a section you turn off, in case you add it back." : "Choose one or both. Your students get the sections you pick.";
+      updateChrome("landing");
+      window.scrollTo({ top: 0 });
+    }
+
+    function toggleLandingCard(which) {
+      landingSel[which] = !landingSel[which];
+      refreshLanding();
+      if (which === "fbd" && landingSel.fbd) loadFbdFiles().catch(() => {});   // start fetching the files while the teacher decides
+    }
+    function refreshLanding() {
+      [["cardPhysics", "physics"], ["cardFbd", "fbd"]].forEach(([id, key]) => {
+        const c = mgEl(id); if (!c) return;
+        c.classList.toggle("on", !!landingSel[key]);
+        c.setAttribute("aria-pressed", landingSel[key] ? "true" : "false");
+      });
+      const any = landingSel.physics || landingSel.fbd, both = landingSel.physics && landingSel.fbd;
+      const btn = mgEl("landingContinue"); if (btn) btn.disabled = !any;
+      const hint = mgEl("landingHint");
+      if (hint) hint.textContent = !any ? "Select at least one." : both
+        ? "You will build the free-body diagram set first, then choose and order physics questions."
+        : landingSel.fbd ? "You will build a free-body diagram practice app." : "You will choose and order physics questions.";
+    }
+    async function landingContinue() {
+      const m = landingSel.physics && landingSel.fbd ? "both" : landingSel.fbd ? "fbd" : landingSel.physics ? "physics" : null;
+      if (!m) return;
+      const was = appMode;
+      let startAt;
+      if (m === "both" && was === "fbd") startAt = "physics";          // physics was just added
+      else if (m === "both" && was === "physics") startAt = "fbd";      // free-body diagrams were just added
+      else if (m === "both" && was === "both") startAt = "fbd";
+      await enterMode(m, startAt ? { startAt: startAt } : {});
+    }
+
+    async function enterMode(mode, opts) {
+      opts = opts || {};
+      appMode = mode;
+      if (mode === "physics") {
+        switchView("constructor");
+        if (opts.startAt === "order" && selectedQuestionIds.size > 0) goToReorderView();
+        return;
+      }
+      hideMainViews(); hideExtraViews();
+      mgEl("fbdView").classList.remove("mg-hide");
+      setHeaderPlain("Physics Question Library and Constructor", "", "");
+      const loading = mgEl("fbdLoading"), host = mgEl("fbdFrameHost");
+      if (!(window.FBD_BUILDER_TEMPLATE && fbdFrameMode === mode)) { loading.textContent = "Loading the Free-Body Diagram builder…"; loading.classList.remove("mg-hide"); host.classList.add("mg-hide"); }
+      try { await loadFbdFiles(); }
+      catch (err) {
+        loading.innerHTML = "The Free-Body Diagram files could not be loaded from GitHub (" + mgEsc(err && err.message ? err.message : err) + "). Check your connection, then <button type=\"button\" class=\"mg-ghost\" onclick=\"enterMode('" + mode + "')\">try again</button>";
+        return;
+      }
+      let carry = null;
+      if (!opts.fbdText && fbdState && fbdState.recipe && fbdState.count > 0 && fbdFrameMode !== mode) {
+        carry = Object.assign({}, fbdState.recipe); delete carry.resumeStep; carry = JSON.stringify(carry);
+      }
+      if (!opts.fbdText && !carry && !fbdState && fbdStash) { try { carry = JSON.stringify(Object.assign({}, JSON.parse(fbdStash), { resumeStep: undefined })); } catch (e) {} }
+      ensureFbdFrame(mode);
+      if (opts.fbdText) sendFbdLoad(opts.fbdText);
+      else if (carry) { suppressFbdLoadedNote = true; sendFbdLoad(carry, true); }
+      if (mode === "both" && (opts.startAt === "physics" || opts.startAt === "order")) {
+        switchView("constructor");
+        if (opts.startAt === "order" && selectedQuestionIds.size > 0) goToReorderView();
+      } else showFbdView();
+    }
+
+    function ensureFbdFrame(mode) {
+      const host = mgEl("fbdFrameHost");
+      if (mgEl("fbdBuilderFrame") && fbdFrameMode === mode) return;
+      const f = document.createElement("iframe");
+      f.id = "fbdBuilderFrame"; f.title = "Free-Body Diagram builder";
+      f.srcdoc = fbdBuilderHtml(mode);
+      host.innerHTML = ""; host.appendChild(f);
+      fbdFrameMode = mode; fbdReadyFlag = false; fbdState = null; fbdPendingLoad = null;
+    }
+
+    function showFbdView() {
+      hideMainViews(); hideExtraViews();
+      mgEl("fbdView").classList.remove("mg-hide");
+      mgEl("fbdLoading").classList.add("mg-hide");
+      mgEl("fbdFrameHost").classList.remove("mg-hide");
+      setHeaderPlain("Physics Question Library and Constructor", "", appMode === "both" ? "Step 1 of 3" : "");
+      updateChrome("fbd");
+      window.scrollTo({ top: 0 });
+    }
+
+    function sizeFbdFrame() {
+      const f = mgEl("fbdBuilderFrame"), h = document.querySelector("header");
+      if (!f) return;
+      const flow = mgEl("flowBar");
+      const top = (h ? h.offsetHeight : 0) + ((flow && !flow.classList.contains("mg-hide")) ? flow.offsetHeight : 0);
+      f.style.height = Math.max(420, window.innerHeight - top) + "px";
+    }
+    window.addEventListener("resize", sizeFbdFrame);
+
+    function sendFbdLoad(text, quiet) {
+      const f = mgEl("fbdBuilderFrame");
+      if (f && fbdReadyFlag && f.contentWindow) f.contentWindow.postMessage({ type: "fbd-load", text: text, quiet: !!quiet }, "*");
+      else { fbdPendingLoad = text; fbdPendingQuiet = !!quiet; }
+    }
+
+    window.addEventListener("message", ev => {
+      const f = mgEl("fbdBuilderFrame");
+      if (!f || ev.source !== f.contentWindow) return;
+      const d = ev.data;
+      if (!d || d.source !== "fbd-builder") return;
+      if (d.type === "fbd-ready") {
+        fbdReadyFlag = true;
+        if (fbdPendingLoad) { f.contentWindow.postMessage({ type: "fbd-load", text: fbdPendingLoad, quiet: fbdPendingQuiet }, "*"); fbdPendingLoad = null; fbdPendingQuiet = false; }
+      } else if (d.type === "fbd-state") {
+        fbdState = { recipe: d.recipe, config: d.config, count: d.count };
+        updateChrome(currentChromeTarget);
+      } else if (d.type === "fbd-next") {
+        if (appMode === "both") switchView("constructor");
+      } else if (d.type === "fbd-loaded") {
+        if (suppressFbdLoadedNote) { suppressFbdLoadedNote = false; return; }
+        showMessageModal("Loaded " + d.loaded + " free-body diagram scenario" + (d.loaded === 1 ? "" : "s") + " from the recipe." + (d.skipped ? " " + d.skipped + " could not be found and " + (d.skipped === 1 ? "was" : "were") + " skipped." : ""), "Free-Body Diagrams Loaded");
+      }
+    });
+
+    function flowGo(which) {
+      if (which === "fbd") showFbdView();
+      else if (which === "phys") switchView("constructor");
+      else goToReorderView();
+    }
+
+    // ---- the combined student app: one page holding the physics app and the free-body diagram app ----
+    function buildWrapperHtml(name, physicsHtml, fbdHtml) {
+      const S = "<" + "script", E = "<" + "/script>";
+      const css = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;background:#f8fafc;color:#0f172a}" +
+        "body{display:flex;flex-direction:column}" +
+        "#choose{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}" +
+        "#choose h1{font-size:29px;font-weight:800;margin:0 0 6px}#choose p{color:#64748b;font-size:14px;margin:0 0 28px}" +
+        ".cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;max-width:640px}" +
+        ".card{min-height:140px;border-radius:18px;border:2px solid #1d4ed8;background:#2563eb;color:#fff;font-weight:700;font-size:18px;font-family:inherit;cursor:pointer;padding:18px;box-shadow:0 8px 22px rgba(37,99,235,.25)}" +
+        ".card:hover{background:#1d4ed8}.card small{display:block;font-weight:500;font-size:14px;opacity:.9;margin-top:6px}" +
+                "iframe{display:none;flex:1;width:100%;border:0;min-height:0}" +
+        "@media(max-width:560px){.cards{grid-template-columns:1fr}}";
+      const body = "<div id=\"choose\"><h1 id=\"ttl\"></h1><p>Choose a practice set to begin.</p><div class=\"cards\">" +
+        "<button class=\"card\" id=\"pickPhysics\">Practice Physics Problems<small>Numerical problems with feedback</small></button>" +
+        "<button class=\"card\" id=\"pickFbd\">Free-Body Diagram Practice<small>Draw and label the forces</small></button></div></div>" +
+        "<iframe id=\"f-physics\" title=\"Physics problems\"></iframe><iframe id=\"f-fbd\" title=\"Free-body diagrams\"></iframe>";
+      const script = "var PHYSICS_HTML=" + mgJsStr(physicsHtml) + ";var FBD_HTML=" + mgJsStr(fbdHtml) + ";var TITLE=" + mgJsStr(name) + ";" +
+        "function el(i){return document.getElementById(i)}" +
+        "el('ttl').textContent=TITLE;" +
+        "function show(w){el('choose').style.display='none';" +
+        "['physics','fbd'].forEach(function(k){var f=el('f-'+k);if(k===w){if(!f.getAttribute('data-loaded')){f.srcdoc=(k==='physics'?PHYSICS_HTML:FBD_HTML);f.setAttribute('data-loaded','1');}f.style.display='block';}else{f.style.display='none';}});" +
+        "}window.addEventListener('message',function(ev){var d=ev.data;if(!d||d.type!=='mg-switch')return;if(ev.source!==el('f-physics').contentWindow&&ev.source!==el('f-fbd').contentWindow)return;show(d.to==='fbd'?'fbd':'physics');});" +
+        "el('pickPhysics').onclick=function(){show('physics')};el('pickFbd').onclick=function(){show('fbd')};";
+      return "<!DOC" + "TYPE html>\n<html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>" + mgEsc(name) + "</title><style>" + css + "</style></head><body>" +
+        body + S + ">" + script + E + "<" + "/body></html>";
+    }
+
+    function buildCombinedHTML() {
+      if (!fbdState || !fbdState.config || !fbdState.config.order || fbdState.config.order.length === 0) throw new Error("No free-body diagram scenarios are selected. Go back to step 1 and choose some.");
+      const name = (currentReviewApp && currentReviewApp.name) || "Review App";
+      const physicsHtml = buildStandaloneHTML();
+      const fbdHtml = buildFbdStudentHtml(Object.assign({}, fbdState.config, { title: name, sectionSwitch: true }), name);
+      return buildWrapperHtml(name, physicsHtml, fbdHtml);
+    }
+    // The HTML that Export, Copy and Download hand out: the plain physics app, or the combined page.
+    function buildExportHTML() { return appMode === "both" ? buildCombinedHTML() : buildStandaloneHTML(); }
+
+    function openCombinedPreview() {
+      let html;
+      try { html = buildCombinedHTML(); }
+      catch (err) { console.error(err); showMessageModal("The app could not be built: " + (err && err.message ? err.message : err), "Build Error"); return; }
+      mgEl("combinedPreviewTitle").textContent = currentReviewApp.name;
+      mgEl("combinedPreviewFrame").srcdoc = html;
+      mgEl("combinedPreview").classList.remove("mg-hide");
+      document.body.style.overflow = "hidden";
+    }
+    function closeCombinedPreview() {
+      mgEl("combinedPreview").classList.add("mg-hide");
+      mgEl("combinedPreviewFrame").srcdoc = "";
+      document.body.style.overflow = "";
+    }
+
     window.addEventListener("DOMContentLoaded", () => {
       initScratchpadEvents();
       loadExternalGitHubQuestions();
+      if (!window.STANDALONE_BOOT_CONFIG) showLanding();
     });
   </script>
 </body>

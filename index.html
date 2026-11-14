@@ -441,7 +441,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg sm:text-xl font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v39
+              Teacher Studio · v40
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -477,7 +477,7 @@ img,video{max-width:100%;height:auto}
 
           <button id="exportStandaloneBtn" onclick="downloadStandaloneReviewApp()" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white shadow-sm transition flex items-center gap-1.5">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-            Export Standalone HTML
+            Download Standalone HTML
           </button>
 
           <button id="copyHtmlBtn" onclick="copyStandaloneHtml()" title="Copy the app's HTML so you can paste it into a Google Site embed" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-xs font-bold text-white shadow-sm transition flex items-center gap-1.5">
@@ -535,7 +535,7 @@ img,video{max-width:100%;height:auto}
         <strong id="combinedPreviewTitle" style="font-size:.95rem;color:#0f172a"></strong>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <button type="button" class="mg-ghost mg-green" onclick="downloadStandaloneReviewApp()">Export Standalone HTML</button>
+        <button type="button" class="mg-ghost mg-green" onclick="downloadStandaloneReviewApp()">Download Standalone HTML</button>
         <button type="button" id="cpCopyBtn" class="mg-ghost mg-green" onclick="copyStandaloneHtml()">Copy HTML</button>
         <button type="button" class="mg-ghost mg-green" onclick="saveRecipe('review')">Save Recipe</button>
       </div>
@@ -780,8 +780,8 @@ img,video{max-width:100%;height:auto}
         <button type="button" onclick="saveRecipe('build')" title="Download a small file that remembers these questions, their order and your settings" class="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 text-white border border-transparent hover:bg-emerald-700 transition">
           Save Recipe
         </button>
-        <button onclick="buildAndDownloadStandalone()" class="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
-          Download Standalone HTML
+        <button onclick="buildAndCopyHtml()" title="Copy the app's HTML so you can paste it into a Google Site embed" class="w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition">
+          Copy HTML
         </button>
         <button onclick="buildAndLaunchReviewApp()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition">
           Launch Review App Now &rarr;
@@ -2149,6 +2149,16 @@ img,video{max-width:100%;height:auto}
       const a = document.createElement("a"); a.href = url; a.download = "physics-library-folders.json"; a.click(); URL.revokeObjectURL(url);
     }
 
+    function buildAndCopyHtml() {
+      try {
+        initializeReviewAppFromSelection();
+        closeBuildModal();
+        copyStandaloneHtml(true);
+      } catch (err) {
+        console.error(err);
+        showMessageModal("The HTML could not be created: " + (err && err.message ? err.message : err), "Copy Error");
+      }
+    }
     function buildAndDownloadStandalone() {
       try {
         initializeReviewAppFromSelection();
@@ -2244,11 +2254,12 @@ img,video{max-width:100%;height:auto}
     }
 
     // Copies the app's HTML to the clipboard, ready to paste into a Google Sites "Embed code" box.
-    function copyStandaloneHtml() {
+    function copyStandaloneHtml(fromBuild) {
       let html;
       try { html = buildExportHTML(); }
       catch (err) { console.error(err); showMessageModal("The HTML could not be created: " + (err && err.message ? err.message : err), "Copy Error"); return; }
       const done = () => {
+        if (fromBuild) { showMessageModal("The app's HTML is copied. Paste it into a Google Sites \"Embed code\" box, or into a text editor and save it as an .html file.", "HTML Copied"); return; }
         const b = document.getElementById(appMode === "both" ? "cpCopyBtn" : "copyHtmlBtn");
         if (b) { const old = b.innerHTML; b.textContent = "Copied!"; setTimeout(() => { b.innerHTML = old; }, 1800); }
       };
@@ -2259,7 +2270,7 @@ img,video{max-width:100%;height:auto}
         let ok = false;
         try { ok = document.execCommand("copy"); } catch (e) {}
         document.body.removeChild(ta);
-        if (ok) done(); else showMessageModal("Your browser blocked copying. Use Export Standalone HTML instead, then open that file in a text editor and copy its contents.", "Copy Blocked");
+        if (ok) done(); else showMessageModal("Your browser blocked copying. Use Download Standalone HTML instead, then open that file in a text editor and copy its contents.", "Copy Blocked");
       };
       if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(html).then(done, fallback); }
       else { fallback(); }
@@ -2625,7 +2636,7 @@ img,video{max-width:100%;height:auto}
       header.insertBefore(seg, header.children[1] || null);
     }
 
-    const APP_VERSION = "v39";
+    const APP_VERSION = "v40";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off

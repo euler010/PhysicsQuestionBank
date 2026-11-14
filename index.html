@@ -444,7 +444,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v50
+              Teacher Studio · v51
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -1868,6 +1868,142 @@ img,video{max-width:100%;height:auto}
     });
 
     let mgEvent = null, mgShared = null;   // combined app: the latest check result, and the shared score from the page around this app
+    // ---- saved progress: remembered in this browser (shared by the physics page, the diagram page and the wrapper) ----
+    function mgProgressKit(cfg) {
+      function hash(s) { s = String(s); var h = 5381; for (var i = 0; i < s.length; i++) { h = ((h << 5) + h + s.charCodeAt(i)) | 0; } return (h >>> 0).toString(36); }
+      var key = cfg.key || hash(cfg.keySource || "app");
+      var PFX = "mgprog:" + key + ":";
+      var api = { key: key, frozen: false };
+      function store() { try { return window.localStorage; } catch (e) { return null; } }
+      api.read = function (sec) { try { var r = store().getItem(PFX + sec); return r ? JSON.parse(r) : null; } catch (e) { return null; } };
+      api.write = function (sec, obj) { if (api.frozen) return false; try { store().setItem(PFX + sec, JSON.stringify(obj)); return true; } catch (e) { return false; } };
+      api.clear = function () { try { var s = store(), ks = [], i, k; for (i = 0; i < s.length; i++) { k = s.key(i); if (k && k.indexOf(PFX) === 0) ks.push(k); } ks.forEach(function (k2) { s.removeItem(k2); }); } catch (e) {} };
+      api.summary = function () { return { physics: api.read("physics"), fbd: api.read("fbd"), meta: api.read("meta") }; };
+      api.done = function () { var s = api.summary(); return { physics: (s.physics && s.physics.done) | 0, fbd: (s.fbd && s.fbd.done) | 0 }; };
+      api.has = function () { var s = api.summary(); return !!((s.physics && (s.physics.done > 0 || s.physics.touched > 0)) || (s.fbd && (s.fbd.done > 0 || s.fbd.touched > 0))); };
+      api.welcome = function (done, total, noun) { return done > 0 ? "Welcome back! You have completed " + done + " of " + total + (noun ? " " + noun : "") + "." : "Welcome back! Pick up where you left off."; };
+      api.save = function (title) {
+        var data = { format: "mg-progress", version: 1, key: key, title: String(title || ""), savedOn: new Date().toISOString(), data: api.summary() };
+        var blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+        var a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+        a.download = (String(title || "review").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "review") + "-progress.json";
+        document.body.appendChild(a); api.busy = true; a.click(); setTimeout(function () { api.busy = false; URL.revokeObjectURL(a.href); a.remove(); }, 500);
+      };
+      api.load = function (file, done) {
+        if (!file) return done("No file was chosen.");
+        if (file.size > 3000000) return done("That file is too large to be a progress file.");
+        var r = new FileReader();
+        r.onerror = function () { done("That file could not be read."); };
+        r.onload = function () {
+          var d; try { d = JSON.parse(String(r.result)); } catch (e) { return done("That file could not be read."); }
+          if (!d || d.format !== "mg-progress" || !d.data) return done("That is not a progress file.");
+          if (d.key !== key) return done("That progress file belongs to a different review app.");
+          api.clear(); ["physics", "fbd", "meta"].forEach(function (s) { if (d.data[s]) api.write(s, d.data[s]); });
+          api.frozen = true; done(null);
+        };
+        r.readAsText(file);
+      };
+      api.menu = function (host, opts) {
+        if (!host || document.getElementById("mgProgWrap")) return;
+        opts = opts || {};
+        var wrap = document.createElement("div"); wrap.id = "mgProgWrap"; wrap.style.cssText = "position:relative;flex:none";
+        var b = document.createElement("button"); b.id = "mgProgBtn"; b.type = "button"; b.title = "Save, load or reset your progress"; b.setAttribute("aria-label", "Progress options"); b.setAttribute("aria-haspopup", "true");
+        b.style.cssText = "height:36px;width:36px;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font:700 18px/1 Inter,system-ui,sans-serif;cursor:pointer;padding:0";
+        b.textContent = "⋯";
+        var p = document.createElement("div"); p.id = "mgProgMenu"; p.style.cssText = "display:none;position:absolute;right:0;top:42px;z-index:60;min-width:240px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.15);padding:6px;font:600 13px Inter,system-ui,sans-serif;color:#0f172a;text-align:left";
+        var msg = document.createElement("div"); msg.style.cssText = "display:none;padding:6px 10px 4px;font:500 12px Inter,system-ui,sans-serif;color:#64748b";
+        function say(t, bad) { msg.textContent = t; msg.style.color = bad ? "#b91c1c" : "#047857"; msg.style.display = "block"; }
+        function item(label, fn) {
+          var x = document.createElement("button"); x.type = "button"; x.textContent = label;
+          x.style.cssText = "display:block;width:100%;text-align:left;padding:9px 10px;border:0;border-radius:8px;background:transparent;font:inherit;color:inherit;cursor:pointer";
+          x.onmouseenter = function () { x.style.background = "#f1f5f9"; }; x.onmouseleave = function () { x.style.background = "transparent"; };
+          x.onclick = fn; p.appendChild(x); return x;
+        }
+        var fi = document.createElement("input"); fi.type = "file"; fi.accept = ".json,application/json"; fi.style.display = "none";
+        var armed = false, armTimer = null, rs;
+        function disarm() { armed = false; clearTimeout(armTimer); rs.textContent = "Reset my progress"; rs.style.color = "inherit"; }
+        function again() { if (opts.reload) opts.reload(); }
+        item("Save progress to a file", function () { api.save(opts.title); say("Saved. Keep the file somewhere safe."); });
+        item("Load progress from a file", function () { fi.click(); });
+        rs = item("Reset my progress", function () {
+          if (!armed) { armed = true; rs.textContent = "Click again to erase your progress"; rs.style.color = "#b91c1c"; armTimer = setTimeout(disarm, 4000); return; }
+          disarm(); api.clear(); api.frozen = true; say("Progress erased."); setTimeout(again, 500);
+        });
+        fi.onchange = function () { var f = fi.files && fi.files[0]; api.load(f, function (err) { if (err) say(err, true); else { say("Progress loaded."); setTimeout(again, 500); } }); fi.value = ""; };
+        p.appendChild(msg);
+        b.onclick = function (e) { e.stopPropagation(); var open = p.style.display === "block"; p.style.display = open ? "none" : "block"; if (open) disarm(); };
+        document.addEventListener("click", function (e) { if (api.busy) return; if (!wrap.contains(e.target)) { p.style.display = "none"; disarm(); } });
+        document.addEventListener("keydown", function (e) { if (e.key === "Escape") { p.style.display = "none"; disarm(); } });
+        wrap.appendChild(b); wrap.appendChild(p); wrap.appendChild(fi); host.appendChild(wrap);
+      };
+      api.banner = function (text, onContinue, onStart) {
+        var bar = document.createElement("div"); bar.id = "mgResume";
+        bar.style.cssText = "display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 14px;padding:10px 16px;background:#eff6ff;border-bottom:1px solid #bfdbfe;font:600 14px Inter,system-ui,sans-serif;color:#1e3a8a";
+        var t = document.createElement("span"); t.textContent = text; bar.appendChild(t);
+        function btn(label, primary, fn) {
+          var x = document.createElement("button"); x.type = "button"; x.textContent = label;
+          x.style.cssText = "padding:7px 14px;border-radius:8px;font:700 13px Inter,system-ui,sans-serif;cursor:pointer;border:1px solid " + (primary ? "#1d4ed8" : "#bfdbfe") + ";background:" + (primary ? "#2563eb" : "#fff") + ";color:" + (primary ? "#fff" : "#1e3a8a");
+          x.onclick = function () { bar.remove(); fn(); }; bar.appendChild(x);
+        }
+        btn("Continue", true, onContinue); btn("Start over", false, onStart);
+        document.body.insertBefore(bar, document.body.firstChild);
+      };
+      return api;
+    }
+
+    // ---- saved progress for this page (only in exported review apps) ----
+    let mgPK = null, mgPhysReady = false, mgPhysTimer = null;
+    function mgPhysBoot(cfg) {
+      try {
+        const ids = (cfg.selectedIds || []).join(",");
+        mgPK = mgProgressKit({ key: cfg.mgKey || "", keySource: "p|" + String(cfg.appName || "") + "|" + ids });
+        const reload = () => { try { if (cfg.sectionSwitch) window.parent.postMessage({ type: "mg-reload" }, "*"); else window.location.reload(); } catch (e) { window.location.reload(); } };
+        const host = document.getElementById("reviewToolbarItems");
+        if (host) mgPK.menu(host, { title: currentReviewApp.name, reload: reload });
+        if (cfg.sectionSwitch) { mgPhysRestore(); mgPhysReady = true; renderStudentReviewApp(); return; }
+        const s = mgPK.read("physics");
+        if (s && (s.done > 0 || s.touched > 0)) {
+          mgPK.banner(mgPK.welcome(s.done, s.total || currentReviewApp.questions.length, "problems"),
+            () => { mgPhysRestore(); mgPhysReady = true; renderStudentReviewApp(); },
+            () => { mgPK.clear(); mgPhysReady = true; });
+        } else mgPhysReady = true;
+      } catch (e) { mgPK = null; }
+    }
+    function mgPhysRestore() {
+      try {
+        const s = mgPK.read("physics"); if (!s || !s.q) return;
+        const qs = currentReviewApp.questions;
+        const clean = v => String(v == null ? "" : v).replace(/[<>"&]/g, "");
+        qs.forEach(q => {
+          const e = s.q[q.id]; if (!e || !e.vars || typeof e.vars !== "object" || !Array.isArray(e.ps)) return;
+          if (e.ps.length !== (q.parts || []).length) return;
+          const vars = {}; Object.keys(e.vars).forEach(k => { const v = e.vars[k]; if (typeof v === "number" || typeof v === "boolean") vars[k] = v; else if (typeof v === "string" && v.length < 200) vars[k] = clean(v); });
+          currentReviewApp.instances[q.id] = { vars: vars, partStates: e.ps.map(p => ({
+            attempts: Math.max(0, Math.min(999, Number(p.attempts) || 0)), completed: !!p.completed, showSolution: !!p.showSolution,
+            userVal: clean(p.userVal), userUnit: clean(p.userUnit), userDir: clean(p.userDir),
+            feedback: (p.feedback && typeof p.feedback === "object") ? { correct: !!p.feedback.correct, message: String(p.feedback.message || "").replace(/<[^>]*>/g, "") } : null
+          })) };
+        });
+        if (typeof s.idx === "number") currentReviewApp.currentIndex = Math.max(0, Math.min(qs.length - 1, Math.floor(s.idx)));
+        if (!window.STANDALONE_BOOT_CONFIG.sectionSwitch && typeof s.streak === "number") currentReviewApp.streak = Math.max(0, Math.floor(s.streak));
+      } catch (e) { console.error(e); }
+    }
+    function mgPhysSave(done) {
+      if (!mgPK || !mgPhysReady) return;
+      clearTimeout(mgPhysTimer);
+      mgPhysTimer = setTimeout(() => {
+        try {
+          const q = {};
+          currentReviewApp.questions.forEach(x => {
+            const inst = currentReviewApp.instances[x.id];
+            if (inst) q[x.id] = { vars: inst.vars, ps: inst.partStates.map(p => ({ attempts: p.attempts, completed: p.completed, showSolution: p.showSolution, userVal: p.userVal, userUnit: p.userUnit, userDir: p.userDir, feedback: p.feedback })) };
+          });
+          let touched = currentReviewApp.currentIndex > 0 ? 1 : 0; Object.keys(q).forEach(id => q[id].ps.forEach(p => { if (p.attempts > 0 || p.completed) touched++; }));
+          mgPK.write("physics", { v: 1, done: done, touched: touched, total: currentReviewApp.questions.length, idx: currentReviewApp.currentIndex, streak: currentReviewApp.streak, q: q, at: Date.now() });
+        } catch (e) {}
+      }, 150);
+    }
+
     function renderStudentReviewApp() {
       const qs = currentReviewApp.questions;
       if (!qs || qs.length === 0) return;
@@ -1879,6 +2015,7 @@ img,video{max-width:100%;height:auto}
       });
       document.getElementById("progressCounter").textContent = `${completedProblems}/${qs.length}`;
       document.getElementById("streakCounter").textContent = currentReviewApp.streak;
+      mgPhysSave(completedProblems);
       if (window.STANDALONE_BOOT_CONFIG && window.STANDALONE_BOOT_CONFIG.sectionSwitch) {
         try { window.parent.postMessage({ type: "mg-result", section: "physics", done: completedProblems, event: mgEvent }, "*"); } catch (e) {}
         mgEvent = null;
@@ -2221,7 +2358,8 @@ img,video{max-width:100%;height:auto}
     }
 
     // Builds the complete HTML text of the review app as it currently stands in the library.
-    function buildStandaloneHTML() {
+    function mgHashStr(s) { return mgProgressKit({ keySource: s }).key; }
+    function buildStandaloneHTML(mgKey) {
       if (selectedQuestionsOrder.length === 0) syncSelectedQuestionsOrder();
       const fixedSelectedArray = [...selectedQuestionsOrder];
       const openScr = "<" + "script", closeScr = "<" + "/script>", closeBody = "<" + "/body>", docType = "<!DOC" + "TYPE html>\n";
@@ -2248,6 +2386,7 @@ img,video{max-width:100%;height:auto}
       else throw new Error("Could not find the question data in this page.");
 
       const bootConfig = { orderedIds: fixedSelectedArray, selectedIds: fixedSelectedArray, appName: currentReviewApp.name, template: currentReviewApp.template, randomizationMode: randomizationMode, staticVars: (randomizationMode === "static" ? staticVarsStore : null), sectionSwitch: appMode === "both" };
+      if (mgKey) bootConfig.mgKey = mgKey;
       const bootScript = openScr + ">window.STANDALONE_BOOT_CONFIG = " + JSON.stringify(bootConfig) + ";" + closeScr + closeBody;
       return docType + fullSource.replace(closeBody, () => bootScript);
     }
@@ -2541,6 +2680,7 @@ img,video{max-width:100%;height:auto}
         renderLibraryList();   // so the library shows this app's saved selection if the creator goes back to edit it
         switchView("student");
         if (cfg.sectionSwitch) mgInstallSectionSwitch();
+        mgPhysBoot(cfg);
         // Students never see the "back" button. The creator opens the app with #edit on the address (or presses Ctrl+Shift+E).
         const backBtn = document.getElementById("backToConstructorBtn");
         const editMode = /[#?&]edit(?:=1|=true)?(?:&|$)/i.test(window.location.hash + window.location.search);
@@ -2646,10 +2786,11 @@ img,video{max-width:100%;height:auto}
         ".mg-seg{display:flex;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;background:#f1f5f9;height:36px;box-sizing:border-box;justify-self:center}" +
         ".mg-seg button{padding:0 16px;border:0;background:#f1f5f9;color:#64748b;font-weight:700;font-size:.82rem;font-family:inherit;cursor:pointer;white-space:nowrap}" +
         ".mg-seg button:hover{background:#e2e8f0}.mg-seg button.on{background:#2563eb;color:#fff;cursor:default}" +
-        ".mg-stats,#reviewToolbarItems>div:first-child{display:flex;align-items:center;gap:12px;height:36px;min-width:210px;justify-content:center;box-sizing:border-box;padding:0 12px!important;border-radius:8px;background:#f8fafc;border:1px solid #e2e8f0;font-size:14px;font-weight:600;white-space:nowrap}" +
+        ".mg-stats,#reviewToolbarItems>div:first-child{display:flex;align-items:center;gap:12px;height:36px;min-width:190px;justify-content:center;box-sizing:border-box;padding:0 12px!important;border-radius:8px;background:#f8fafc;border:1px solid #e2e8f0;font-size:14px;font-weight:600;white-space:nowrap}" +
         "#equationSheetLink{order:-1;height:36px;box-sizing:border-box;padding:0 12px!important;white-space:nowrap}" +
         "#reviewToolbarItems{flex-wrap:nowrap!important;justify-content:flex-end}" +
-        "@media(max-width:1100px){.mg-grid3{grid-template-columns:minmax(0,1fr);padding:12px 16px!important}.mg-grid3>*{justify-self:start!important}#equationSheetLink{order:1}}";
+        "@media(max-width:1180px){.mg-grid3{grid-template-columns:minmax(0,1fr);padding:12px 16px!important}.mg-grid3>*{justify-self:start!important}#equationSheetLink{order:1}}" +
+        "#mgProgWrap{order:2}@media(max-width:560px){#reviewToolbarItems{flex-wrap:wrap!important}}";
       document.head.appendChild(st);
       const seg = document.createElement("div");
       seg.id = "mgSectionSwitch"; seg.className = "mg-seg";
@@ -2842,7 +2983,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v50";
+    const APP_VERSION = "v51";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off
@@ -3067,7 +3208,37 @@ img,video{max-width:100%;height:auto}
     }
 
     // ---- the combined student app: one page holding the physics app and the free-body diagram app ----
-    function buildWrapperHtml(name, physicsHtml, fbdHtml, physTotal, fbdTotal) {
+    // ---- the wrapper page's part of saved progress (runs inside the exported combined page) ----
+    function mgWrapTail() {
+      var P = mgProgressKit({ key: MGKEY });
+      var meta = P.read("meta") || {};
+      var d0 = P.done();
+      DONE.physics = d0.physics; DONE.fbd = d0.fbd; STREAK = Number(meta.streak) || 0;
+      function saveMeta(w) { if (w) meta.section = w; P.write("meta", { v: 1, section: meta.section || "physics", streak: STREAK, at: Date.now() }); }
+      var _swap = swap; swap = function (w) { _swap(w); saveMeta(w); };
+      window.addEventListener("message", function (ev) {
+        var d = ev.data; if (!d) return;
+        var ok = ev.source === el("f-physics").contentWindow || ev.source === el("f-fbd").contentWindow;
+        if (!ok) return;
+        if (d.type === "mg-result") saveMeta();
+        else if (d.type === "mg-reload") location.reload();
+      });
+      if (P.has()) {
+        var bar = document.createElement("div"); bar.id = "mgResume";
+        bar.style.cssText = "display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 14px;margin:0 0 18px;padding:12px 16px;border-radius:14px;background:#eff6ff;border:1px solid #bfdbfe;font:600 14px Inter,system-ui,sans-serif;color:#1e3a8a;max-width:640px";
+        var t = document.createElement("span"); t.textContent = P.welcome(d0.physics + d0.fbd, TOT, ""); bar.appendChild(t);
+        var mk = function (label, primary, fn) {
+          var x = document.createElement("button"); x.type = "button"; x.textContent = label;
+          x.style.cssText = "padding:8px 16px;border-radius:10px;font:700 13px Inter,system-ui,sans-serif;cursor:pointer;border:1px solid " + (primary ? "#1d4ed8" : "#bfdbfe") + ";background:" + (primary ? "#2563eb" : "#fff") + ";color:" + (primary ? "#fff" : "#1e3a8a");
+          x.onclick = fn; bar.appendChild(x);
+        };
+        mk("Continue", true, function () { bar.remove(); show(meta.section === "fbd" ? "fbd" : "physics"); });
+        mk("Start over", false, function () { P.clear(); DONE.physics = 0; DONE.fbd = 0; STREAK = 0; meta = {}; bar.remove(); });
+        var c = el("choose"); c.insertBefore(bar, el("ttl"));
+      }
+    }
+
+    function buildWrapperHtml(name, physicsHtml, fbdHtml, physTotal, fbdTotal, mgKey) {
       const S = "<" + "script", E = "<" + "/script>";
       const css = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;background:#f1f5f9;color:#0f172a}" +
         "body{display:flex;flex-direction:column}" +
@@ -3097,15 +3268,16 @@ img,video{max-width:100%;height:auto}
         "}window.addEventListener('message',function(ev){var d=ev.data;if(!d||d.type!=='mg-switch')return;if(ev.source!==el('f-physics').contentWindow&&ev.source!==el('f-fbd').contentWindow)return;show(d.to==='fbd'?'fbd':'physics');});" +
         "el('pickPhysics').onclick=function(){show('physics')};el('pickFbd').onclick=function(){show('fbd')};";
       return "<!DOC" + "TYPE html>\n<html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>" + mgEsc(name) + "</title><style>" + css + "</style></head><body>" +
-        body + S + ">" + script + E + "<" + "/body></html>";
+        body + S + ">" + script + E + S + ">var MGKEY=" + mgJsStr(String(mgKey || "")) + ";" + mgProgressKit.toString() + ";(" + mgWrapTail.toString() + ")();" + E + "<" + "/body></html>";
     }
 
     function buildCombinedHTML() {
       if (!fbdState || !fbdState.config || !fbdState.config.order || fbdState.config.order.length === 0) throw new Error("No free-body diagram scenarios are selected. Go back to step 1 and choose some.");
       const name = (currentReviewApp && currentReviewApp.name) || "Review App";
-      const physicsHtml = buildStandaloneHTML();
-      const fbdHtml = buildFbdStudentHtml(Object.assign({}, fbdState.config, { title: name, sectionSwitch: true, equationSheetUrl: (TEMPLATE_CONFIG[currentReviewApp.template] || TEMPLATE_CONFIG["AP Physics 1"]).equationSheetUrl }), name);
-      return buildWrapperHtml(name, physicsHtml, fbdHtml, currentReviewApp.questions.length, fbdState.config.order.length);
+      const mgKey = mgHashStr("b|" + name + "|" + selectedQuestionsOrder.join(",") + "|" + fbdState.config.order.join(","));
+      const physicsHtml = buildStandaloneHTML(mgKey);
+      const fbdHtml = buildFbdStudentHtml(Object.assign({}, fbdState.config, { title: name, sectionSwitch: true, mgKey: mgKey, equationSheetUrl: (TEMPLATE_CONFIG[currentReviewApp.template] || TEMPLATE_CONFIG["AP Physics 1"]).equationSheetUrl }), name);
+      return buildWrapperHtml(name, physicsHtml, fbdHtml, currentReviewApp.questions.length, fbdState.config.order.length, mgKey);
     }
     // The HTML that Export, Copy and Download hand out: the plain physics app, or the combined page.
     function buildExportHTML() { return appMode === "both" ? buildCombinedHTML() : buildStandaloneHTML(); }

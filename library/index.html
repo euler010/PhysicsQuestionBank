@@ -444,7 +444,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v46
+              Teacher Studio · v48
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -2840,7 +2840,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v46";
+    const APP_VERSION = "v48";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off
@@ -3075,22 +3075,23 @@ img,video{max-width:100%;height:auto}
         ".cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;max-width:640px}" +
         ".card{min-height:140px;border-radius:18px;border:2px solid #1d4ed8;background:#2563eb;color:#fff;font-weight:700;font-size:18px;font-family:inherit;cursor:pointer;padding:18px;box-shadow:0 8px 22px rgba(37,99,235,.25)}" +
         ".card:hover{background:#1d4ed8}.card small{display:block;font-weight:500;font-size:14px;opacity:.9;margin-top:6px}" +
-                "iframe{display:none;flex:1;width:100%;border:0;min-height:0}" +
+                "#stage{position:relative;flex:1;min-height:0;display:none}#stage iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;background:#f1f5f9;visibility:hidden}#stage iframe.on{visibility:visible}" +
         "@media(max-width:560px){.cards{grid-template-columns:1fr}}";
       const body = "<div id=\"choose\"><canvas id=\"flare\" aria-hidden=\"true\"></canvas><h1 id=\"ttl\"></h1><p>Choose a practice set to begin.</p><div class=\"cards\">" +
         "<button class=\"card\" id=\"pickPhysics\">Practice Physics Problems<small>Numerical problems with feedback</small></button>" +
         "<button class=\"card\" id=\"pickFbd\">Free-Body Diagram Practice<small>Draw and label the forces</small></button></div></div>" +
-        "<iframe id=\"f-physics\" title=\"Physics problems\"></iframe><iframe id=\"f-fbd\" title=\"Free-body diagrams\"></iframe>";
+        "<div id=\"stage\"><iframe id=\"f-physics\" title=\"Physics problems\"></iframe><iframe id=\"f-fbd\" title=\"Free-body diagrams\"></iframe></div>";
       const script = "var PHYSICS_HTML=" + mgJsStr(physicsHtml) + ";var FBD_HTML=" + mgJsStr(fbdHtml) + ";var TITLE=" + mgJsStr(name) + ";" +
         "function el(i){return document.getElementById(i)}" +
         "var TOT=" + (Number(physTotal) + Number(fbdTotal)) + ",DONE={physics:0,fbd:0},STREAK=0;" +
         "function bc(){var m={type:'mg-score',done:DONE.physics+DONE.fbd,total:TOT,streak:STREAK};['physics','fbd'].forEach(function(k){var f=el('f-'+k);if(f&&f.contentWindow)f.contentWindow.postMessage(m,'*');});}" +
-        "['physics','fbd'].forEach(function(k){el('f-'+k).addEventListener('load',bc);});" +
+        "var WANT=null;function load(k){var f=el('f-'+k);if(!f.getAttribute('data-loaded')){f.setAttribute('data-loaded','1');f.srcdoc=(k==='physics'?PHYSICS_HTML:FBD_HTML);}return f;}" +
+        "function swap(w){el('choose').style.display='none';el('stage').style.display='block';['physics','fbd'].forEach(function(k){el('f-'+k).className=(k===w?'on':'');});bc();var o=(w==='fbd'?'physics':'fbd');setTimeout(function(){load(o);},400);}" +
+        "['physics','fbd'].forEach(function(k){el('f-'+k).addEventListener('load',function(){this.setAttribute('data-ready','1');bc();if(WANT===k)swap(k);});});" +
         "window.addEventListener('message',function(ev){var d=ev.data;if(!d||d.type!=='mg-result')return;if(ev.source!==el('f-physics').contentWindow&&ev.source!==el('f-fbd').contentWindow)return;if(d.section!=='physics'&&d.section!=='fbd')return;DONE[d.section]=Number(d.done)||0;if(d.event==='correct')STREAK++;else if(d.event==='wrong')STREAK=0;bc();});" +
         mgFlareInit.toString() + ";try{mgFlareInit(el('flare'),function(){return el('choose').style.display!=='none';});}catch(e){}" +
         "el('ttl').textContent=TITLE;" +
-        "function show(w){el('choose').style.display='none';" +
-        "['physics','fbd'].forEach(function(k){var f=el('f-'+k);if(k===w){if(!f.getAttribute('data-loaded')){f.srcdoc=(k==='physics'?PHYSICS_HTML:FBD_HTML);f.setAttribute('data-loaded','1');}f.style.display='block';}else{f.style.display='none';}});" +
+        "function show(w){WANT=w;var f=load(w);if(f.getAttribute('data-ready')==='1')swap(w);" +
         "}window.addEventListener('message',function(ev){var d=ev.data;if(!d||d.type!=='mg-switch')return;if(ev.source!==el('f-physics').contentWindow&&ev.source!==el('f-fbd').contentWindow)return;show(d.to==='fbd'?'fbd':'physics');});" +
         "el('pickPhysics').onclick=function(){show('physics')};el('pickFbd').onclick=function(){show('fbd')};";
       return "<!DOC" + "TYPE html>\n<html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>" + mgEsc(name) + "</title><style>" + css + "</style></head><body>" +
@@ -3101,7 +3102,7 @@ img,video{max-width:100%;height:auto}
       if (!fbdState || !fbdState.config || !fbdState.config.order || fbdState.config.order.length === 0) throw new Error("No free-body diagram scenarios are selected. Go back to step 1 and choose some.");
       const name = (currentReviewApp && currentReviewApp.name) || "Review App";
       const physicsHtml = buildStandaloneHTML();
-      const fbdHtml = buildFbdStudentHtml(Object.assign({}, fbdState.config, { title: name, sectionSwitch: true }), name);
+      const fbdHtml = buildFbdStudentHtml(Object.assign({}, fbdState.config, { title: name, sectionSwitch: true, equationSheetUrl: (TEMPLATE_CONFIG[currentReviewApp.template] || TEMPLATE_CONFIG["AP Physics 1"]).equationSheetUrl }), name);
       return buildWrapperHtml(name, physicsHtml, fbdHtml, currentReviewApp.questions.length, fbdState.config.order.length);
     }
     // The HTML that Export, Copy and Download hand out: the plain physics app, or the combined page.

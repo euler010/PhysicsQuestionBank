@@ -444,7 +444,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v44
+              Teacher Studio · v45
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -2639,11 +2639,17 @@ img,video{max-width:100%;height:auto}
       const header = document.querySelector("header > div");
       if (!header || document.getElementById("mgSectionSwitch")) return;
       const st = document.createElement("style");
-      st.textContent = ".mg-grid3{display:grid!important;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}.mg-grid3>:last-child{justify-self:end}" +
-        ".mg-seg{display:flex;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;background:#f1f5f9}" +
-        ".mg-seg button{padding:7px 16px;border:0;background:#f1f5f9;color:#64748b;font-weight:700;font-size:.82rem;font-family:inherit;cursor:pointer;white-space:nowrap}" +
+      st.textContent = ".mg-grid3{display:grid!important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;column-gap:16px;row-gap:8px;max-width:1280px;margin:0 auto;box-sizing:border-box;min-height:61px;padding:12px 24px!important}" +
+        "header{background:#fff!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;border-bottom:1px solid #e2e8f0!important;box-shadow:0 1px 2px rgba(15,23,42,.05)!important}" +
+        ".mg-grid3>:first-child{justify-self:start;min-width:0}.mg-grid3>:last-child{justify-self:end}" +
+        "header h1{font-size:18px!important;line-height:28px!important;margin:0!important;font-weight:700!important;letter-spacing:-.01em!important}" +
+        ".mg-seg{display:flex;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;background:#f1f5f9;height:36px;box-sizing:border-box;justify-self:center}" +
+        ".mg-seg button{padding:0 16px;border:0;background:#f1f5f9;color:#64748b;font-weight:700;font-size:.82rem;font-family:inherit;cursor:pointer;white-space:nowrap}" +
         ".mg-seg button:hover{background:#e2e8f0}.mg-seg button.on{background:#2563eb;color:#fff;cursor:default}" +
-        "@media(max-width:760px){.mg-grid3{grid-template-columns:1fr}.mg-grid3>:last-child,.mg-seg{justify-self:start}}";
+        ".mg-stats,#reviewToolbarItems>div:first-child{display:flex;align-items:center;gap:12px;height:36px;min-width:178px;justify-content:center;box-sizing:border-box;padding:0 12px!important;border-radius:8px;background:#f8fafc;border:1px solid #e2e8f0;font-size:14px;font-weight:600;white-space:nowrap}" +
+        "#equationSheetLink{order:-1;height:36px;box-sizing:border-box;padding:0 12px!important;white-space:nowrap}" +
+        "#reviewToolbarItems{flex-wrap:nowrap!important;justify-content:flex-end}" +
+        "@media(max-width:1100px){.mg-grid3{grid-template-columns:minmax(0,1fr);padding:12px 16px!important}.mg-grid3>*{justify-self:start!important}#equationSheetLink{order:1}}";
       document.head.appendChild(st);
       const seg = document.createElement("div");
       seg.id = "mgSectionSwitch"; seg.className = "mg-seg";
@@ -2835,7 +2841,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v44";
+    const APP_VERSION = "v45";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off

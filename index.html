@@ -446,7 +446,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v54
+              Teacher Studio · v55
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -2985,7 +2985,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v54";
+    const APP_VERSION = "v55";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off
@@ -3246,6 +3246,38 @@ img,video{max-width:100%;height:auto}
       }
     }
 
+    // ---- puts the centre of the title + buttons group at 40% of the visible height, even inside a taller embedded frame ----
+    function mgFit40() {
+      var ch = document.getElementById("choose");
+      if (!ch || !window.IntersectionObserver) return;
+      var probe = document.createElement("div");
+      probe.style.cssText = "position:fixed;left:0;top:0;width:2px;height:100vh;opacity:0;pointer-events:none";
+      document.body.appendChild(probe);
+      function group() {
+        return Array.prototype.filter.call(ch.children, function (e) { return e.tagName !== "CANVAS" && e.getBoundingClientRect().height > 0; })
+          .map(function (e) { return e.getBoundingClientRect(); });
+      }
+      function place(vis) {
+        var k = group(); if (!k.length) return;
+        var top = Math.min.apply(null, k.map(function (r) { return r.top; })), bot = Math.max.apply(null, k.map(function (r) { return r.bottom; }));
+        var c0 = (top + bot) / 2, target = vis.top + 0.4 * vis.height;
+        var pb = parseFloat(getComputedStyle(ch).paddingBottom) || 24;
+        var npb = Math.max(24, pb + 2 * (c0 - target));
+        if (Math.abs(npb - pb) > 1) ch.style.paddingBottom = npb + "px";
+      }
+      function measure() {
+        var io = new IntersectionObserver(function (es) {
+          io.disconnect();
+          var r = es[es.length - 1].intersectionRect;
+          if (r && r.height > 0) place({ top: r.top, height: r.height });
+        });
+        io.observe(probe);
+      }
+      var tm = null;
+      window.addEventListener("resize", function () { clearTimeout(tm); tm = setTimeout(function () { ch.style.paddingBottom = ""; setTimeout(measure, 30); }, 150); });
+      measure();
+    }
+
     function buildWrapperHtml(name, physicsHtml, fbdHtml, physTotal, fbdTotal, mgKey) {
       const S = "<" + "script", E = "<" + "/script>";
       const css = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;background:#f1f5f9;color:#0f172a}" +
@@ -3276,7 +3308,7 @@ img,video{max-width:100%;height:auto}
         "}window.addEventListener('message',function(ev){var d=ev.data;if(!d||d.type!=='mg-switch')return;if(ev.source!==el('f-physics').contentWindow&&ev.source!==el('f-fbd').contentWindow)return;show(d.to==='fbd'?'fbd':'physics');});" +
         "el('pickPhysics').onclick=function(){show('physics')};el('pickFbd').onclick=function(){show('fbd')};";
       return "<!DOC" + "TYPE html>\n<html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>" + mgEsc(name) + "</title><style>" + css + "</style></head><body>" +
-        body + S + ">" + script + E + S + ">var MGKEY=" + mgJsStr(String(mgKey || "")) + ";" + mgProgressKit.toString() + ";(" + mgWrapTail.toString() + ")();" + E + "<" + "/body></html>";
+        body + S + ">" + script + E + S + ">var MGKEY=" + mgJsStr(String(mgKey || "")) + ";" + mgProgressKit.toString() + ";(" + mgWrapTail.toString() + ")();" + E + S + ">(" + mgFit40.toString() + ")();" + E + "<" + "/body></html>";
     }
 
     function buildCombinedHTML() {

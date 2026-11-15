@@ -386,7 +386,9 @@ img,video{max-width:100%;height:auto}
 @media (min-width:1024px){.lg\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}}
     /* ---- v28: app-type landing page, flow bar, Free-Body Diagram section ---- */
     .mg-hide { display: none !important; }
-    #landingView { position: relative; background: #f1f5f9; max-width: none; min-height: calc(100vh - 56px); display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 24px; padding-bottom: 24px; }
+    #landingView { position: relative; background: #f1f5f9; max-width: none; min-height: calc(100vh - var(--mg-hdr, 53px)); display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 24px; padding-bottom: 24px; }
+    /* sit the content's centre at 40% of the page height instead of 50% */
+    @media (min-height: 640px) { #landingView { padding-bottom: calc(24px + 20vh + var(--mg-hdr, 53px)); } }
     #landingFlare { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
     #landingView > *:not(canvas) { position: relative; z-index: 1; width: 100%; max-width: 760px; }
     .mg-landing { max-width: 760px; margin: 0 auto; padding: 56px 20px 40px; text-align: center; }
@@ -444,7 +446,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v51
+              Teacher Studio · v53
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -2952,7 +2954,7 @@ img,video{max-width:100%;height:auto}
     };
     const names=Object.keys(scenes);
     // slots: fractions of the stage, kept away from the centre block
-    const slots=[[.03,.03],[.03,.27],[.23,.02],[.43,.01],[.63,.02],[.80,.03],[.81,.27],[.81,.51],[.77,.67],[.50,.69],[.28,.69]];
+    const slots=[[.03,.03],[.03,.27],[.80,.03],[.81,.27],[.81,.51],[.77,.67],[.50,.69],[.28,.69]];   // no top-centre slots: the content sits at 40% of the page height
     const active=[];let lastSpawn=0,paused=false,clock=0;
     function spawn(name,age){
       const used=active.map(a=>a.slot);const free=slots.map((_,i)=>i).filter(i=>!used.includes(i)&&!(W<720&&i>1));
@@ -2983,7 +2985,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v51";
+    const APP_VERSION = "v53";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off
@@ -3083,8 +3085,14 @@ img,video{max-width:100%;height:auto}
       if (h2) h2.textContent = appMode ? "Which sections should this app include?" : "What would you like to build?";
       if (sub) sub.textContent = appMode ? "Add or remove a section at any time. Whatever you already chose is kept, even for a section you turn off, in case you add it back." : "Choose one or both. Your students get the sections you pick.";
       updateChrome("landing");
+      mgSetHeaderVar();
       window.scrollTo({ top: 0 });
     }
+    function mgSetHeaderVar() {
+      const lv = mgEl("landingView"); if (!lv || lv.classList.contains("mg-hide")) return;
+      document.documentElement.style.setProperty("--mg-hdr", Math.round(lv.getBoundingClientRect().top + window.scrollY) + "px");
+    }
+    window.addEventListener("resize", mgSetHeaderVar);
 
     function toggleLandingCard(which) {
       landingSel[which] = !landingSel[which];
@@ -3242,7 +3250,7 @@ img,video{max-width:100%;height:auto}
       const S = "<" + "script", E = "<" + "/script>";
       const css = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;background:#f1f5f9;color:#0f172a}" +
         "body{display:flex;flex-direction:column}" +
-        "#choose{position:relative;overflow:hidden;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}" +
+        "#choose{position:relative;overflow:hidden;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}@media(min-height:640px){#choose{padding-bottom:calc(24px + 20vh)}}" +
         "#flare{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}#choose>*:not(canvas){position:relative;z-index:1}" +
         "#choose h1{font-size:29px;font-weight:800;margin:0 0 6px}#choose p{color:#64748b;font-size:14px;margin:0 0 28px}" +
         ".cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;max-width:640px}" +

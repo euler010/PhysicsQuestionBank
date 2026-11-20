@@ -446,7 +446,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v55
+              Teacher Studio · v56
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -2369,6 +2369,8 @@ img,video{max-width:100%;height:auto}
       // Work on a copy of the page, minus the teacher-only sections added in v28 (start page, free-body diagram builder, preview).
       const docClone = document.documentElement.cloneNode(true);
       ["#landingView", "#fbdView", "#flowBar", "#combinedPreview", "#appTypeBtn", "#saveRecipeTopBtn", "script[id^='fbdFile_']"].forEach(sel => docClone.querySelectorAll(sel).forEach(n => n.remove()));
+      // The library locks its own scrolling while the preview window is open. Never copy that lock into the student app.
+      [docClone, docClone.querySelector("body")].forEach(n => { if (n && n.style) { n.style.overflow = ""; if (!n.getAttribute("style")) n.removeAttribute("style"); } });
       let fullSource = docClone.outerHTML;
       // Google Sites (and similar hosts) can add their own tags to a page while it runs inside their frame, such as a <base> link back to a googleusercontent.com address.
       // Those must not be saved into the exported app, or the copy looks for its parts in the wrong place. Remove them.
@@ -2985,7 +2987,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v55";
+    const APP_VERSION = "v56";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off
@@ -3338,6 +3340,7 @@ img,video{max-width:100%;height:auto}
     }
 
     window.addEventListener("DOMContentLoaded", () => {
+      if (window.STANDALONE_BOOT_CONFIG && document.body.style.overflow === "hidden") document.body.style.overflow = "";
       initScratchpadEvents();
       loadExternalGitHubQuestions();
       if (!window.STANDALONE_BOOT_CONFIG) showLanding();

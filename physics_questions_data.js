@@ -8879,8 +8879,8 @@ const PHYSICS_QUESTIONS = [
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "collinearMasses",
     baseVars: { rABcm: 28.3, rACcm: 66.8, mA: 53.7, mB: 82.9, mC: 49.3 },
     randomize: (b) => { const rAB = rnd(b.rABcm, 0.18, 1); return { rABcm: rAB, rACcm: Number((rAB + rnd(b.rACcm - b.rABcm, 0.18, 1)).toFixed(1)), mA: rnd(b.mA, 0.20, 1), mB: rnd(b.mB, 0.20, 1), mC: rnd(b.mC, 0.20, 1) }; },
-    renderPrompt: (v) => `From center to center, the distance between mass A and B is <strong>${v.rABcm} cm</strong> and from A to C is <strong>${v.rACcm} cm</strong> (with A on the left, B in the middle, and C on the right). If <em>m</em><sub>A</sub> = <strong>${v.mA} kg</strong>, <em>m</em><sub>B</sub> = <strong>${v.mB} kg</strong>, and <em>m</em><sub>C</sub> = <strong>${v.mC} kg</strong>, what is the gravitational net force on mass B? Let the positive direction be to the right.`,
-    parts: [{ label: "Net gravitational force on B (F<sub>net,B</sub>)", unit: "N", solve: (v) => (G_CONST * v.mC * v.mB) / Math.pow((v.rACcm - v.rABcm)/100, 2) - (G_CONST * v.mA * v.mB) / Math.pow(v.rABcm/100, 2), steps: (v, ans) => {
+    renderPrompt: (v) => `From center to center, the distance between mass A and B is <strong>${v.rABcm} cm</strong> and from A to C is <strong>${v.rACcm} cm</strong> (with A on the left, B in the middle, and C on the right). <em>m</em><sub>A</sub> = <strong>${v.mA} kg</strong>, <em>m</em><sub>B</sub> = <strong>${v.mB} kg</strong>, and <em>m</em><sub>C</sub> = <strong>${v.mC} kg</strong>. Use a coordinate system in which positive is to the right.<br/><strong>a.</strong> Determine the gravitational net force on mass B.<br/><strong>b.</strong> Determine the gravitational net force on mass C.`,
+    parts: [{ label: "a. Net gravitational force on B (F<sub>net,B</sub>)", unit: "N", solve: (v) => (G_CONST * v.mC * v.mB) / Math.pow((v.rACcm - v.rABcm)/100, 2) - (G_CONST * v.mA * v.mB) / Math.pow(v.rABcm/100, 2), steps: (v, ans) => {
           const rBC = (v.rACcm - v.rABcm) / 100, rAB = v.rABcm / 100;
           const fA = G_CONST * v.mA * v.mB / (rAB * rAB), fC = G_CONST * v.mC * v.mB / (rBC * rBC);
           return guidedSteps(
@@ -8888,6 +8888,16 @@ const PHYSICS_QUESTIONS = [
             `Each force uses <em>F</em> = <em>G</em><em>m</em><sub>1</sub><em>m</em><sub>2</sub> / <em>r</em>&sup2; with <em>G</em> = 6.67 &times; 10<sup>&minus;11</sup>. Pull from A: <em>F</em><sub>AB</sub> = ${fA.toExponential(3)} N (left). Pull from C: <em>F</em><sub>CB</sub> = ${fC.toExponential(3)} N (right).`,
             `Add them with signs (right is positive): <em>F</em><sub>net,B</sub> = ${fC.toExponential(3)} &minus; ${fA.toExponential(3)} = <strong>${ans.toExponential(3)} N</strong>.`,
             `${ans >= 0 ? 'The result is positive, so the net force on B points to the right (toward C).' : 'The result is negative, so the net force on B points to the left (toward A).'}`
+          );
+        }},
+      { label: "b. Net gravitational force on C (F<sub>net,C</sub>)", unit: "N", solve: (v) => -((G_CONST * v.mA * v.mC) / Math.pow(v.rACcm/100, 2) + (G_CONST * v.mB * v.mC) / Math.pow((v.rACcm - v.rABcm)/100, 2)), steps: (v, ans) => {
+          const rBC = (v.rACcm - v.rABcm) / 100, rAC = v.rACcm / 100;
+          const fA = G_CONST * v.mA * v.mC / (rAC * rAC), fB = G_CONST * v.mB * v.mC / (rBC * rBC);
+          return guidedSteps(
+            `Mass C is on the far right, so <em>both</em> A and B pull it toward the <em>left</em> (negative). The distances from C are <em>r</em><sub>AC</sub> = ${v.rACcm} cm = ${rAC.toFixed(3)} m and <em>r</em><sub>BC</sub> = ${v.rACcm} cm &minus; ${v.rABcm} cm = ${(v.rACcm - v.rABcm).toFixed(1)} cm = ${rBC.toFixed(3)} m.`,
+            `Each force uses <em>F</em> = <em>G</em><em>m</em><sub>1</sub><em>m</em><sub>2</sub> / <em>r</em>&sup2; with <em>G</em> = 6.67 &times; 10<sup>&minus;11</sup>. Pull from A: <em>F</em><sub>AC</sub> = ${fA.toExponential(3)} N (left). Pull from B: <em>F</em><sub>BC</sub> = ${fB.toExponential(3)} N (left).`,
+            `Add them with signs (right is positive): <em>F</em><sub>net,C</sub> = &minus;${fA.toExponential(3)} &minus; ${fB.toExponential(3)} = <strong>${ans.toExponential(3)} N</strong>.`,
+            `The result is negative, so the net force on C points to the left (toward A and B).`
           );
         }}]
   },

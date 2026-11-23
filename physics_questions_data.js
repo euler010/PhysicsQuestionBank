@@ -7846,6 +7846,9 @@ const DIAGRAM_DRAWERS = {
 // 3b. Diagrams for the circular motion and gravitation questions added in November 2026 (CMG-05 and CMG-09 to CMG-45).
 // They share one set of drawing helpers, and pqStyle() gives them the same textbook look as the other diagrams.
 (function () {
+  // Every helper lives inside __pqKit so each diagram can carry its own copy into an exported review app
+  // (an exported app copies each diagram function by itself, without anything around it).
+  function __pqKit() {
   const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706", P = "#7c3aed", K = "#475569";
   const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
   const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
@@ -7883,8 +7886,8 @@ const DIAGRAM_DRAWERS = {
     + man(150, 196, A) + `<g transform="rotate(180 150 118)">${man(150, 196, A)}</g>`
     + spin(150, 118, 112, 112, R) + lb(282, 70, lab1) + lb(282, 96, lab2) + lb(282, 150, "spins about its center"));
 
+  }
   const D = {
-    hillRider: (v) => DIAGRAM_DRAWERS.hillMotorcycle({ v: f(v.v, 2), m: f(v.m, 1), r: f(v.r, 2) }).replace(/\(bike \+ rider\)/, "(rider)"),
 
     vertCircleRock: (v) => svg(235, circ(140, 112, 96, "none", S, 2, "6 5") + dot(140, 112, T) + ln(140, 112, 140, 200, T, 2.5)
       + `<ellipse cx="140" cy="210" rx="15" ry="11" fill="#94a3b8" stroke="${T}" stroke-width="2.5"/>` + lb(124, 160, "r", "end")
@@ -8033,7 +8036,15 @@ const DIAGRAM_DRAWERS = {
       + ar(144, 85, 190, 85, R) + ar(296, 85, 250, 85, R) + tx(220, 60, `F = ${sci(f(v.FE10, 1), "&minus;10")} N`, R, "middle", 12.5)
       + ln(110, 140, 320, 140, S, 1.5) + ln(110, 132, 110, 148, S, 1.5) + ln(320, 132, 320, 148, S, 1.5) + tx(215, 162, `${f(v.d, 2)} m`, K, "middle", 12.5) + lb(20, 22, `m${sb("1")} + m${sb("2")} = ${f(v.total, 2)} kg`))
   };
-  Object.keys(D).forEach(function (k) { DIAGRAM_DRAWERS[k] = k === "hillRider" ? D[k] : function (v) { return pqStyle(D[k](v)); }; });
+  const kit = __pqKit.toString(), kitBody = kit.slice(kit.indexOf("{") + 1, kit.lastIndexOf("}"));
+  Object.keys(D).forEach(function (k) {
+    DIAGRAM_DRAWERS[k] = new Function("return function (v) {" + kitBody + "\n    return pqStyle((" + D[k].toString() + ")(v));\n  };")();
+  });
+  // The motorcycle-over-a-hill picture, with the rider's mass labeled as the rider's alone and numbers shown to their stated precision.
+  if (DIAGRAM_DRAWERS.hillMotorcycle) {
+    const hm = DIAGRAM_DRAWERS.hillMotorcycle.toString(), at = hm.indexOf("{") + 1;
+    DIAGRAM_DRAWERS.hillRider = new Function("return " + hm.slice(0, at) + "\n    v = { v: Number(v.v).toFixed(2), m: Number(v.m).toFixed(1), r: Number(v.r).toFixed(2) };" + hm.slice(at).replace("(bike + rider)", "(rider)") + ";")();
+  }
 })();
 
 function getDiagramSVG(type, v) {
@@ -8520,9 +8531,9 @@ const PHYSICS_QUESTIONS = [
           const v0 = (0.5 * G_ACCEL * v.tTotal * v.tTotal - v.dropDist) / v.tTotal;
           const climb = (v0 * v0) / (2 * G_ACCEL);
           return guidedSteps(
-            `Take up as positive. The ball lands ${v.dropDist} m <em>below</em> the bat, so its total displacement is &Delta;<em>y</em> = &minus;${v.dropDist} m after <em>t</em> = ${v.tTotal} s. First find the launch speed: &minus;${v.dropDist} = <em>v</em><sub>0</sub><em>t</em> &minus; &frac12;<em>g</em><em>t</em>&sup2;, so <em>v</em><sub>0</sub> = (&frac12;<em>g</em><em>t</em>&sup2; &minus; ${v.dropDist}) / <em>t</em> = ${v0.toFixed(2)} m/s (this is part b).`,
+            `Take up as positive. The ball lands ${v.dropDist} m <i>below</i> the bat, so its total displacement is &Delta;<em>y</em> = &minus;${v.dropDist} m after <em>t</em> = ${v.tTotal} s. First find the launch speed: &minus;${v.dropDist} = <em>v</em><sub>0</sub><em>t</em> &minus; &frac12;<em>g</em><em>t</em>&sup2;, so <em>v</em><sub>0</sub> = (&frac12;<em>g</em><em>t</em>&sup2; &minus; ${v.dropDist}) / <em>t</em> = ${v0.toFixed(2)} m/s (this is part b).`,
             `At the apex the velocity is zero, so the climb above the bat is <em>v</em><sub>0</sub>&sup2; / (2<em>g</em>) = (${v0.toFixed(2)})&sup2; / (2 &times; 9.80) = ${climb.toFixed(2)} m.`,
-            `The ground is ${v.dropDist} m <em>below</em> the bat, so add that height: <em>H</em><sub>max</sub> = ${v.dropDist} m + ${climb.toFixed(2)} m = <strong>${ans.toFixed(2)} m</strong>.`
+            `The ground is ${v.dropDist} m <i>below</i> the bat, so add that height: <em>H</em><sub>max</sub> = ${v.dropDist} m + ${climb.toFixed(2)} m = <strong>${ans.toFixed(2)} m</strong>.`
           );
         }},
       { label: "b. Initial speed from bat (v<sub>0</sub>)", unit: "m/s", solve: (v) => (0.5 * G_ACCEL * v.tTotal * v.tTotal - v.dropDist) / v.tTotal, steps: (v, ans) => guidedSteps(
@@ -8542,7 +8553,7 @@ const PHYSICS_QUESTIONS = [
       { label: "a. Impact velocity (v<sub>1</sub>)", unit: "m/s", solve: (v) => -Math.sqrt(2 * G_ACCEL * v.hDrop), steps: (v, ans) => guidedSteps(
           `Choose up as positive. The ball starts from rest at height ${v.hDrop} m and falls freely, so <em>v</em><sub>0</sub> = 0 and it falls a distance <em>h</em> = ${v.hDrop} m.`,
           `Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; + 2<em>g</em><em>h</em> (speed) = 2<em>g</em><em>h</em>, so the speed is &radic;(2<em>g</em><em>h</em>) = &radic;(2 &times; 9.80 &times; ${v.hDrop}) = ${Math.abs(ans).toFixed(2)} m/s.`,
-          `The ball is moving <em>downward</em>, which is the negative direction: <em>v</em><sub>1</sub> = <strong>${ans.toFixed(2)} m/s</strong>.`
+          `The ball is moving <i>downward</i>, which is the negative direction: <em>v</em><sub>1</sub> = <strong>${ans.toFixed(2)} m/s</strong>.`
         )},
       { label: "b. Rebound velocity (v<sub>2</sub>)", unit: "m/s", solve: (v) => Math.sqrt(2 * G_ACCEL * v.hRebound), steps: (v, ans) => guidedSteps(
           `Think of the rebound as the reverse of a free fall: the ball leaves the floor with just enough upward speed to rise to ${v.hRebound} m, where its velocity is momentarily zero.`,
@@ -8692,7 +8703,7 @@ const PHYSICS_QUESTIONS = [
     renderPrompt: (v) => `A steel sphere is dropped from rest from the observation deck of a skyscraper and strikes the ground <strong>${v.timeSec} s</strong> later.<br/><strong>a.</strong> How tall is the observation deck?<br/><strong>b.</strong> With what speed does the sphere hit the pavement?`,
     parts: [
       { label: "a. Deck height (y)", unit: "m", solve: (v) => 0.5 * G_ACCEL * v.timeSec * v.timeSec, steps: (v, ans) => guidedSteps(
-          `Take down as positive. The sphere is <em>dropped</em>, so <em>v</em><sub>0</sub> = 0, <em>a</em> = <em>g</em> = 9.80 m/s², and it falls for <em>t</em> = ${v.timeSec} s. The distance fallen equals the deck height.`,
+          `Take down as positive. The sphere is <i>dropped</i>, so <em>v</em><sub>0</sub> = 0, <em>a</em> = <em>g</em> = 9.80 m/s², and it falls for <em>t</em> = ${v.timeSec} s. The distance fallen equals the deck height.`,
           `Use <em>y</em> = <em>v</em><sub>0</sub><em>t</em> + &frac12;<em>g</em><em>t</em>&sup2;, which reduces to <em>y</em> = &frac12;<em>g</em><em>t</em>&sup2;.`,
           `Substitute: <em>y</em> = &frac12;(9.80)(${v.timeSec})&sup2; = <strong>${ans.toFixed(2)} m</strong>.`
         )},
@@ -8728,10 +8739,10 @@ const PHYSICS_QUESTIONS = [
       { label: "a. Max height above cliff base (H<sub>max</sub>)", unit: "m", solve: (v) => v.hCliff + (v.v0 * v.v0) / (2 * G_ACCEL), steps: (v, ans) => guidedSteps(
           `The stone rises until its velocity is zero. Known: <em>v</em><sub>0</sub> = ${v.v0} m/s upward, <em>a</em> = &minus;<em>g</em>. First find how far it rises above the cliff edge.`,
           `Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; &minus; 2<em>g</em>&Delta;<em>y</em> with <em>v</em> = 0: &Delta;<em>y</em> = <em>v</em><sub>0</sub>&sup2; / (2<em>g</em>) = (${v.v0})&sup2; / 19.6 = ${((v.v0 * v.v0) / (2 * G_ACCEL)).toFixed(2)} m.`,
-          `The question asks for height above the <em>base</em> of the cliff, so add the cliff height: <em>H</em><sub>max</sub> = ${v.hCliff} m + ${((v.v0 * v.v0) / (2 * G_ACCEL)).toFixed(2)} m = <strong>${ans.toFixed(2)} m</strong>.`
+          `The question asks for height above the <i>base</i> of the cliff, so add the cliff height: <em>H</em><sub>max</sub> = ${v.hCliff} m + ${((v.v0 * v.v0) / (2 * G_ACCEL)).toFixed(2)} m = <strong>${ans.toFixed(2)} m</strong>.`
         )},
       { label: "b. Total flight time (t)", unit: "s", solve: (v) => (v.v0 + Math.sqrt(v.v0 * v.v0 + 2 * G_ACCEL * v.hCliff)) / G_ACCEL, steps: (v, ans) => guidedSteps(
-          `Take up as positive with the origin at the cliff edge. The stone ends ${v.hCliff} m <em>below</em> the start, so &Delta;<em>y</em> = &minus;${v.hCliff} m, with <em>v</em><sub>0</sub> = +${v.v0} m/s and <em>a</em> = &minus;9.80 m/s².`,
+          `Take up as positive with the origin at the cliff edge. The stone ends ${v.hCliff} m <i>below</i> the start, so &Delta;<em>y</em> = &minus;${v.hCliff} m, with <em>v</em><sub>0</sub> = +${v.v0} m/s and <em>a</em> = &minus;9.80 m/s².`,
           `Use &Delta;<em>y</em> = <em>v</em><sub>0</sub><em>t</em> &minus; &frac12;<em>g</em><em>t</em>&sup2;: &minus;${v.hCliff} = ${v.v0}<em>t</em> &minus; 4.90<em>t</em>&sup2;, or 4.90<em>t</em>&sup2; &minus; ${v.v0}<em>t</em> &minus; ${v.hCliff} = 0.`,
           `Quadratic formula, keeping the positive root: <em>t</em> = [${v.v0} + &radic;(${v.v0}&sup2; + 4(4.90)(${v.hCliff}))] / (2 &times; 4.90) = <strong>${ans.toFixed(2)} s</strong>.`,
           `The negative root is a time before the throw, so it is rejected.`
@@ -8748,7 +8759,7 @@ const PHYSICS_QUESTIONS = [
     renderPrompt: (v) => `Paula throws a rock horizontally with a speed of <strong>${v.v0} m/s</strong> from a bridge, and it falls for <strong>${v.tFall} seconds</strong> before reaching the water below.<br/><strong>a.</strong> How high is the bridge from the water below?<br/><strong>b.</strong> How far horizontally does the rock travel before striking the water?<br/><strong>c.</strong> What is the rock’s speed as it reaches the water?<br/><strong>d.</strong> What is the rock’s direction just before hitting the water?`,
     parts: [
       { label: "a. Bridge height (h)", unit: "m", solve: (v) => 0.5 * G_ACCEL * v.tFall * v.tFall, steps: (v, ans) => guidedSteps(
-          `Split the motion into horizontal and vertical parts. The rock is thrown horizontally, so its initial <em>vertical</em> velocity is zero. Known: <em>t</em> = ${v.tFall} s, <em>v</em><sub>0y</sub> = 0, <em>a</em><sub>y</sub> = 9.80 m/s² (down). Unknown: the height <em>h</em>.`,
+          `Split the motion into horizontal and vertical parts. The rock is thrown horizontally, so its initial <i>vertical</i> velocity is zero. Known: <em>t</em> = ${v.tFall} s, <em>v</em><sub>0y</sub> = 0, <em>a</em><sub>y</sub> = 9.80 m/s² (down). Unknown: the height <em>h</em>.`,
           `Use the vertical equation <em>h</em> = <em>v</em><sub>0y</sub><em>t</em> + &frac12;<em>g</em><em>t</em>&sup2;, which reduces to <em>h</em> = &frac12;<em>g</em><em>t</em>&sup2;.`,
           `Substitute: <em>h</em> = &frac12;(9.80)(${v.tFall})&sup2; = <strong>${ans.toFixed(2)} m</strong>.`
         )},
@@ -8850,7 +8861,7 @@ const PHYSICS_QUESTIONS = [
           return guidedSteps(
             `Use only the vertical motion. <em>v</em><sub>0y</sub> = ${v.v0} sin(${v.theta}&deg;) = ${vy0.toFixed(2)} m/s, and the target is ${v.hTarget} m above the launch point, so &Delta;<em>y</em> = +${v.hTarget} m.`,
             `Set up &Delta;<em>y</em> = <em>v</em><sub>0y</sub><em>t</em> &minus; &frac12;<em>g</em><em>t</em>&sup2;: 4.90<em>t</em>&sup2; &minus; ${vy0.toFixed(2)}<em>t</em> + ${v.hTarget} = 0.`,
-            `The quadratic gives two times. The smaller one, ${tUp.toFixed(2)} s, is when the ball passes that height on the way <em>up</em>. The problem says the ball hits the target as it <em>descends</em>, so take the larger root.`,
+            `The quadratic gives two times. The smaller one, ${tUp.toFixed(2)} s, is when the ball passes that height on the way <em>up</em>. The problem says the ball hits the target as it <i>descends</i>, so take the larger root.`,
             `<em>t</em> = [${vy0.toFixed(2)} + &radic;(${vy0.toFixed(2)}&sup2; &minus; 4(4.90)(${v.hTarget}))] / (2 &times; 4.90) = <strong>${ans.toFixed(2)} s</strong>.`
           );
         }},
@@ -9016,7 +9027,7 @@ const PHYSICS_QUESTIONS = [
           );
         }},
       { label: "c. Landing speed (v)", unit: "m/s", solve: (v) => Math.sqrt(v.v0 * v.v0 + 2 * G_ACCEL * v.hCliff), steps: (v, ans) => guidedSteps(
-          `The speed at the plain depends only on how far the shell has dropped relative to the launch point, not on the path or the angle. Known: <em>v</em><sub>0</sub> = ${v.v0} m/s, and the shell ends ${v.hCliff} m <em>below</em> the launch point.`,
+          `The speed at the plain depends only on how far the shell has dropped relative to the launch point, not on the path or the angle. Known: <em>v</em><sub>0</sub> = ${v.v0} m/s, and the shell ends ${v.hCliff} m <i>below</i> the launch point.`,
           `Use <em>v</em>&sup2; = <em>v</em><sub>0</sub>&sup2; + 2<em>g</em>(drop), since a drop adds speed.`,
           `Substitute: <em>v</em> = &radic;(${v.v0}&sup2; + 2 &times; 9.80 &times; ${v.hCliff}) = &radic;(${(v.v0 * v.v0 + 2 * G_ACCEL * v.hCliff).toFixed(0)}) = <strong>${ans.toFixed(2)} m/s</strong>.`
         )},
@@ -9052,7 +9063,7 @@ const PHYSICS_QUESTIONS = [
           return guidedSteps(
             `The supplies leave the plane with the plane's horizontal speed (${v.v0} m/s) and no vertical velocity. Convert the altitude: <em>h</em> = ${v.hKm} km = ${v.hKm * 1000} m.`,
             `Fall time: <em>h</em> = &frac12;<em>g</em><em>t</em>&sup2;, so <em>t</em> = &radic;(2<em>h</em> / <em>g</em>) = &radic;(2 &times; ${v.hKm * 1000} / 9.80) = ${t.toFixed(2)} s.`,
-            `During that time the supplies keep moving forward at ${v.v0} m/s: &Delta;<em>x</em> = <em>v</em><sub>0</sub><em>t</em> = (${v.v0})(${t.toFixed(2)}) = <strong>${ans.toFixed(1)} m</strong>. The plane must release them this far <em>before</em> reaching the island.`
+            `During that time the supplies keep moving forward at ${v.v0} m/s: &Delta;<em>x</em> = <em>v</em><sub>0</sub><em>t</em> = (${v.v0})(${t.toFixed(2)}) = <strong>${ans.toFixed(1)} m</strong>. The plane must release them this far <i>before</i> reaching the island.`
           );
         }}
     ]
@@ -9081,7 +9092,7 @@ const PHYSICS_QUESTIONS = [
           const rBC = (v.rACcm - v.rABcm) / 100, rAB = v.rABcm / 100;
           const fA = G_CONST * v.mA * v.mB / (rAB * rAB), fC = G_CONST * v.mC * v.mB / (rBC * rBC);
           return guidedSteps(
-            `Mass B feels two gravitational pulls: A pulls B toward the <em>left</em> (negative), and C pulls B toward the <em>right</em> (positive). Find the distance from B to C: <em>r</em><sub>BC</sub> = ${v.rACcm} cm &minus; ${v.rABcm} cm = ${(v.rACcm - v.rABcm).toFixed(1)} cm = ${rBC.toFixed(3)} m. Also <em>r</em><sub>AB</sub> = ${rAB.toFixed(3)} m.`,
+            `Mass B feels two gravitational pulls: A pulls B toward the <i>left</i> (negative), and C pulls B toward the <i>right</i> (positive). Find the distance from B to C: <em>r</em><sub>BC</sub> = ${v.rACcm} cm &minus; ${v.rABcm} cm = ${(v.rACcm - v.rABcm).toFixed(1)} cm = ${rBC.toFixed(3)} m. Also <em>r</em><sub>AB</sub> = ${rAB.toFixed(3)} m.`,
             `Each force uses <em>F</em> = <em>G</em><em>m</em><sub>1</sub><em>m</em><sub>2</sub> / <em>r</em>&sup2; with <em>G</em> = 6.67 &times; 10<sup>&minus;11</sup>. Pull from A: <em>F</em><sub>AB</sub> = ${fA.toExponential(3)} N (left). Pull from C: <em>F</em><sub>CB</sub> = ${fC.toExponential(3)} N (right).`,
             `Add them with signs (right is positive): <em>F</em><sub>net,B</sub> = ${fC.toExponential(3)} &minus; ${fA.toExponential(3)} = <strong>${ans.toExponential(3)} N</strong>.`,
             `${ans >= 0 ? 'The result is positive, so the net force on B points to the right (toward C).' : 'The result is negative, so the net force on B points to the left (toward A).'}`
@@ -9091,7 +9102,7 @@ const PHYSICS_QUESTIONS = [
           const rBC = (v.rACcm - v.rABcm) / 100, rAC = v.rACcm / 100;
           const fA = G_CONST * v.mA * v.mC / (rAC * rAC), fB = G_CONST * v.mB * v.mC / (rBC * rBC);
           return guidedSteps(
-            `Mass C is on the far right, so <em>both</em> A and B pull it toward the <em>left</em> (negative). The distances from C are <em>r</em><sub>AC</sub> = ${v.rACcm} cm = ${rAC.toFixed(3)} m and <em>r</em><sub>BC</sub> = ${v.rACcm} cm &minus; ${v.rABcm} cm = ${(v.rACcm - v.rABcm).toFixed(1)} cm = ${rBC.toFixed(3)} m.`,
+            `Mass C is on the far right, so <i>both</i> A and B pull it toward the <i>left</i> (negative). The distances from C are <em>r</em><sub>AC</sub> = ${v.rACcm} cm = ${rAC.toFixed(3)} m and <em>r</em><sub>BC</sub> = ${v.rACcm} cm &minus; ${v.rABcm} cm = ${(v.rACcm - v.rABcm).toFixed(1)} cm = ${rBC.toFixed(3)} m.`,
             `Each force uses <em>F</em> = <em>G</em><em>m</em><sub>1</sub><em>m</em><sub>2</sub> / <em>r</em>&sup2; with <em>G</em> = 6.67 &times; 10<sup>&minus;11</sup>. Pull from A: <em>F</em><sub>AC</sub> = ${fA.toExponential(3)} N (left). Pull from B: <em>F</em><sub>BC</sub> = ${fB.toExponential(3)} N (left).`,
             `Add them with signs (right is positive): <em>F</em><sub>net,C</sub> = &minus;${fA.toExponential(3)} &minus; ${fB.toExponential(3)} = <strong>${ans.toExponential(3)} N</strong>.`,
             `The result is negative, so the net force on C points to the left (toward A and B).`
@@ -9108,7 +9119,7 @@ const PHYSICS_QUESTIONS = [
           const r = v.RpExp7 * 1e7 + v.hKm * 1e3;
           return guidedSteps(
             `For a circular orbit, gravity supplies the centripetal force: <em>G</em><em>M</em><em>m</em> / <em>r</em>&sup2; = <em>m</em><em>v</em>&sup2; / <em>r</em>, so <em>v</em> = &radic;(<em>G</em><em>M</em> / <em>r</em>). The satellite's mass cancels.`,
-            `The orbital radius <em>r</em> is measured from the planet's <em>center</em>, so add the radius and the altitude (in meters): <em>r</em> = ${v.RpExp7} &times; 10<sup>7</sup> m + ${v.hKm} km = ${v.RpExp7 * 1e7} m + ${v.hKm * 1e3} m = ${r.toExponential(4)} m.`,
+            `The orbital radius <em>r</em> is measured from the planet's <i>center</i>, so add the radius and the altitude (in meters): <em>r</em> = ${v.RpExp7} &times; 10<sup>7</sup> m + ${v.hKm} km = ${v.RpExp7 * 1e7} m + ${v.hKm * 1e3} m = ${r.toExponential(4)} m.`,
             `Substitute: <em>v</em> = &radic;[(6.67 &times; 10<sup>&minus;11</sup>)(${v.MpExp26} &times; 10<sup>26</sup>) / ${r.toExponential(4)}] = <strong>${ans.toFixed(1)} m/s</strong>.`
           );
         }},
@@ -9130,7 +9141,7 @@ const PHYSICS_QUESTIONS = [
         )}]
   },
   {
-    id: "CMG-05", docNum: "Set 2 #1", title: "Apparent Weight Riding Over a Hill (3 Parts)",
+    id: "CMG-05", docNum: "Set 5 #1", title: "Apparent Weight Riding Over a Hill (3 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "hillRider",
     baseVars: { m: 52.0, v: 7.80, r: 10.30 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), v: rnd(b.v, 0.12, 2), r: rnd(b.r, 0.12, 2) }),
@@ -9183,7 +9194,7 @@ const PHYSICS_QUESTIONS = [
   },
   // --- Circular motion and gravitation, Set 2 (added November 2026) ---
   {
-    id: "CMG-09", docNum: "Set 2 #2", title: "Rock on a Rope in a Vertical Circle (3 Parts)",
+    id: "CMG-09", docNum: "Set 5 #2", title: "Rock on a Rope in a Vertical Circle (3 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "vertCircleRock",
     baseVars: { m: 6.0, rCm: 58.0, Tmax: 362 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), rCm: rnd(b.rCm, 0.15, 1), Tmax: Math.round(rnd(b.Tmax, 0.15, 0)) }),
@@ -9201,7 +9212,7 @@ const PHYSICS_QUESTIONS = [
     ]
   },
   {
-    id: "CMG-10", docNum: "Set 2 #3", title: "Spinning Space Station Artificial Gravity (2 Parts)",
+    id: "CMG-10", docNum: "Set 5 #3", title: "Spinning Space Station Artificial Gravity (2 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "stationRing",
     baseVars: { dKm: 1.30, frac: 0.85 },
     randomize: (b) => ({ dKm: rnd(b.dKm, 0.20, 2), frac: rnd(b.frac, 0.12, 2) }),
@@ -9216,7 +9227,7 @@ const PHYSICS_QUESTIONS = [
     ]
   },
   {
-    id: "CMG-11", docNum: "Set 2 #4", title: "Roller Coaster Loop Speeds at the Top (2 Parts)",
+    id: "CMG-11", docNum: "Set 5 #4", title: "Roller Coaster Loop Speeds at the Top (2 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "coasterLoop",
     baseVars: { d: 18.0, pct: 60 },
     randomize: (b) => ({ d: rnd(b.d, 0.20, 1), pct: Math.round(rnd(b.pct, 0.25, 0)) }),
@@ -9231,7 +9242,7 @@ const PHYSICS_QUESTIONS = [
     ]
   },
   {
-    id: "CMG-12", docNum: "Set 2 #5", title: "Rotor Ride: Minimum Coefficient of Friction",
+    id: "CMG-12", docNum: "Set 5 #5", title: "Rotor Ride: Minimum Coefficient of Friction",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "rotorDrum",
     baseVars: { r: 4.10, rpm: 23.0 },
     randomize: (b) => ({ r: rnd(b.r, 0.15, 2), rpm: rnd(b.rpm, 0.15, 1) }),
@@ -9242,7 +9253,7 @@ const PHYSICS_QUESTIONS = [
           `At the minimum coefficient, <em>f</em><sub>s</sub> = &mu;<sub>s</sub><em>F</em><sub>N</sub>, so &mu;<sub>s</sub><em>m</em><em>v</em>&sup2; / <em>r</em> = <em>m</em><em>g</em> and &mu;<sub>s</sub> = <em>g</em><em>r</em> / <em>v</em>&sup2; = (9.80 &times; ${v.r}) / ${vel.toFixed(2)}&sup2; = <strong>${ans.toFixed(3)}</strong>.`); } }]
   },
   {
-    id: "CMG-13", docNum: "Set 2 #6", title: "Carnival Swing Ride: Tension, Speed and Rate (3 Parts)",
+    id: "CMG-13", docNum: "Set 5 #6", title: "Carnival Swing Ride: Tension, Speed and Rate (3 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "swingRide",
     baseVars: { m: 52.0, L: 6.3, theta: 27.0 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), L: rnd(b.L, 0.15, 1), theta: rnd(b.theta, 0.15, 1) }),
@@ -9261,7 +9272,7 @@ const PHYSICS_QUESTIONS = [
     ]
   },
   {
-    id: "CMG-14", docNum: "Set 2 #7", title: "Speeding Up on a Curve: Net Acceleration (2 Parts)",
+    id: "CMG-14", docNum: "Set 5 #7", title: "Speeding Up on a Curve: Net Acceleration (2 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "carCurveAccel",
     baseVars: { r: 46.0, v0: 7.0, v1: 11.0, t: 5.0, tq: 2.0 },
     randomize: (b) => { const v0 = rnd(b.v0, 0.15, 1); return { r: rnd(b.r, 0.15, 1), v0: v0, v1: Number((v0 + rnd(b.v1 - b.v0, 0.25, 1)).toFixed(1)), t: b.t, tq: b.tq }; },
@@ -9277,7 +9288,7 @@ const PHYSICS_QUESTIONS = [
     ]
   },
   {
-    id: "CMG-15", docNum: "Set 2 #8", title: "Frictionless Banked Track Angle",
+    id: "CMG-15", docNum: "Set 5 #8", title: "Frictionless Banked Track Angle",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "bankedBlock",
     baseVars: { m: 3.2, r: 8.4, v: 17.4 },
     randomize: (b) => ({ m: rnd(b.m, 0.20, 1), r: rnd(b.r, 0.15, 1), v: rnd(b.v, 0.15, 1) }),
@@ -9288,7 +9299,7 @@ const PHYSICS_QUESTIONS = [
           `&theta; = tan<sup>&minus;1</sup>(${(v.v * v.v / (v.r * G_ACCEL)).toFixed(3)}) = <strong>${ans.toFixed(1)}&deg;</strong>.`) }]
   },
   {
-    id: "CMG-16", docNum: "Set 2 #9", title: "Space Station Orbiting the Moon",
+    id: "CMG-16", docNum: "Set 5 #9", title: "Space Station Orbiting the Moon",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "moonStation",
     baseVars: { hKm: 345 },
     randomize: (b) => ({ hKm: Math.round(rnd(b.hKm, 0.30, 0)) }),
@@ -9299,7 +9310,7 @@ const PHYSICS_QUESTIONS = [
           `<em>v</em> = &radic;[(6.67 &times; 10<sup>&minus;11</sup>)(7.348 &times; 10<sup>22</sup>) / ${((1737 + v.hKm) * 1000).toExponential(4)}] = <strong>${ans.toFixed(0)} m/s</strong>.`) }]
   },
   {
-    id: "CMG-17", docNum: "Set 2 #10", title: "Moon's Orbit: Speed and Planet Mass (2 Parts)",
+    id: "CMG-17", docNum: "Set 5 #10", title: "Moon's Orbit: Speed and Planet Mass (2 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "moonPlanet",
     baseVars: { Th: 18.7, rE5: 1.63 },
     randomize: (b) => ({ Th: rnd(b.Th, 0.15, 1), rE5: rnd(b.rE5, 0.15, 2) }),
@@ -9314,7 +9325,7 @@ const PHYSICS_QUESTIONS = [
     ]
   },
   {
-    id: "CMG-18", docNum: "Set 2 #11", title: "Astronaut's Weight Far from Earth",
+    id: "CMG-18", docNum: "Set 5 #11", title: "Astronaut's Weight Far from Earth",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "earthShuttle",
     baseVars: { m: 59, n: 3.8 },
     randomize: (b) => ({ m: Math.round(rnd(b.m, 0.15, 0)), n: rnd(b.n, 0.20, 1) }),
@@ -9325,7 +9336,7 @@ const PHYSICS_QUESTIONS = [
           `<em>W</em> = (6.67 &times; 10<sup>&minus;11</sup>)(5.97 &times; 10<sup>24</sup>)(${v.m}) / (${(v.n * 6.37e6).toExponential(3)})&sup2; = <strong>${ans.toFixed(1)} N</strong>. (Check: her surface weight divided by ${v.n}&sup2; gives about the same.)`) }]
   },
   {
-    id: "CMG-19", docNum: "Set 2 #12", title: "Scaling the Force of Gravity (2 Parts)",
+    id: "CMG-19", docNum: "Set 5 #12", title: "Scaling the Force of Gravity (2 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "twoMassesF",
     baseVars: { k2: 3.8, kd: 1.4, p1: 44, k3: 1.2, pd: 56 },
     randomize: (b) => ({ k2: rnd(b.k2, 0.20, 1), kd: rnd(b.kd, 0.20, 1), p1: Math.round(rnd(b.p1, 0.20, 0)), k3: rnd(b.k3, 0.15, 1), pd: Math.round(rnd(b.pd, 0.15, 0)) }),
@@ -9340,7 +9351,7 @@ const PHYSICS_QUESTIONS = [
     ]
   },
   {
-    id: "CMG-20", docNum: "Set 2 #13", title: "Planet's Surface Gravity: Acceleration and Field Strength (2 Parts)",
+    id: "CMG-20", docNum: "Set 5 #13", title: "Planet's Surface Gravity: Acceleration and Field Strength (2 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "planetMR",
     baseVars: { ME25: 8.39, RE6: 9.40 },
     randomize: (b) => ({ ME25: rnd(b.ME25, 0.20, 2), RE6: rnd(b.RE6, 0.20, 2) }),
@@ -9355,7 +9366,7 @@ const PHYSICS_QUESTIONS = [
     ]
   },
   {
-    id: "CMG-21", docNum: "Set 2 #15", title: "Flying Pig Conical Pendulum (2 Parts)",
+    id: "CMG-21", docNum: "Set 5 #15", title: "Flying Pig Conical Pendulum (2 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "conicalPig",
     baseVars: { mg: 165, Lcm: 84.0, T: 1.40 },
     randomize: (b) => ({ mg: Math.round(rnd(b.mg, 0.20, 0)), Lcm: rnd(b.Lcm, 0.10, 1), T: rnd(b.T, 0.08, 2) }),
@@ -9371,7 +9382,7 @@ const PHYSICS_QUESTIONS = [
     ]
   },
   {
-    id: "CMG-22", docNum: "Set 2 #17", title: "Indy 500 Turn Radius from g's",
+    id: "CMG-22", docNum: "Set 5 #17", title: "Indy 500 Turn Radius from g's",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "indyTurn",
     baseVars: { v: 102, k: 3.95 },
     randomize: (b) => ({ v: Math.round(rnd(b.v, 0.12, 0)), k: rnd(b.k, 0.15, 2) }),
@@ -9381,7 +9392,7 @@ const PHYSICS_QUESTIONS = [
           `<em>a</em><sub>c</sub> = <em>v</em>&sup2; / <em>r</em>, so <em>r</em> = <em>v</em>&sup2; / <em>a</em><sub>c</sub> = ${v.v}&sup2; / ${(v.k * G_ACCEL).toFixed(2)} = <strong>${ans.toFixed(1)} m</strong>.`) }]
   },
   {
-    id: "CMG-23", docNum: "Set 2 #18", title: "Tarzan's Maximum Speed on a Vine",
+    id: "CMG-23", docNum: "Set 5 #18", title: "Tarzan's Maximum Speed on a Vine",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "tarzanVine",
     baseVars: { m: 84.0, L: 5.1, F: 1240 },
     randomize: (b) => { const m = rnd(b.m, 0.12, 1); return { m: m, L: rnd(b.L, 0.15, 1), F: Math.round(m * G_ACCEL * rnd(b.F / (b.m * G_ACCEL), 0.10, 3) / 10) * 10 }; },
@@ -9391,7 +9402,7 @@ const PHYSICS_QUESTIONS = [
           `<em>v</em> = &radic;[(<em>F</em><sub>T</sub> &minus; <em>m</em><em>g</em>)<em>r</em> / <em>m</em>] = &radic;[(${v.F} &minus; ${(v.m * G_ACCEL).toFixed(1)})(${v.L}) / ${v.m}] = <strong>${ans.toFixed(2)} m/s</strong>.`) }]
   },
   {
-    id: "CMG-24", docNum: "Set 2 #19", title: "Ring-Shaped Artificial Planet's Rotation Period",
+    id: "CMG-24", docNum: "Set 5 #19", title: "Ring-Shaped Artificial Planet's Rotation Period",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "ringWorld",
     baseVars: { rE11: 8.2 },
     randomize: (b) => ({ rE11: rnd(b.rE11, 0.20, 1) }),
@@ -9402,7 +9413,7 @@ const PHYSICS_QUESTIONS = [
           `A day is 24 &times; 3600 = 86,400 s, so <em>T</em> = ${Ts.toExponential(4)} / 86,400 = <strong>${ans.toFixed(1)} days</strong>.`); } }]
   },
   {
-    id: "CMG-25", docNum: "Set 2 #20", title: "Cyclist on a Circular Track (2 Parts)",
+    id: "CMG-25", docNum: "Set 5 #20", title: "Cyclist on a Circular Track (2 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "bikeTrack",
     baseVars: { m: 56, r: 32.8, v: 11.2 },
     randomize: (b) => ({ m: Math.round(rnd(b.m, 0.15, 0)), r: rnd(b.r, 0.15, 1), v: rnd(b.v, 0.15, 1) }),
@@ -9413,7 +9424,7 @@ const PHYSICS_QUESTIONS = [
     ]
   },
   {
-    id: "CMG-26", docNum: "Set 2 #21", title: "Penny on a Rotating Disk: Minimum Friction",
+    id: "CMG-26", docNum: "Set 5 #21", title: "Penny on a Rotating Disk: Minimum Friction",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "pennyDisk",
     baseVars: { mg: 2.50, rCm: 31.7, T: 1.53 },
     randomize: (b) => ({ mg: b.mg, rCm: rnd(b.rCm, 0.15, 1), T: rnd(b.T, 0.12, 2) }),
@@ -9424,7 +9435,7 @@ const PHYSICS_QUESTIONS = [
           `At the minimum coefficient, &mu;<sub>s</sub><em>m</em><em>g</em> = <em>m</em><em>a</em><sub>c</sub>, so &mu;<sub>s</sub> = <em>a</em><sub>c</sub> / <em>g</em> = ${ac.toFixed(3)} / 9.80 = <strong>${ans.toFixed(3)}</strong>. The penny's mass cancels.`); } }]
   },
   {
-    id: "CMG-27", docNum: "Set 2 #22", title: "Car at the Bottom of a Valley",
+    id: "CMG-27", docNum: "Set 5 #22", title: "Car at the Bottom of a Valley",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "valleyCar",
     baseVars: { r: 77.0, k: 2.30 },
     randomize: (b) => ({ r: rnd(b.r, 0.15, 1), k: rnd(b.k, 0.15, 2) }),
@@ -9434,7 +9445,7 @@ const PHYSICS_QUESTIONS = [
           `(${v.k} &minus; 1)<em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>, so <em>v</em> = &radic;(${(v.k - 1).toFixed(2)}<em>g</em><em>r</em>) = &radic;(${(v.k - 1).toFixed(2)} &times; 9.80 &times; ${v.r}) = <strong>${ans.toFixed(2)} m/s</strong>.`) }]
   },
   {
-    id: "CMG-28", docNum: "Set 2 #23", title: "Net Gravitational Force on a Mass at a Right Angle",
+    id: "CMG-28", docNum: "Set 5 #23", title: "Net Gravitational Force on a Mass at a Right Angle",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "rightAngleMasses",
     baseVars: { mA: 17.0, mB: 22.0, mC: 11.0, dAB: 35.0, dAC: 19.0 },
     randomize: (b) => ({ mA: rnd(b.mA, 0.20, 1), mB: rnd(b.mB, 0.20, 1), mC: rnd(b.mC, 0.20, 1), dAB: rnd(b.dAB, 0.15, 1), dAC: rnd(b.dAC, 0.15, 1) }),
@@ -9445,7 +9456,7 @@ const PHYSICS_QUESTIONS = [
           `Add them as perpendicular vectors: <em>F</em><sub>net</sub> = &radic;(<em>F</em><sub>AB</sub>&sup2; + <em>F</em><sub>AC</sub>&sup2;) = <strong>${ans.toExponential(3)} N</strong>.`); } }]
   },
   {
-    id: "CMG-29", docNum: "Set 2 #24", title: "Track Force on a Cart at the Top of a Loop",
+    id: "CMG-29", docNum: "Set 5 #24", title: "Track Force on a Cart at the Top of a Loop",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "loopCart",
     baseVars: { m: 6.70, r: 1.90, v: 5.40 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 2), r: rnd(b.r, 0.10, 2), v: rnd(b.v, 0.08, 2) }),
@@ -9455,7 +9466,7 @@ const PHYSICS_QUESTIONS = [
           `<em>F</em><sub>N</sub> = <em>m</em>(<em>v</em>&sup2; / <em>r</em> &minus; <em>g</em>) = ${v.m}(${v.v}&sup2; / ${v.r} &minus; 9.80) = ${v.m}(${(v.v * v.v / v.r).toFixed(3)} &minus; 9.80) = <strong>${ans.toFixed(1)} N</strong>.`) }]
   },
   {
-    id: "CMG-30", docNum: "Set 2 #25", title: "Equal Weights on Two Planets: Radius Ratio",
+    id: "CMG-30", docNum: "Set 5 #25", title: "Equal Weights on Two Planets: Radius Ratio",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "twoPlanets",
     baseVars: { pct: 72 },
     randomize: (b) => ({ pct: Math.round(rnd(b.pct, 0.20, 0)) }),
@@ -9465,7 +9476,7 @@ const PHYSICS_QUESTIONS = [
           `Rearrange: (<em>r</em><sub>A</sub> / <em>r</em><sub>B</sub>)&sup2; = <em>M</em><sub>A</sub> / <em>M</em><sub>B</sub> = ${(v.pct / 100).toFixed(2)}, so <em>r</em><sub>A</sub> / <em>r</em><sub>B</sub> = &radic;${(v.pct / 100).toFixed(2)} = <strong>${ans.toFixed(3)}</strong>.`) }]
   },
   {
-    id: "CMG-31", docNum: "Set 2 #26", title: "Shortest Lap Time on a Circular Race Track",
+    id: "CMG-31", docNum: "Set 5 #26", title: "Shortest Lap Time on a Circular Race Track",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "raceRing",
     baseVars: { r: 197, muS: 0.95, muK: 0.76 },
     randomize: (b) => { const muS = rnd(b.muS, 0.08, 2); return { r: Math.round(rnd(b.r, 0.20, 0)), muS: muS, muK: Number((muS - rnd(b.muS - b.muK, 0.20, 2)).toFixed(2)) }; },
@@ -9475,7 +9486,7 @@ const PHYSICS_QUESTIONS = [
           `The fastest lap: <em>T</em> = 2&pi;<em>r</em> / <em>v</em> = 2&pi;(${v.r}) / ${vel.toFixed(2)} = <strong>${ans.toFixed(1)} s</strong>.`); } }]
   },
   {
-    id: "CMG-32", docNum: "Set 2 #27", title: "Maximum Speed Around an Oval Track's Turn",
+    id: "CMG-32", docNum: "Set 5 #27", title: "Maximum Speed Around an Oval Track's Turn",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "ovalTrack",
     baseVars: { r: 282, muS: 0.96, muK: 0.81 },
     randomize: (b) => { const muS = rnd(b.muS, 0.08, 2); return { r: Math.round(rnd(b.r, 0.20, 0)), muS: muS, muK: Number((muS - rnd(b.muS - b.muK, 0.20, 2)).toFixed(2)) }; },
@@ -9485,7 +9496,7 @@ const PHYSICS_QUESTIONS = [
           `<em>v</em> = &radic;(&mu;<sub>s</sub><em>g</em><em>r</em>) = &radic;(${v.muS} &times; 9.80 &times; ${v.r}) = <strong>${ans.toFixed(1)} m/s</strong>.`) }]
   },
   {
-    id: "CMG-33", docNum: "Set 2 #28", title: "Hospital Space Station Rotation Period",
+    id: "CMG-33", docNum: "Set 5 #28", title: "Hospital Space Station Rotation Period",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "stationHospital",
     baseVars: { r: 250 },
     randomize: (b) => ({ r: Math.round(rnd(b.r, 0.25, 0)) }),
@@ -9495,7 +9506,7 @@ const PHYSICS_QUESTIONS = [
           `<em>a</em><sub>c</sub> = 4&pi;&sup2;<em>r</em> / <em>T</em>&sup2;, so <em>T</em> = 2&pi;&radic;(<em>r</em> / <em>a</em><sub>c</sub>) = 2&pi;&radic;(${v.r} / 0.980) = <strong>${ans.toFixed(1)} s</strong>.`) }]
   },
   {
-    id: "CMG-34", docNum: "Set 2 #29", title: "Pushed into the Car Door on a Turn",
+    id: "CMG-34", docNum: "Set 5 #29", title: "Pushed into the Car Door on a Turn",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "carLeftTurn",
     baseVars: { r: 40.0 },
     randomize: (b) => ({ r: rnd(b.r, 0.25, 1) }),
@@ -9505,7 +9516,7 @@ const PHYSICS_QUESTIONS = [
           `The mass cancels: <em>v</em> = &radic;(0.5<em>g</em><em>r</em>) = &radic;(0.5 &times; 9.80 &times; ${v.r}) = <strong>${ans.toFixed(2)} m/s</strong>.`) }]
   },
   {
-    id: "CMG-35", docNum: "Set 2 #30", title: "Mass of the Larger of Two Asteroids",
+    id: "CMG-35", docNum: "Set 5 #30", title: "Mass of the Larger of Two Asteroids",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "twoAsteroids",
     baseVars: { dKm: 1.40, FE8: 1.90 },
     randomize: (b) => ({ dKm: rnd(b.dKm, 0.15, 2), FE8: rnd(b.FE8, 0.20, 2) }),
@@ -9516,7 +9527,7 @@ const PHYSICS_QUESTIONS = [
           `The larger asteroid has 3<em>m</em> = <strong>${ans.toExponential(3)} kg</strong>.`); } }]
   },
   {
-    id: "CMG-36", docNum: "Set 2 #31", title: "New Planet's Mass from Measured Gravity",
+    id: "CMG-36", docNum: "Set 5 #31", title: "New Planet's Mass from Measured Gravity",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "planetAstronaut",
     baseVars: { RKm: 2350, g: 3.20 },
     randomize: (b) => ({ RKm: Math.round(rnd(b.RKm, 0.20, 0) / 10) * 10, g: rnd(b.g, 0.20, 2) }),
@@ -9526,7 +9537,7 @@ const PHYSICS_QUESTIONS = [
           `<em>M</em> = (${v.g})(${(v.RKm * 1000).toExponential(3)})&sup2; / (6.67 &times; 10<sup>&minus;11</sup>) = <strong>${ans.toExponential(3)} kg</strong>.`) }]
   },
   {
-    id: "CMG-37", docNum: "Set 2 #32", title: "Friction Needed on a Level Curve",
+    id: "CMG-37", docNum: "Set 5 #32", title: "Friction Needed on a Level Curve",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "curveCarLevel",
     baseVars: { r: 125, vKmh: 95 },
     randomize: (b) => ({ r: Math.round(rnd(b.r, 0.20, 0)), vKmh: Math.round(rnd(b.vKmh, 0.15, 0)) }),
@@ -9536,7 +9547,7 @@ const PHYSICS_QUESTIONS = [
           `On a level curve, static friction is the centripetal force: &mu;<sub>s</sub><em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>, so &mu;<sub>s</sub> = <em>v</em>&sup2; / (<em>g</em><em>r</em>) = ${(v.vKmh / 3.6).toFixed(2)}&sup2; / (9.80 &times; ${v.r}) = <strong>${ans.toFixed(3)}</strong>.`) }]
   },
   {
-    id: "CMG-38", docNum: "Set 2 #33", title: "Jet's Minimum Loop Radius",
+    id: "CMG-38", docNum: "Set 5 #33", title: "Jet's Minimum Loop Radius",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "jetLoop",
     baseVars: { vKmh: 850, k: 6.0 },
     randomize: (b) => ({ vKmh: Math.round(rnd(b.vKmh, 0.15, 0) / 5) * 5, k: rnd(b.k, 0.15, 1) }),
@@ -9546,7 +9557,7 @@ const PHYSICS_QUESTIONS = [
           `<em>a</em><sub>c</sub> = <em>v</em>&sup2; / <em>r</em>, and a larger radius gives a smaller acceleration. The smallest allowed radius is <em>r</em> = <em>v</em>&sup2; / <em>a</em><sub>c,max</sub> = ${(v.vKmh / 3.6).toFixed(1)}&sup2; / ${(v.k * G_ACCEL).toFixed(1)} = <strong>${ans.toFixed(0)} m</strong>.`) }]
   },
   {
-    id: "CMG-39", docNum: "Set 2 #34", title: "Ferris Wheel Rate for Weightlessness at the Top",
+    id: "CMG-39", docNum: "Set 5 #34", title: "Ferris Wheel Rate for Weightlessness at the Top",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "ferrisWheel",
     baseVars: { d: 26.4 },
     randomize: (b) => ({ d: rnd(b.d, 0.20, 1) }),
@@ -9556,7 +9567,7 @@ const PHYSICS_QUESTIONS = [
           `One turn takes <em>T</em> = 2&pi;<em>r</em> / <em>v</em> = ${T.toFixed(2)} s. Revolutions per minute = 60 / <em>T</em> = <strong>${ans.toFixed(2)} rev/min</strong>.`); } }]
   },
   {
-    id: "CMG-40", docNum: "Set 2 #35", title: "Race Car Speeding Up Along a Semicircle (2 Parts)",
+    id: "CMG-40", docNum: "Set 5 #35", title: "Race Car Speeding Up Along a Semicircle (2 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "semicircleArc",
     baseVars: { v: 66, r: 220 },
     randomize: (b) => ({ v: Math.round(rnd(b.v, 0.12, 0)), r: Math.round(rnd(b.r, 0.15, 0)) }),
@@ -9572,7 +9583,7 @@ const PHYSICS_QUESTIONS = [
     ]
   },
   {
-    id: "CMG-41", docNum: "Set 2 #36", title: "Train Speed from a Swinging Lamp",
+    id: "CMG-41", docNum: "Set 5 #36", title: "Train Speed from a Swinging Lamp",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "trainLamp",
     baseVars: { r: 215, theta: 16.5 },
     randomize: (b) => ({ r: Math.round(rnd(b.r, 0.20, 0)), theta: rnd(b.theta, 0.15, 1) }),
@@ -9582,7 +9593,7 @@ const PHYSICS_QUESTIONS = [
           `Divide: tan &theta; = <em>v</em>&sup2; / (<em>g</em><em>r</em>), so <em>v</em> = &radic;(<em>g</em><em>r</em> tan &theta;) = &radic;(9.80 &times; ${v.r} &times; tan ${v.theta}&deg;) = <strong>${ans.toFixed(1)} m/s</strong>.`) }]
   },
   {
-    id: "CMG-42", docNum: "Set 2 #37", title: "Satellite Altitude from Its Period",
+    id: "CMG-42", docNum: "Set 5 #37", title: "Satellite Altitude from Its Period",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "earthSatellite",
     baseVars: { m: 5500, Tmin: 110 },
     randomize: (b) => ({ m: Math.round(rnd(b.m, 0.20, 0) / 100) * 100, Tmin: Math.round(rnd(b.Tmin, 0.12, 0)) }),
@@ -9593,7 +9604,7 @@ const PHYSICS_QUESTIONS = [
           `That is measured from Earth's center, so subtract Earth's radius: <em>h</em> = ${r.toExponential(4)} &minus; 6.37 &times; 10<sup>6</sup> = <strong>${ans.toExponential(3)} m</strong> (about ${(ans / 1000).toFixed(0)} km).`); } }]
   },
   {
-    id: "CMG-43", docNum: "Set 2 #38", title: "Length of a Day for Weightlessness at the Equator",
+    id: "CMG-43", docNum: "Set 5 #38", title: "Length of a Day for Weightlessness at the Equator",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "earthSpin",
     baseVars: { R: 6.37e6 },
     randomize: (b) => ({ R: b.R }),
@@ -9604,7 +9615,7 @@ const PHYSICS_QUESTIONS = [
           `In minutes: ${(ans * 60).toFixed(0)} / 60 = <strong>${ans.toFixed(1)} min</strong>.`) }]
   },
   {
-    id: "CMG-44", docNum: "Set 2 #39", title: "Distance Where Gravity Is a Fraction of g",
+    id: "CMG-44", docNum: "Set 5 #39", title: "Distance Where Gravity Is a Fraction of g",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "earthDistance",
     baseVars: { pct: 18 },
     randomize: (b) => ({ pct: Math.round(rnd(b.pct, 0.30, 0)) }),
@@ -9614,7 +9625,7 @@ const PHYSICS_QUESTIONS = [
           `<em>r</em> = <em>R</em><sub>E</sub> / &radic;${(v.pct / 100).toFixed(2)} = 6.37 &times; 10<sup>6</sup> / ${Math.sqrt(v.pct / 100).toFixed(4)} = <strong>${ans.toExponential(3)} m</strong> (about ${(ans / 6.37e6).toFixed(2)} Earth radii).`) }]
   },
   {
-    id: "CMG-45", docNum: "Set 2 #40", title: "Two Masses from Their Force and Total Mass (2 Parts)",
+    id: "CMG-45", docNum: "Set 5 #40", title: "Two Masses from Their Force and Total Mass (2 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "twoObjects",
     baseVars: { FE10: 3.9, d: 0.70, total: 5.00 },
     randomize: (b) => ({ FE10: rnd(b.FE10, 0.15, 1), d: rnd(b.d, 0.10, 2), total: b.total }),
@@ -9661,7 +9672,7 @@ const PHYSICS_QUESTIONS = [
     renderPrompt: (v) => `A <strong>${v.m}-kg</strong> chair requires an applied force of <strong>${v.Fs} N</strong> to start moving, and <strong>${v.Fk} N</strong> of force to maintain a constant velocity.<br/><strong>a.</strong> Find &mu;<sub>s</sub>.<br/><strong>b.</strong> Find &mu;<sub>k</sub>.`,
     parts: [
       { label: "a. Coefficient of static friction (&mu;<sub>s</sub>)", unit: "No units", solve: (v) => v.Fs / (v.m * G_ACCEL), steps: (v, ans) => guidedSteps(
-          `To <em>start</em> the chair moving you must overcome static friction, so the maximum static friction is <em>f</em><sub>s,max</sub> = ${v.Fs} N. On a level floor the normal force equals the weight: <em>F</em><sub>N</sub> = <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N.`,
+          `To <i>start</i> the chair moving you must overcome static friction, so the maximum static friction is <em>f</em><sub>s,max</sub> = ${v.Fs} N. On a level floor the normal force equals the weight: <em>F</em><sub>N</sub> = <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N.`,
           `The definition of the coefficient: <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>F</em><sub>N</sub>, so &mu;<sub>s</sub> = <em>f</em><sub>s,max</sub> / <em>F</em><sub>N</sub>.`,
           `Substitute: &mu;<sub>s</sub> = ${v.Fs} / ${(v.m * G_ACCEL).toFixed(1)} = <strong>${ans.toFixed(3)}</strong> (no units).`
         )},
@@ -9730,7 +9741,7 @@ const PHYSICS_QUESTIONS = [
     randomize: (b) => { const muK = rnd(b.muK, 0.15, 2); return { m: rnd(b.m, 0.2, 1), a: rnd(b.a, 0.2, 2), muS: Number((muK + 0.17).toFixed(2)), muK }; },
     renderPrompt: (v) => `A rope accelerates a <strong>${v.m}-kg</strong> metal beam horizontally at <strong>${v.a} m/s&sup2;</strong> with &mu;<sub>s</sub> = <strong>${v.muS}</strong>, &mu;<sub>k</sub> = <strong>${v.muK}</strong>. What is the magnitude of the tension in the rope?`,
     parts: [{ label: "Rope tension (F<sub>T</sub>)", unit: "N", solve: (v) => v.m * (v.a + v.muK * G_ACCEL), steps: (v, ans) => guidedSteps(
-          `The beam is already <em>moving</em> (it is accelerating), so the friction is kinetic, and &mu;<sub>k</sub> = ${v.muK} is the one to use (&mu;<sub>s</sub> is not needed). Forces along the motion: rope tension <em>F</em><sub>T</sub> forward, kinetic friction <em>f</em><sub>k</sub> backward. On a level floor <em>F</em><sub>N</sub> = <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N.`,
+          `The beam is already <i>moving</i> (it is accelerating), so the friction is kinetic, and &mu;<sub>k</sub> = ${v.muK} is the one to use (&mu;<sub>s</sub> is not needed). Forces along the motion: rope tension <em>F</em><sub>T</sub> forward, kinetic friction <em>f</em><sub>k</sub> backward. On a level floor <em>F</em><sub>N</sub> = <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N.`,
           `Kinetic friction: <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em><sub>N</sub> = ${v.muK} &times; ${(v.m * G_ACCEL).toFixed(1)} = ${(v.muK * v.m * G_ACCEL).toFixed(1)} N.`,
           `Newton's second law: <em>F</em><sub>T</sub> &minus; <em>f</em><sub>k</sub> = <em>m</em><em>a</em>, so <em>F</em><sub>T</sub> = <em>m</em><em>a</em> + <em>f</em><sub>k</sub> = (${v.m})(${v.a}) + ${(v.muK * v.m * G_ACCEL).toFixed(1)} = <strong>${ans.toFixed(1)} N</strong>.`
         )}]
@@ -9765,7 +9776,7 @@ const PHYSICS_QUESTIONS = [
       { label: "b. Speed with F<sub>b</sub>", unit: "m/s", solve: (v) => ((v.Fb - v.muK * v.m * G_ACCEL) / v.m) * v.t, steps: (v, ans) => {
           const fs = v.muS * v.m * G_ACCEL, fk = v.muK * v.m * G_ACCEL, a = (v.Fb - fk) / v.m;
           return guidedSteps(
-            `Check the threshold: <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>m</em><em>g</em> = ${fs.toFixed(1)} N. The push ${v.Fb} N is larger, so the crate <em>does</em> start moving, and from then on the friction is kinetic.`,
+            `Check the threshold: <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>m</em><em>g</em> = ${fs.toFixed(1)} N. The push ${v.Fb} N is larger, so the crate <i>does</i> start moving, and from then on the friction is kinetic.`,
             `Kinetic friction: <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>m</em><em>g</em> = ${v.muK} &times; ${v.m} &times; 9.80 = ${fk.toFixed(1)} N. Newton's second law: <em>a</em> = (<em>F</em> &minus; <em>f</em><sub>k</sub>) / <em>m</em> = (${v.Fb} &minus; ${fk.toFixed(1)}) / ${v.m} = ${a.toFixed(3)} m/s².`,
             `Starting from rest, <em>v</em> = <em>a</em><em>t</em> = (${a.toFixed(3)})(${v.t}) = <strong>${ans.toFixed(2)} m/s</strong>.`
           );
@@ -9792,7 +9803,7 @@ const PHYSICS_QUESTIONS = [
     renderPrompt: (v) => `On the moon (<em>g</em> = <strong>${v.gMoon} m/s&sup2;</strong>), a <strong>${v.m}-kg</strong> bin has coefficients of static and kinetic friction of <strong>${v.muS}</strong> and <strong>${v.muK}</strong>, respectively.<br/><strong>a.</strong> What force is required to start the bin in motion?<br/><strong>b.</strong> What force is required to slide it with a constant velocity?`,
     parts: [
       { label: "a. Force to start moving (f<sub>s,max</sub>)", unit: "N", solve: (v) => v.muS * v.m * v.gMoon, steps: (v, ans) => guidedSteps(
-          `To <em>start</em> the bin moving, the push must equal the maximum static friction: <em>F</em> = <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>F</em><sub>N</sub>. On a level surface the normal force is <em>F</em><sub>N</sub> = <em>m</em><em>g</em><sub>moon</sub> = ${v.m} &times; ${v.gMoon} = ${(v.m * v.gMoon).toFixed(1)} N (use the Moon's gravity, not 9.80).`,
+          `To <i>start</i> the bin moving, the push must equal the maximum static friction: <em>F</em> = <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>F</em><sub>N</sub>. On a level surface the normal force is <em>F</em><sub>N</sub> = <em>m</em><em>g</em><sub>moon</sub> = ${v.m} &times; ${v.gMoon} = ${(v.m * v.gMoon).toFixed(1)} N (use the Moon's gravity, not 9.80).`,
           `Substitute: <em>f</em><sub>s,max</sub> = ${v.muS} &times; ${(v.m * v.gMoon).toFixed(1)} = <strong>${ans.toFixed(1)} N</strong>.`
         )},
       { label: "b. Force for constant velocity (f<sub>k</sub>)", unit: "N", solve: (v) => v.muK * v.m * v.gMoon, steps: (v, ans) => guidedSteps(
@@ -9895,7 +9906,7 @@ const PHYSICS_QUESTIONS = [
           const th = v.theta * DEG2RAD, m = v.W / G_ACCEL;
           const FN = v.W + v.F * Math.sin(th), fk = v.muK * FN, Fx = v.F * Math.cos(th);
           return guidedSteps(
-            `The push is angled <em>downward</em>, so it has a horizontal part <em>F</em> cos &theta; = ${Fx.toFixed(2)} N (forward) and a vertical part <em>F</em> sin &theta; = ${(v.F * Math.sin(th)).toFixed(2)} N (pressing into the floor). The weight is given as <em>W</em> = ${v.W} N, so the mass is <em>m</em> = <em>W</em> / <em>g</em> = ${m.toFixed(2)} kg.`,
+            `The push is angled <i>downward</i>, so it has a horizontal part <em>F</em> cos &theta; = ${Fx.toFixed(2)} N (forward) and a vertical part <em>F</em> sin &theta; = ${(v.F * Math.sin(th)).toFixed(2)} N (pressing into the floor). The weight is given as <em>W</em> = ${v.W} N, so the mass is <em>m</em> = <em>W</em> / <em>g</em> = ${m.toFixed(2)} kg.`,
             `Vertical balance: <em>F</em><sub>N</sub> = <em>W</em> + <em>F</em> sin &theta; = ${v.W} + ${(v.F * Math.sin(th)).toFixed(2)} = ${FN.toFixed(2)} N. The downward push increases the normal force, and so increases friction. Kinetic friction: <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em><sub>N</sub> = ${v.muK} &times; ${FN.toFixed(2)} = ${fk.toFixed(2)} N.`,
             `Horizontal Newton's second law: <em>a</em> = (<em>F</em> cos &theta; &minus; <em>f</em><sub>k</sub>) / <em>m</em> = (${Fx.toFixed(2)} &minus; ${fk.toFixed(2)}) / ${m.toFixed(2)} = <strong>${ans.toFixed(2)} m/s²</strong>.`
           );
@@ -9943,7 +9954,7 @@ const PHYSICS_QUESTIONS = [
           const a = v.vf / v.t;
           return guidedSteps(
             `The crate must accelerate with the truck (it must not slide). The only horizontal force on the crate is static friction from the truck bed, so static friction produces the crate's acceleration. First find the truck's acceleration: <em>a</em> = &Delta;<em>v</em> / &Delta;<em>t</em> = ${v.vf} / ${v.t} = ${a.toFixed(3)} m/s².`,
-            `Newton's second law for the crate: <em>f</em><sub>s</sub> = <em>m</em><em>a</em>. The most friction available is &mu;<sub>s</sub><em>m</em><em>g</em> (the normal force is <em>m</em><em>g</em>). The <em>minimum</em> &mu;<sub>s</sub> is when friction is just enough: &mu;<sub>s</sub><em>m</em><em>g</em> = <em>m</em><em>a</em>, so &mu;<sub>s,min</sub> = <em>a</em> / <em>g</em>.`,
+            `Newton's second law for the crate: <em>f</em><sub>s</sub> = <em>m</em><em>a</em>. The most friction available is &mu;<sub>s</sub><em>m</em><em>g</em> (the normal force is <em>m</em><em>g</em>). The <i>minimum</i> &mu;<sub>s</sub> is when friction is just enough: &mu;<sub>s</sub><em>m</em><em>g</em> = <em>m</em><em>a</em>, so &mu;<sub>s,min</sub> = <em>a</em> / <em>g</em>.`,
             `Substitute: &mu;<sub>s,min</sub> = ${a.toFixed(3)} / 9.80 = <strong>${ans.toFixed(3)}</strong>. A larger &mu;<sub>s</sub> keeps the crate from sliding.`
           );
         }}
@@ -10209,7 +10220,7 @@ const PHYSICS_QUESTIONS = [
     renderPrompt: (v) => `Force <em>F</em> acts on blocks <em>m</em><sub>1</sub> = <strong>${v.m1} kg</strong>, <em>m</em><sub>2</sub> = <strong>${v.m2} kg</strong>, <em>m</em><sub>3</sub> = <strong>${v.m3} kg</strong>. Blocks 2 and 3 push with <strong>${v.F23} N</strong>.<br/><strong>a.</strong> What is their acceleration?<br/><strong>b.</strong> What is the force between 1 and 2?<br/><strong>c.</strong> What is the magnitude of force <em>F</em>?`,
     parts: [
       { label: "a. Acceleration (a)", unit: "m/s²", solve: (v) => v.F23 / v.m3, steps: (v, ans) => guidedSteps(
-          `Block 3 is the last in line, so the <em>only</em> horizontal force on it is the ${v.F23} N push from block 2. Newton's second law for block 3 alone: <em>F</em><sub>23</sub> = <em>m</em><sub>3</sub><em>a</em>.`,
+          `Block 3 is the last in line, so the <i>only</i> horizontal force on it is the ${v.F23} N push from block 2. Newton's second law for block 3 alone: <em>F</em><sub>23</sub> = <em>m</em><sub>3</sub><em>a</em>.`,
           `Solve for the acceleration: <em>a</em> = <em>F</em><sub>23</sub> / <em>m</em><sub>3</sub>.`,
           `Substitute: <em>a</em> = ${v.F23} N / ${v.m3} kg = <strong>${ans.toFixed(2)} m/s²</strong>. All three blocks share this acceleration.`
         )},
@@ -10377,7 +10388,7 @@ const PHYSICS_QUESTIONS = [
     randomize: () => ({ pct: Math.round(rnd(115, 0.08, 0)) }),
     renderPrompt: (v) => `A box is on a scale in an elevator, and the scale reads <strong>${v.pct}%</strong> of the box’s usual weight. Find the magnitude and direction of the elevator’s acceleration.`,
     parts: [{ label: "Acceleration magnitude (a)", unit: "m/s²", directionOptions: ["Upward", "Downward"], expectedDirection: "Upward", solve: (v) => ((v.pct / 100) - 1) * G_ACCEL, steps: (v, ans) => guidedSteps(
-          `The scale reads the normal force: <em>F</em><sub>N</sub> = ${v.pct}% of the weight = ${(v.pct / 100).toFixed(2)}<em>m</em><em>g</em>. Because this is <em>more</em> than the weight, the net force must point upward.`,
+          `The scale reads the normal force: <em>F</em><sub>N</sub> = ${v.pct}% of the weight = ${(v.pct / 100).toFixed(2)}<em>m</em><em>g</em>. Because this is <i>more</i> than the weight, the net force must point upward.`,
           `Take up as positive. Newton's second law: <em>F</em><sub>N</sub> &minus; <em>m</em><em>g</em> = <em>m</em><em>a</em>, so ${(v.pct / 100).toFixed(2)}<em>m</em><em>g</em> &minus; <em>m</em><em>g</em> = <em>m</em><em>a</em>. The mass cancels: <em>a</em> = (${(v.pct / 100).toFixed(2)} &minus; 1)<em>g</em>.`,
           `Substitute: <em>a</em> = ${((v.pct / 100) - 1).toFixed(2)} &times; 9.80 = <strong>${ans.toFixed(2)} m/s², upward</strong>. (The elevator could be speeding up while rising, or slowing down while descending.)`
         )}]
@@ -10475,7 +10486,7 @@ const PHYSICS_QUESTIONS = [
           const Ax = -v.A * Math.cos(rad), Ay = -v.A * Math.sin(rad);
           const Rx = Ax, Ry = Ay + v.B;
           return guidedSteps(
-            `The equilibrant is the force that balances the other two, so it equals the <em>resultant</em> reversed. First find the resultant by components (east = +x, north = +y). Force A (${v.A} N at ${v.thetaA}&deg; south of west): <em>A</em><sub>x</sub> = &minus;${v.A} cos ${v.thetaA}&deg; = ${Ax.toFixed(2)} N, <em>A</em><sub>y</sub> = &minus;${v.A} sin ${v.thetaA}&deg; = ${Ay.toFixed(2)} N.`,
+            `The equilibrant is the force that balances the other two, so it equals the <i>resultant</i> reversed. First find the resultant by components (east = +x, north = +y). Force A (${v.A} N at ${v.thetaA}&deg; south of west): <em>A</em><sub>x</sub> = &minus;${v.A} cos ${v.thetaA}&deg; = ${Ax.toFixed(2)} N, <em>A</em><sub>y</sub> = &minus;${v.A} sin ${v.thetaA}&deg; = ${Ay.toFixed(2)} N.`,
             `Force B (${v.B} N north): <em>B</em><sub>x</sub> = 0, <em>B</em><sub>y</sub> = +${v.B} N. Add: <em>R</em><sub>x</sub> = ${Rx.toFixed(2)} N, <em>R</em><sub>y</sub> = ${Ay.toFixed(2)} + ${v.B} = ${Ry.toFixed(2)} N.`,
             `The equilibrant has the same size as the resultant: <em>E</em> = &radic;(<em>R</em><sub>x</sub>&sup2; + <em>R</em><sub>y</sub>&sup2;) = &radic;(${Rx.toFixed(2)}&sup2; + ${Ry.toFixed(2)}&sup2;) = <strong>${ans.toFixed(2)} N</strong>, pointing opposite to the resultant.`
           );
@@ -10485,7 +10496,7 @@ const PHYSICS_QUESTIONS = [
           const Rx = -v.A * Math.cos(rad), Ry = -v.A * Math.sin(rad) + v.B;
           return guidedSteps(
             `From part a, the resultant of A and B is <em>R</em><sub>x</sub> = ${Rx.toFixed(2)} N (west) and <em>R</em><sub>y</sub> = ${Ry.toFixed(2)} N (${Ry >= 0 ? 'north' : 'south'}).`,
-            `The equilibrant points the opposite way: ${Math.abs(Rx).toFixed(2)} N toward the <em>east</em> and ${Math.abs(Ry).toFixed(2)} N toward the <em>${Ry >= 0 ? 'south' : 'north'}</em>.`,
+            `The equilibrant points the opposite way: ${Math.abs(Rx).toFixed(2)} N toward the <i>east</i> and ${Math.abs(Ry).toFixed(2)} N toward the <em>${Ry >= 0 ? 'south' : 'north'}</em>.`,
             `The angle from the east axis: tan &theta; = ${Math.abs(Ry).toFixed(2)} / ${Math.abs(Rx).toFixed(2)}, so &theta; = <strong>${ans.toFixed(1)}&deg; ${Ry >= 0 ? 'south' : 'north'} of east</strong>.`
           );
         }}
@@ -10502,7 +10513,7 @@ const PHYSICS_QUESTIONS = [
           return guidedSteps(
             `The mass hangs at rest, so the forces balance. Each rope makes an angle &theta;<sub>h</sub> with the horizontal, and the weight is <em>m</em><em>g</em> = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N. The horizontal parts of the two tensions cancel by symmetry.`,
             `Vertical balance: 2<em>F</em><sub>T</sub> sin &theta;<sub>h</sub> = <em>m</em><em>g</em>, so sin &theta;<sub>h</sub> = <em>m</em><em>g</em> / (2<em>F</em><sub>T</sub>) = ${(v.m * G_ACCEL).toFixed(1)} / ${2 * v.FT} = ${((v.m * G_ACCEL) / (2 * v.FT)).toFixed(4)}, so &theta;<sub>h</sub> = ${th.toFixed(2)}&deg; above the horizontal.`,
-            `The angle <em>between</em> the ropes is measured across the top. Each rope is ${th.toFixed(2)}&deg; from the horizontal on its side, so the angle between them is &phi; = 180&deg; &minus; 2 &times; ${th.toFixed(2)}&deg; = <strong>${ans.toFixed(1)}&deg;</strong>.`
+            `The angle <i>between</i> the ropes is measured across the top. Each rope is ${th.toFixed(2)}&deg; from the horizontal on its side, so the angle between them is &phi; = 180&deg; &minus; 2 &times; ${th.toFixed(2)}&deg; = <strong>${ans.toFixed(1)}&deg;</strong>.`
           );
         }}]
   },
@@ -11132,7 +11143,7 @@ const PHYSICS_QUESTIONS = [
         unit: "N",
         solve: (v) => (v.m1 + v.m2) * (G_ACCEL + v.aUp),
         steps: (v, ans) => guidedSteps(
-          `The top rope supports <em>both</em> buckets, so treat them as one system with mass <em>m</em><sub>1</sub> + <em>m</em><sub>2</sub> = ${v.m1} + ${v.m2} = ${(v.m1 + v.m2).toFixed(1)} kg. The forces on the system are the top tension (up) and the total weight (down). Take up as positive.`,
+          `The top rope supports <i>both</i> buckets, so treat them as one system with mass <em>m</em><sub>1</sub> + <em>m</em><sub>2</sub> = ${v.m1} + ${v.m2} = ${(v.m1 + v.m2).toFixed(1)} kg. The forces on the system are the top tension (up) and the total weight (down). Take up as positive.`,
           `Newton's second law: <em>T</em><sub>top</sub> &minus; (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)<em>g</em> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)<em>a</em>, so <em>T</em><sub>top</sub> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)(<em>g</em> + <em>a</em>).`,
           `Substitute: <em>T</em><sub>top</sub> = (${(v.m1 + v.m2).toFixed(1)} kg)(9.80 + ${v.aUp}) = <strong>${ans.toFixed(1)} N</strong>.`
         )},
@@ -11141,7 +11152,7 @@ const PHYSICS_QUESTIONS = [
         unit: "N",
         solve: (v) => v.m2 * (G_ACCEL + v.aUp),
         steps: (v, ans) => guidedSteps(
-          `The bottom rope supports only the <em>bottom</em> bucket (mass <em>m</em><sub>2</sub> = ${v.m2} kg). Choose just that bucket as the system. Forces: <em>T</em><sub>bottom</sub> up, weight <em>m</em><sub>2</sub><em>g</em> down. Take up as positive.`,
+          `The bottom rope supports only the <i>bottom</i> bucket (mass <em>m</em><sub>2</sub> = ${v.m2} kg). Choose just that bucket as the system. Forces: <em>T</em><sub>bottom</sub> up, weight <em>m</em><sub>2</sub><em>g</em> down. Take up as positive.`,
           `Newton's second law: <em>T</em><sub>bottom</sub> &minus; <em>m</em><sub>2</sub><em>g</em> = <em>m</em><sub>2</sub><em>a</em>, so <em>T</em><sub>bottom</sub> = <em>m</em><sub>2</sub>(<em>g</em> + <em>a</em>).`,
           `Substitute: <em>T</em><sub>bottom</sub> = (${v.m2} kg)(9.80 + ${v.aUp}) = <strong>${ans.toFixed(1)} N</strong>. This is smaller than the top tension because it carries less mass.`
         )},
@@ -11150,7 +11161,7 @@ const PHYSICS_QUESTIONS = [
         unit: "N",
         solve: (v) => (v.m1 + v.m2) * (G_ACCEL - v.aDown),
         steps: (v, ans) => guidedSteps(
-          `Same system as part a (both buckets, total mass ${(v.m1 + v.m2).toFixed(1)} kg), but now the acceleration points <em>down</em> at ${v.aDown} m/s². Take down as positive, so the weight is positive and the tension is negative.`,
+          `Same system as part a (both buckets, total mass ${(v.m1 + v.m2).toFixed(1)} kg), but now the acceleration points <i>down</i> at ${v.aDown} m/s². Take down as positive, so the weight is positive and the tension is negative.`,
           `Newton's second law: (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)<em>g</em> &minus; <em>T</em><sub>top</sub> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)<em>a</em>, so <em>T</em><sub>top</sub> = (<em>m</em><sub>1</sub> + <em>m</em><sub>2</sub>)(<em>g</em> &minus; <em>a</em>).`,
           `Substitute: <em>T</em><sub>top</sub> = (${(v.m1 + v.m2).toFixed(1)} kg)(9.80 &minus; ${v.aDown}) = <strong>${ans.toFixed(1)} N</strong>.`
         )},
@@ -11184,7 +11195,7 @@ const PHYSICS_QUESTIONS = [
         `Choose axes along and perpendicular to the incline. Along the incline, up the slope: the pull <em>F</em>. Down the slope: the weight component <em>m</em><em>g</em> sin &theta; and kinetic friction <em>f</em><sub>k</sub> (the crate moves up, so friction points down the slope).`,
         `Perpendicular to the incline there is no acceleration, so <em>F</em><sub>N</sub> = <em>m</em><em>g</em> cos &theta; = (${v.m})(9.80) cos ${v.theta}&deg; = ${(v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)).toFixed(1)} N.`,
         `Along the incline: <em>F</em> &minus; <em>m</em><em>g</em> sin &theta; &minus; <em>f</em><sub>k</sub> = <em>m</em><em>a</em>. Solve for friction: <em>f</em><sub>k</sub> = ${v.F} &minus; (${v.m})(9.80) sin ${v.theta}&deg; &minus; (${v.m})(${v.a}) = ${(v.F - v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) - v.m * v.a).toFixed(1)} N.`,
-        `Use <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em><sub>N</sub>: &mu;<sub>k</sub> = ${(v.F - v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) - v.m * v.a).toFixed(1)} / ${(v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)).toFixed(1)} = <strong>${ans.toFixed(3)}</strong>.`
+        `Use <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em><sub>N</sub>: &mu;<sub>k</sub> = ${(v.F - v.m * G_ACCEL * Math.sin(v.theta * DEG2RAD) - v.m * v.a).toFixed(1)} / ${(v.m * G_ACCEL * Math.cos(v.theta * DEG2RAD)).toFixed(1)} = <strong>${ans.toPrecision(3)}</strong>.`
       )
     }]
   },
@@ -11222,7 +11233,7 @@ const PHYSICS_QUESTIONS = [
         label: "a. Force needed to slide the block up the wall at constant velocity (F)", unit: "N",
         solve: (v) => v.m * G_ACCEL / (Math.sin(v.theta * DEG2RAD) - v.muk * Math.cos(v.theta * DEG2RAD)),
         steps: (v, ans) => guidedSteps(
-          `Resolve <em>F</em>: the horizontal part <em>F</em> cos &theta; pushes the block into the wall; the vertical part <em>F</em> sin &theta; points up. The wall's normal force pushes back horizontally, and the block is sliding <em>up</em>, so kinetic friction points <em>down</em>. Weight points down.`,
+          `Resolve <em>F</em>: the horizontal part <em>F</em> cos &theta; pushes the block into the wall; the vertical part <em>F</em> sin &theta; points up. The wall's normal force pushes back horizontally, and the block is sliding <em>up</em>, so kinetic friction points <i>down</i>. Weight points down.`,
           `Horizontal (no acceleration): <em>F</em><sub>N</sub> = <em>F</em> cos &theta;. So friction is <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em> cos &theta;.`,
           `Vertical (constant velocity, so net force is zero): <em>F</em> sin &theta; = <em>m</em><em>g</em> + &mu;<sub>k</sub><em>F</em> cos &theta;. Collect the <em>F</em> terms: <em>F</em>(sin &theta; &minus; &mu;<sub>k</sub> cos &theta;) = <em>m</em><em>g</em>.`,
           `<em>F</em> = (${v.m})(9.80) / (sin ${v.theta}&deg; &minus; ${v.muk} cos ${v.theta}&deg;) = ${(v.m * G_ACCEL).toFixed(1)} / ${(Math.sin(v.theta * DEG2RAD) - v.muk * Math.cos(v.theta * DEG2RAD)).toFixed(4)} = <strong>${ans.toFixed(1)} N</strong>.`
@@ -11232,7 +11243,7 @@ const PHYSICS_QUESTIONS = [
         label: "b. Minimum force needed to hold the block at rest on the wall (F)", unit: "N",
         solve: (v) => v.m * G_ACCEL / (Math.sin(v.theta * DEG2RAD) + v.mus * Math.cos(v.theta * DEG2RAD)),
         steps: (v, ans) => guidedSteps(
-          `Now the block is at rest and tends to slip <em>down</em>, so static friction points <em>up</em> and helps hold it. The <em>minimum</em> force corresponds to static friction at its maximum value, <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>F</em><sub>N</sub>.`,
+          `Now the block is at rest and tends to slip <i>down</i>, so static friction points <em>up</em> and helps hold it. The <i>minimum</i> force corresponds to static friction at its maximum value, <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>F</em><sub>N</sub>.`,
           `Horizontal: <em>F</em><sub>N</sub> = <em>F</em> cos &theta;, so <em>f</em><sub>s,max</sub> = &mu;<sub>s</sub><em>F</em> cos &theta;.`,
           `Vertical (at rest): <em>F</em> sin &theta; + &mu;<sub>s</sub><em>F</em> cos &theta; = <em>m</em><em>g</em>, so <em>F</em>(sin &theta; + &mu;<sub>s</sub> cos &theta;) = <em>m</em><em>g</em>.`,
           `<em>F</em><sub>min</sub> = ${(v.m * G_ACCEL).toFixed(1)} / (sin ${v.theta}&deg; + ${v.mus} cos ${v.theta}&deg;) = ${(v.m * G_ACCEL).toFixed(1)} / ${(Math.sin(v.theta * DEG2RAD) + v.mus * Math.cos(v.theta * DEG2RAD)).toFixed(4)} = <strong>${ans.toFixed(1)} N</strong>.`
@@ -11283,12 +11294,12 @@ const PHYSICS_QUESTIONS = [
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "cratePushDown",
     baseVars: { m: 16.0, theta: 22.0, a: 1.3, mu: 0.40 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 1), theta: rnd(b.theta, 0.12, 1), a: rnd(b.a, 0.15, 1), mu: rnd(b.mu, 0.15, 2) }),
-    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> crate is pushed across a horizontal floor by a force directed <strong>${v.theta}&deg;</strong> <em>below</em> the horizontal. The coefficient of kinetic friction between the crate and the floor is <strong>${v.mu}</strong>, and the crate accelerates at <strong>${v.a} m/s&sup2;</strong>. What is the magnitude of the pushing force?`,
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> crate is pushed across a horizontal floor by a force directed <strong>${v.theta}&deg;</strong> <i>below</i> the horizontal. The coefficient of kinetic friction between the crate and the floor is <strong>${v.mu}</strong>, and the crate accelerates at <strong>${v.a} m/s&sup2;</strong>. What is the magnitude of the pushing force?`,
     parts: [{
       label: "Pushing force (F)", unit: "N",
       solve: (v) => v.m * (v.a + v.mu * G_ACCEL) / (Math.cos(v.theta * DEG2RAD) - v.mu * Math.sin(v.theta * DEG2RAD)),
       steps: (v, ans) => guidedSteps(
-        `The push has a horizontal part <em>F</em> cos &theta; (forward) and a vertical part <em>F</em> sin &theta; pointing <em>down</em> into the floor. Forces: weight <em>m</em><em>g</em> down, normal force up, friction backward.`,
+        `The push has a horizontal part <em>F</em> cos &theta; (forward) and a vertical part <em>F</em> sin &theta; pointing <i>down</i> into the floor. Forces: weight <em>m</em><em>g</em> down, normal force up, friction backward.`,
         `Vertical (no acceleration): <em>F</em><sub>N</sub> = <em>m</em><em>g</em> + <em>F</em> sin &theta;. The downward push increases the normal force, so friction is <em>f</em><sub>k</sub> = &mu;<sub>k</sub>(<em>m</em><em>g</em> + <em>F</em> sin &theta;).`,
         `Horizontal: <em>F</em> cos &theta; &minus; &mu;<sub>k</sub>(<em>m</em><em>g</em> + <em>F</em> sin &theta;) = <em>m</em><em>a</em>. Collect the <em>F</em> terms: <em>F</em>(cos &theta; &minus; &mu;<sub>k</sub> sin &theta;) = <em>m</em>(<em>a</em> + &mu;<sub>k</sub><em>g</em>).`,
         `<em>F</em> = (${v.m})(${v.a} + ${v.mu} &times; 9.80) / (cos ${v.theta}&deg; &minus; ${v.mu} sin ${v.theta}&deg;) = ${(v.m * (v.a + v.mu * G_ACCEL)).toFixed(2)} / ${(Math.cos(v.theta * DEG2RAD) - v.mu * Math.sin(v.theta * DEG2RAD)).toFixed(4)} = <strong>${ans.toFixed(1)} N</strong>.`
@@ -11300,12 +11311,12 @@ const PHYSICS_QUESTIONS = [
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Friction", diagram: "wallBlockV",
     baseVars: { m: 6.50, theta: 36.0, mus: 0.55, muk: 0.44 },
     randomize: (b) => ({ m: rnd(b.m, 0.15, 2), theta: rnd(b.theta, 0.10, 1), mus: rnd(b.mus, 0.10, 2), muk: rnd(b.muk, 0.10, 2) }),
-    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> block is pressed against a vertical wall by a force <em>F</em> that is directed upward and into the wall, <strong>${v.theta}&deg;</strong> from the vertical. The coefficients of friction between the block and the wall are &mu;<sub>s</sub> = <strong>${v.mus}</strong> and &mu;<sub>k</sub> = <strong>${v.muk}</strong>. What magnitude of <em>F</em> makes the block slide <em>down</em> the wall at constant velocity?`,
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> block is pressed against a vertical wall by a force <em>F</em> that is directed upward and into the wall, <strong>${v.theta}&deg;</strong> from the vertical. The coefficients of friction between the block and the wall are &mu;<sub>s</sub> = <strong>${v.mus}</strong> and &mu;<sub>k</sub> = <strong>${v.muk}</strong>. What magnitude of <em>F</em> makes the block slide <i>down</i> the wall at constant velocity?`,
     parts: [{
       label: "Force (F)", unit: "N",
       solve: (v) => v.m * G_ACCEL / (Math.cos(v.theta * DEG2RAD) + v.muk * Math.sin(v.theta * DEG2RAD)),
       steps: (v, ans) => guidedSteps(
-        `Because the angle is measured from the <em>vertical</em>, the vertical part of the force is <em>F</em> cos &theta; (up) and the horizontal part, pushing into the wall, is <em>F</em> sin &theta;. The block slides <em>down</em>, so kinetic friction points <em>up</em>.`,
+        `Because the angle is measured from the <i>vertical</i>, the vertical part of the force is <em>F</em> cos &theta; (up) and the horizontal part, pushing into the wall, is <em>F</em> sin &theta;. The block slides <i>down</i>, so kinetic friction points <em>up</em>.`,
         `Horizontal (no acceleration): <em>F</em><sub>N</sub> = <em>F</em> sin &theta;, so <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>F</em> sin &theta;.`,
         `Vertical (constant velocity, net force zero): <em>F</em> cos &theta; + &mu;<sub>k</sub><em>F</em> sin &theta; = <em>m</em><em>g</em>, so <em>F</em>(cos &theta; + &mu;<sub>k</sub> sin &theta;) = <em>m</em><em>g</em>. (The static coefficient is not needed because the block is already sliding.)`,
         `<em>F</em> = (${v.m})(9.80) / (cos ${v.theta}&deg; + ${v.muk} sin ${v.theta}&deg;) = ${(v.m * G_ACCEL).toFixed(1)} / ${(Math.cos(v.theta * DEG2RAD) + v.muk * Math.sin(v.theta * DEG2RAD)).toFixed(4)} = <strong>${ans.toFixed(1)} N</strong>.`
@@ -11358,7 +11369,7 @@ const PHYSICS_QUESTIONS = [
         label: "b. Normal force from the ground (F<sub>N</sub>)", unit: "N",
         solve: (v) => v.m * G_ACCEL + v.F * Math.sin(v.theta * DEG2RAD),
         steps: (v, ans) => guidedSteps(
-          `Vertically there is no acceleration. The push is directed <em>downward</em> at ${v.theta}&deg;, so its vertical component <em>F</em> sin &theta; adds to the weight, both pointing down; the ground pushes up with <em>F</em><sub>N</sub>.`,
+          `Vertically there is no acceleration. The push is directed <i>downward</i> at ${v.theta}&deg;, so its vertical component <em>F</em> sin &theta; adds to the weight, both pointing down; the ground pushes up with <em>F</em><sub>N</sub>.`,
           `<em>F</em><sub>N</sub> = <em>m</em><em>g</em> + <em>F</em> sin &theta; = (${v.m})(9.80) + ${v.F} sin ${v.theta}&deg; = ${(v.m * G_ACCEL).toFixed(1)} + ${(v.F * Math.sin(v.theta * DEG2RAD)).toFixed(1)} = <strong>${ans.toFixed(1)} N</strong>.`
         )
       },
@@ -11569,7 +11580,7 @@ const PHYSICS_QUESTIONS = [
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "twoMenRopesRockRightKnown",
     baseVars: { m: 65.0, theta2: 33.0, T2: 698 },
     randomize: (b) => ({ m: rnd(b.m, 0.12, 1), theta2: rnd(b.theta2, 0.12, 1), T2: Math.round(rnd(b.T2, 0.10, 0)) }),
-    renderPrompt: (v) => `The men pictured hold the <strong>${v.m}-kg</strong> rock at rest. The right rope forms a <strong>${v.theta2}&deg;</strong> angle with the horizontal and applies a <strong>${v.T2}-N</strong> tension force. Find the size of the tension in the rope held by the man on the <em>left</em>, and the angle his rope makes with the horizontal.`,
+    renderPrompt: (v) => `The men pictured hold the <strong>${v.m}-kg</strong> rock at rest. The right rope forms a <strong>${v.theta2}&deg;</strong> angle with the horizontal and applies a <strong>${v.T2}-N</strong> tension force. Find the size of the tension in the rope held by the man on the <i>left</i>, and the angle his rope makes with the horizontal.`,
     parts: [
       {
         label: "a. Tension in the left rope (T<sub>1</sub>)", unit: "N",

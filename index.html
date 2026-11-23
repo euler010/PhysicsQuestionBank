@@ -9,10 +9,10 @@
        That makes every browser download the new file right away instead of using an old saved copy. -->
   <!-- The question data is fetched fresh from GitHub when the page opens (see loadExternalGitHubQuestions), so a new upload shows up right away. This inert tag is only a marker so Export knows where to put a review app's own copy of the questions; the browser does not load it. -->
   <script type="text/plain" src="https://raw.githubusercontent.com/euler010/PhysicsQuestionBank/main/physics_questions_data.js"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+  <style>/* One typeface everywhere (Inter), and variables shown upright instead of in italics (v59). */ *, *::before, *::after { font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif !important; } .mono, .font-mono, input, select { font-variant-numeric: tabular-nums; } em { font-style: normal; } 
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     body { font-family: 'Inter', sans-serif; }
-    .mono { font-family: 'JetBrains Mono', monospace; }
+    .mono { font-family: Inter, system-ui, sans-serif; }
     /* Review app answer cards: two across on wider screens, one across on narrow ones. */
     .parts-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; align-items: start; }
     @media (min-width: 1000px) {
@@ -446,7 +446,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v57
+              Teacher Studio · v59
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -997,8 +997,10 @@ img,video{max-width:100%;height:auto}
     const PROBLEMS_PER_PAGE = 50;
 
     const UNIT_OPTIONS = [
-      "m", "cm", "mm", "km", "s", "kg", "m/s", "km/h", "m/s²", "g's", "N", "kN", "lb", "N/kg", "J", "W", "N·s", "kg·m/s", "°", "rad", "No units"
+      "m", "cm", "mm", "km", "s", "kg", "m/s", "km/h", "m/s²", "g's", "N", "kN", "lb", "N/kg", "J", "W", "N·s", "kg·m/s", "°", "rad", "rev/min", "min", "days", "No units"
     ];
+    // Any unit a question uses is always offered, even if it is not in the list above (keeps exported apps working with new questions).
+    function ensureUnitOption(u) { u = normalizeUnit(u); if (u && UNIT_OPTIONS.indexOf(u) < 0) UNIT_OPTIONS.splice(Math.max(0, UNIT_OPTIONS.length - 1), 0, u); }
 
     function normalizeUnit(u) {
       if (!u || u === "" || u === "ratio" || u === "unitless") return "No units";
@@ -1722,7 +1724,8 @@ img,video{max-width:100%;height:auto}
         }
         vars = { ...staticVarsStore[q.id] };
       } else if (randomizationMode === "random" && typeof q.randomize === "function") {
-        try { vars = { ...base, ...q.randomize(base) }; }
+        const start = (q.baseVars && typeof q.baseVars === "object") ? { ...q.baseVars } : { ...base };
+        try { vars = { ...start, ...q.randomize(start) }; }
         catch (err) { console.error("randomize() failed for " + q.id + ", using original values:", err); vars = { ...base }; }
       }
       return {
@@ -2041,6 +2044,7 @@ img,video{max-width:100%;height:auto}
         // (an extra control), a very long label (more than about two lines at half width), or a long placeholder.
         const labelPlainLen = String(partLabelHTML).replace(/<[^>]+>/g, "").replace(/&[a-zA-Z#0-9]+;/g, "x").length;
         const needsFullWidth = !!part.directionOptions || labelPlainLen > 110 || placeholderStr.length > 26;
+        ensureUnitOption(part.unit);
         const unitSelectHTML = `<select id="unit-${activeQ.id}-${pIdx}" onchange="updatePartDraft('${activeQ.id}', ${pIdx})" ${pState.completed ? 'disabled' : ''} class="part-unit-select px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-medium text-slate-800 mono focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="">Units</option>${UNIT_OPTIONS.map(u => `<option value="${u}" ${pState.userUnit === u ? 'selected' : ''}>${u}</option>`).join("")}</select>`;
         const dirSelectHTML = part.directionOptions ? `<select id="dir-${activeQ.id}-${pIdx}" onchange="updatePartDraft('${activeQ.id}', ${pIdx})" ${pState.completed ? 'disabled' : ''} class="part-dir-select px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="">Select Direction...</option>${part.directionOptions.map(opt => `<option value="${opt}" ${pState.userDir === opt ? 'selected' : ''}>${opt}</option>`).join("")}</select>` : "";
         let feedbackHTML = "";
@@ -2269,7 +2273,7 @@ img,video{max-width:100%;height:auto}
 
       if (!promptTemplate) return showMessageModal("Please provide a question prompt.", "Missing Prompt");
 
-      const rawItem = { id: "CUST-" + Date.now().toString().slice(-4), docNum: "Custom #" + (questionLibrary.length - 61), title, topic, promptTemplate, v1, v2, formula, unit, solutionText, unitTag: getUnitTagFromTopic(topic) };
+      const rawItem = { id: "CUST-" + Date.now().toString(36).toUpperCase(), docNum: "Custom #" + (questionLibrary.filter(q => /^CUST-/.test(q.id)).length + 1), title, topic, promptTemplate, v1, v2, formula, unit, solutionText, unitTag: getUnitTagFromTopic(topic) };
       const savedRaw = JSON.parse(safeGetStorage(CUSTOM_Q_STORAGE_KEY, "[]") || "[]");
       savedRaw.push(rawItem); safeSetStorage(CUSTOM_Q_STORAGE_KEY, JSON.stringify(savedRaw));
 
@@ -2282,12 +2286,16 @@ img,video{max-width:100%;height:auto}
       const cleanUnit = normalizeUnit(item.unit);
       if (!UNIT_OPTIONS.includes(cleanUnit)) UNIT_OPTIONS.push(cleanUnit);
       const resolvedTopic = item.topic ? item.topic.replace(/^Unit 3: Circular Motion/, "Unit 2: Circular Motion") : "Unit 2: Dynamics and Forces";
+      const data = JSON.stringify({ p: String(item.promptTemplate || ""), f: String(item.formula || "0"), s: String(item.solutionText || ""), u: cleanUnit }).replace(/</g, "\\u003c");
       return {
         id: item.id, docNum: item.docNum || "Custom", title: item.title, topic: resolvedTopic, unitTag: getUnitTagFromTopic(resolvedTopic),
         baseVars: { v1: Number(item.v1), v2: Number(item.v2) },
         randomize: (b) => ({ v1: rnd(b.v1, 0.2, 2), v2: rnd(b.v2, 0.2, 2) }),
-        renderPrompt: (v) => item.promptTemplate.replace(/\{\{v1\}\}/g, `<strong>${v.v1}</strong>`).replace(/\{\{v2\}\}/g, `<strong>${v.v2}</strong>`),
-        parts: [{ label: "Answer", unit: cleanUnit, solve: (v) => (new Function("v1", "v2", "g", "G", `return (${item.formula});`))(v.v1, v.v2, G_ACCEL, G_CONST), steps: (v, ans) => `${item.solutionText} (With <em>v</em><sub>1</sub> = ${v.v1}, <em>v</em><sub>2</sub> = ${v.v2}: Answer = ${ans.toFixed(3)} ${cleanUnit})` }]
+        // Each function carries the question's own text (an exported review app copies these functions by themselves).
+        renderPrompt: new Function("v", "var item = " + data + "; return item.p.replace(/\\{\\{v1\\}\\}/g, '<strong>' + v.v1 + '</strong>').replace(/\\{\\{v2\\}\\}/g, '<strong>' + v.v2 + '</strong>');"),
+        parts: [{ label: "Answer", unit: cleanUnit,
+          solve: new Function("v", "var item = " + data + "; return (new Function('v1', 'v2', 'g', 'G', 'return (' + item.f + ');'))(v.v1, v.v2, G_ACCEL, G_CONST);"),
+          steps: new Function("v", "ans", "var item = " + data + "; return item.s + ' (With <em>v</em><sub>1</sub> = ' + v.v1 + ', <em>v</em><sub>2</sub> = ' + v.v2 + ': Answer = ' + ans.toFixed(3) + ' ' + item.u + ')';") }]
       };
     }
 
@@ -2987,7 +2995,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v57";
+    const APP_VERSION = "v59";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off

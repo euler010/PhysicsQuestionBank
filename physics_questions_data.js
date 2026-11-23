@@ -1,6 +1,6 @@
 // ============================================================================
 // PHYSICS QUESTION LIBRARY DATA (physics_questions_data.js)
-// 134 questions, plus the code that draws their diagrams.
+// 171 questions, plus the code that draws their diagrams.
 // Loaded by the Library App via <script src=".../physics_questions_data.js">
 //
 // What is in this file, top to bottom:
@@ -488,6 +488,10 @@ function installSplineEngine() {
     window.onSplinePlotPointerDown = onSplinePlotPointerDown;
 }
 installSplineEngine();
+
+// Units used by the circular motion questions added in November 2026. They are added to the
+// app's unit dropdown when this file loads (works with every version of the Library App).
+try { if (typeof UNIT_OPTIONS !== "undefined") ["rev/min", "min", "days"].forEach(function (u) { if (UNIT_OPTIONS.indexOf(u) < 0) UNIT_OPTIONS.splice(UNIT_OPTIONS.length - 1, 0, u); }); } catch (e) { }
 
 // 2. Builds the text shown under "Guided Solution": a short numbered list of steps.
 function guidedSteps() {
@@ -7839,6 +7843,199 @@ const DIAGRAM_DRAWERS = {
 };
 
 // 4. Draws the diagram a question asks for.
+// 3b. Diagrams for the circular motion and gravitation questions added in November 2026 (CMG-05 and CMG-09 to CMG-45).
+// They share one set of drawing helpers, and pqStyle() gives them the same textbook look as the other diagrams.
+(function () {
+  const S = "#64748b", A = "#2563eb", R = "#dc2626", T = "#0f172a", B = "#f8fafc", G = "#059669", O = "#d97706", P = "#7c3aed", K = "#475569";
+  const ar = (x1, y1, x2, y2, c) => { const a = Math.atan2(y2 - y1, x2 - x1), h = 10; return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c}" stroke-width="3"/><polygon points="${x2},${y2} ${x2 - h * Math.cos(a - 0.4)},${y2 - h * Math.sin(a - 0.4)} ${x2 - h * Math.cos(a + 0.4)},${y2 - h * Math.sin(a + 0.4)}" fill="${c}"/>`; };
+  const tx = (x, y, s, c, an, fs) => `<text x="${x}" y="${y}" text-anchor="${an || "middle"}" fill="${c || T}" font-size="${fs || 12.5}" font-weight="800">${s}</text>`;
+  const lb = (x, y, s, an) => tx(x, y, s, K, an || "start", 12.5);
+  const sb = (s) => `<tspan baseline-shift="sub" font-size="9">${s}</tspan>`;
+  const sci = (m, e) => `${m} &times; 10<tspan baseline-shift="super" font-size="9">${e}</tspan>`;
+  const f = (x, d) => Number(x).toFixed(d);
+  const ln = (x1, y1, x2, y2, c, w, dash) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${c || S}" stroke-width="${w || 2}"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`;
+  const circ = (cx, cy, r, fill, stroke, w, dash) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill || "none"}" stroke="${stroke || S}" stroke-width="${w || 2}"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`;
+  const dot = (x, y, c) => `<circle cx="${x}" cy="${y}" r="4" fill="${c || S}"/>`;
+  const man = (x, y, c) => `<circle cx="${x}" cy="${y - 48}" r="8" fill="${B}" stroke="${c || T}" stroke-width="2.5"/><line x1="${x}" y1="${y - 40}" x2="${x}" y2="${y - 18}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x - 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x}" y1="${y - 18}" x2="${x + 8}" y2="${y}" stroke="${c || T}" stroke-width="3"/><line x1="${x - 12}" y1="${y - 34}" x2="${x + 12}" y2="${y - 34}" stroke="${c || T}" stroke-width="3"/>`;
+  const carTop = (x, y, c) => `<rect x="${x - 10}" y="${y - 18}" width="20" height="36" rx="6" fill="#e2e8f0" stroke="${c || T}" stroke-width="2.5"/>`;
+  const spin = (cx, cy, rx, ry, c) => `<path d="M ${cx - rx} ${cy} A ${rx} ${ry} 0 0 0 ${cx + rx} ${cy}" fill="none" stroke="${c || R}" stroke-width="2.5"/>` + `<polygon points="${cx + rx},${cy} ${cx + rx - 9},${cy + 1} ${cx + rx - 3},${cy - 8}" fill="${c || R}"/>`;
+  const svg = (h, inner) => `<svg viewBox="0 0 440 ${h}" class="w-full max-w-md mx-auto ${h <= 190 ? "h-48" : h <= 215 ? "h-56" : "h-60"} bg-slate-50 rounded-2xl border border-slate-200 p-3 shadow-xs">${inner}</svg>`;
+
+  function pqStyle(s) {
+    var rgb = function (h) { h = h.replace('#', ''); if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]; return [parseInt(h.substr(0, 2), 16), parseInt(h.substr(2, 2), 16), parseInt(h.substr(4, 2), 16)]; };
+    var lum = function (h) { var c = rgb(h); return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255; };
+    var sat = function (h) { var c = rgb(h); return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) > 45; };
+    s = s.replace(/<text([^>]*)>/g, function (m, a) { var col = '#111'; var fc = a.match(/ fill="(#[0-9a-fA-F]{3,6})"/); if (fc && sat(fc[1])) col = fc[1]; a = a.replace(/ fill="[^"]*"/, '').replace(/font-weight="[^"]*"/, 'font-weight="normal"'); return '<text' + a + ' fill="' + col + '" font-family="Inter, Arial, Helvetica, sans-serif">'; });
+    s = s.replace(/<(rect|path|ellipse)\b[^>]*>/g, function (m) { return m.replace(/fill="(#[0-9a-fA-F]{3,6})"/, function (mm, c) { var lc = c.toLowerCase(); return (!sat(c) && lum(c) < 0.6 && lc !== '#e2e8f0' && lc !== '#cbd5e1') ? 'fill="#ddd"' : mm; }); });
+    s = s.replace(/(fill|stroke)="(#[0-9a-fA-F]{3,6})"/g, function (m, k, c) { var l = lum(c), lc = c.toLowerCase(); if (sat(c)) return m; if (k === 'fill') { if (l >= 0.99 || lc === '#ddd') return m; if (lc === '#e2e8f0' || lc === '#cbd5e1') return 'fill="url(#pqh)"'; return l > 0.6 ? 'fill="#fff"' : 'fill="#111"'; } return l > 0.8 ? 'stroke="#aaa"' : (l > 0.6 ? 'stroke="#777"' : 'stroke="#111"'); });
+    s = s.replace(/stroke-width="([\d.]+)"/g, function (m, w) { return 'stroke-width="' + Math.max(1, Math.round(w * 65) / 100) + '"'; });
+    s = s.replace(/<svg([^>]*)>/, function (m, a) { return '<svg' + a.replace('bg-slate-50', 'bg-white') + ' style="background:#fff"><defs><pattern id="pqh" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#999" stroke-width="1"/></pattern></defs>'; });
+    s = s.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, function (t) {
+      var plain = t.replace(/<[^>]*>/g, '');
+      if (!(plain.length > 38 || (plain.length <= 2 && /<tspan/.test(t)))) t = t.replace(/font-size="([\d.]+)"/g, function (m, n) { var z = parseFloat(n); return 'font-size="' + (z <= 14 ? z + 2 : z) + '"'; });
+      return t.replace(/^<text\b/, '<text stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"');
+    });
+    return s;
+  }
+
+  // A rotating ring-shaped space station seen face on. lab1/lab2 are the size and gravity labels.
+  const station = (sizeLine, lab1, lab2) => svg(235, circ(150, 118, 96, "none", T, 7) + circ(150, 118, 84, "none", S, 1.5) + dot(150, 118) + sizeLine
+    + man(150, 196, A) + `<g transform="rotate(180 150 118)">${man(150, 196, A)}</g>`
+    + spin(150, 118, 112, 112, R) + lb(282, 70, lab1) + lb(282, 96, lab2) + lb(282, 150, "spins about its center"));
+
+  const D = {
+    hillRider: (v) => DIAGRAM_DRAWERS.hillMotorcycle({ v: f(v.v, 2), m: f(v.m, 1), r: f(v.r, 2) }).replace(/\(bike \+ rider\)/, "(rider)"),
+
+    vertCircleRock: (v) => svg(235, circ(140, 112, 96, "none", S, 2, "6 5") + dot(140, 112, T) + ln(140, 112, 140, 200, T, 2.5)
+      + `<ellipse cx="140" cy="210" rx="15" ry="11" fill="#94a3b8" stroke="${T}" stroke-width="2.5"/>` + lb(124, 160, "r", "end")
+      + lb(268, 80, `m = ${f(v.m, 1)} kg`) + lb(268, 106, `r = ${f(v.rCm, 1)} cm`) + lb(268, 132, `T${sb("max")} = ${f(v.Tmax, 0)} N`) + lb(268, 158, "vertical circle")),
+
+    stationRing: (v) => station(ln(54, 118, 246, 118, O, 2, "5 4") + tx(196, 108, `d = ${f(v.dKm, 2)} km`, "#b45309", "middle", 12.5), "artificial gravity", `= ${f(v.frac, 2)}g`),
+    stationHospital: (v) => station(ln(150, 118, 246, 118, O, 2.5) + tx(192, 108, `r = ${f(v.r, 0)} m`, "#b45309", "middle", 12.5), "simulated gravity", "= one-tenth of g"),
+
+    coasterLoop: (v) => svg(235, `<path d="M 20 30 Q 70 215 170 215 L 425 215" fill="none" stroke="${A}" stroke-width="4"/>` + circ(270, 135, 80, "none", A, 4)
+      + ln(270, 55, 270, 215, S, 1.5, "5 4") + tx(282, 145, `d = ${f(v.d, 1)} m`, K, "start", 12.5)
+      + `<rect x="257" y="57" width="26" height="14" rx="3" fill="#fde68a" stroke="${O}" stroke-width="2.5"/>` + ar(262, 40, 215, 40, G) + tx(258, 30, "v at top = ?", G, "start", 12.5)
+      + lb(20, 230, "loop (side view)")),
+
+    rotorDrum: (v) => svg(235, `<ellipse cx="190" cy="52" rx="120" ry="24" fill="none" stroke="${T}" stroke-width="2.5"/>` + ln(70, 52, 70, 200, T, 2.5) + ln(310, 52, 310, 200, T, 2.5)
+      + `<path d="M 70 200 A 120 24 0 0 0 310 200" fill="none" stroke="${T}" stroke-width="2.5"/>` + ln(190, 20, 190, 225, S, 1.5, "5 4")
+      + ln(190, 52, 310, 52, O, 2.5) + tx(262, 70, `r = ${f(v.r, 2)} m`, "#b45309", "middle", 12) + spin(190, 30, 34, 10, R)
+      + man(294, 190, A) + lb(322, 90, `${f(v.rpm, 1)} rpm`) + lb(322, 116, `&mu;${sb("s")} = ?`) + lb(322, 150, "floor drops") + lb(322, 170, "away")),
+
+    swingRide: (v) => { const th = v.theta * Math.PI / 180, L = 150, x2 = 110 + L * Math.sin(th), y2 = 30 + L * Math.cos(th);
+      return svg(235, ln(110, 15, 110, 225, S, 1.5, "5 4") + dot(110, 30, T) + ln(110, 30, x2, y2, T, 2.5) + `<rect x="${x2 - 12}" y="${y2}" width="24" height="10" rx="3" fill="#fecaca" stroke="${R}" stroke-width="2"/>` + circ(x2, y2 - 8, 6, B, A, 2)
+        + `<path d="M 110 78 A 48 48 0 0 0 ${110 + 48 * Math.sin(th)} ${30 + 48 * Math.cos(th)}" fill="none" stroke="${P}" stroke-width="2"/>` + tx(128, 98, `${f(v.theta, 1)}&deg;`, P, "start", 12)
+        + lb(282, 70, `L = ${f(v.L, 1)} m`) + lb(282, 96, `m = ${f(v.m, 1)} kg`) + lb(282, 122, "boy + seat") + lb(282, 160, "path: horizontal circle")); },
+
+    carCurveAccel: (v) => svg(235, `<path d="M 168 20 A 230 230 0 0 0 168 216" fill="none" stroke="${T}" stroke-width="2.5"/><path d="M 208 20 A 230 230 0 0 0 208 216" fill="none" stroke="${T}" stroke-width="2.5"/>`
+      + carTop(166, 118) + ar(166, 96, 166, 50, G) + tx(180, 60, "v", G, "start", 13) + ln(176, 118, 300, 118, O, 2, "5 4") + tx(250, 108, `r = ${f(v.r, 1)} m`, "#b45309", "middle", 12)
+      + lb(250, 160, `v: ${f(v.v0, 1)} &rarr; ${f(v.v1, 1)} m/s`) + lb(250, 184, `in ${f(v.t, 1)} s (uniform)`) + lb(250, 54, "top view")),
+
+    bankedBlock: (v) => svg(235, `<polygon points="40,200 330,200 330,70" fill="#e2e8f0" stroke="${T}" stroke-width="2.5"/>`
+      + `<g transform="rotate(-24.1 185 135)"><rect x="160" y="111" width="50" height="26" rx="3" fill="#bfdbfe" stroke="${A}" stroke-width="2.5"/></g>`
+      + `<path d="M 100 200 A 60 60 0 0 0 95 176" fill="none" stroke="${P}" stroke-width="2"/>` + tx(110, 190, "&theta; = ?", P, "start", 12)
+      + lb(250, 34, `m = ${f(v.m, 1)} kg`) + lb(20, 34, `r = ${f(v.r, 1)} m`) + lb(20, 58, `v = ${f(v.v, 1)} m/s`) + lb(40, 225, "frictionless banked track (cross section)")),
+
+    moonStation: (v) => svg(235, circ(115, 118, 70, "#cbd5e1", S, 2.5) + tx(115, 123, "moon", T, "middle", 13) + circ(115, 118, 100, "none", S, 2, "6 5")
+      + `<rect x="207" y="108" width="16" height="20" rx="3" fill="${B}" stroke="${A}" stroke-width="2.5"/>` + ar(215, 102, 215, 56, R) + tx(228, 70, "v = ?", R, "start", 12.5)
+      + lb(250, 112, `h = ${f(v.hKm, 0)} km`) + lb(250, 138, "R = 1,737 km") + lb(250, 164, `M = ${sci("7.348", 22)} kg`)),
+
+    moonPlanet: (v) => svg(235, circ(130, 118, 50, "#fde68a", "#92400e", 2.5) + tx(130, 123, "planet", T, "middle", 13) + circ(130, 118, 95, "none", S, 2, "6 5")
+      + circ(225, 118, 10, "#cbd5e1", S, 2) + ln(130, 118, 215, 118, O, 2) + tx(200, 110, "r", "#b45309", "middle", 13) + ar(225, 104, 225, 60, R) + tx(238, 74, "v = ?", R, "start", 12.5)
+      + lb(262, 120, `r = ${sci(f(v.rE5, 2), 5)} km`) + lb(262, 146, `T = ${f(v.Th, 1)} h`) + lb(262, 172, "planet mass M = ?")),
+
+    earthShuttle: (v) => svg(200, circ(70, 100, 32, "#93c5fd", A, 2.5) + tx(70, 105, "Earth", T, "middle", 12) + ln(70, 100, 360, 100, O, 2, "5 4")
+      + `<rect x="352" y="88" width="26" height="24" rx="4" fill="${B}" stroke="${T}" stroke-width="2.5"/>` + tx(215, 90, `${f(v.n, 1)} Earth radii from center`, "#b45309", "middle", 12)
+      + lb(250, 150, `astronaut: ${f(v.m, 0)} kg`) + lb(250, 176, "weight = ?")),
+
+    twoMassesF: (v) => svg(190, circ(110, 90, 26, "#bfdbfe", A, 2.5) + tx(110, 95, "m" + sb("1"), T, "middle", 13) + circ(330, 90, 26, "#bbf7d0", G, 2.5) + tx(330, 95, "m" + sb("2"), T, "middle", 13)
+      + ar(140, 90, 190, 90, R) + ar(300, 90, 250, 90, R) + tx(170, 78, "F", R, "middle", 13) + tx(270, 78, "F", R, "middle", 13)
+      + ln(110, 140, 330, 140, S, 1.5) + ln(110, 132, 110, 148, S, 1.5) + ln(330, 132, 330, 148, S, 1.5) + tx(220, 162, "distance r", K, "middle", 12.5)),
+
+    planetMR: (v) => svg(235, circ(140, 118, 90, "#fde68a", "#92400e", 2.5) + dot(140, 118, T) + ln(140, 118, 230, 118, O, 2.5) + tx(185, 110, "R", "#b45309", "middle", 13)
+      + lb(262, 90, `M = ${sci(f(v.ME25, 2), 25)} kg`) + lb(262, 116, `R = ${sci(f(v.RE6, 2), 6)} m`) + lb(262, 150, "at the surface:") + lb(262, 174, "g = ?")),
+
+    conicalPig: (v) => { const th = Math.acos(Math.min(0.98, G_ACCEL * v.T * v.T / (4 * Math.PI * Math.PI * v.Lcm / 100))), L = 160, dx = L * Math.sin(th), dy = L * Math.cos(th), cy = 25 + dy;
+      return svg(235, ln(150, 25, 150, cy + 30, S, 1.5, "5 4") + dot(150, 25, T) + `<ellipse cx="150" cy="${cy}" rx="${dx}" ry="18" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/>`
+        + ln(150, 25, 150 + dx, cy, T, 2.5) + circ(150 + dx, cy, 11, "#fbcfe8", "#db2777", 2.5) + tx(150 + dx / 2 + 12, 25 + dy / 2, "L", T, "start", 13)
+        + `<path d="M 150 70 A 45 45 0 0 0 ${150 + 45 * Math.sin(th)} ${25 + 45 * Math.cos(th)}" fill="none" stroke="${P}" stroke-width="2"/>` + tx(140, 82, "&theta;", P, "end", 13)
+        + lb(310, 60, `L = ${f(v.Lcm, 1)} cm`) + lb(310, 86, `m = ${f(v.mg, 0)} g`) + lb(310, 112, `T = ${f(v.T, 2)} s`)); },
+
+    indyTurn: (v) => svg(235, `<path d="M 60 220 A 170 170 0 0 1 230 50" fill="none" stroke="${T}" stroke-width="2.5"/><path d="M 100 220 A 130 130 0 0 1 230 90" fill="none" stroke="${T}" stroke-width="2.5"/>`
+      + carTop(118, 118) + ar(132, 104, 168, 70, G) + tx(176, 76, `v = ${f(v.v, 0)} m/s`, G, "start", 12.5) + ln(230, 220, 128, 126, O, 2, "5 4") + tx(196, 186, "r = ?", "#b45309", "start", 12.5) + dot(230, 220)
+      + lb(270, 120, `a${sb("c")} = ${f(v.k, 2)}g`) + lb(270, 40, "top view of the turn")),
+
+    tarzanVine: (v) => svg(235, `<path d="M 15 120 L 90 120 L 90 235 L 15 235 Z" fill="#e2e8f0" stroke="${S}" stroke-width="2"/><path d="M 300 120 L 425 120 L 425 235 L 300 235 Z" fill="#e2e8f0" stroke="${S}" stroke-width="2"/>`
+      + `<path d="M 90 205 Q 125 195 160 205 T 230 205 T 300 205" fill="none" stroke="${A}" stroke-width="2.5"/>` + tx(195, 228, "river", A, "middle", 12)
+      + ln(60, 15, 340, 15, "#92400e", 5) + dot(195, 15, T) + ln(195, 15, 195, 135, G, 2.5) + `<path d="M 105 66 A 140 140 0 0 0 285 66" fill="none" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>`
+      + man(195, 185, T) + tx(208, 80, `L = ${f(v.L, 1)} m`, G, "start", 12.5) + lb(310, 60, `${f(v.m, 1)} kg`) + lb(310, 86, `grip &le; ${Math.round(v.F).toLocaleString()} N`)),
+
+    ringWorld: (v) => svg(235, `<ellipse cx="200" cy="140" rx="180" ry="55" fill="none" stroke="${T}" stroke-width="2.5"/><ellipse cx="200" cy="100" rx="180" ry="55" fill="none" stroke="${T}" stroke-width="2.5"/>`
+      + ln(20, 100, 20, 140, T, 2.5) + ln(380, 100, 380, 140, T, 2.5) + circ(200, 120, 20, "#fde047", "#ea580c", 2.5) + tx(174, 125, "star", "#c2410c", "end", 12)
+      + ln(220, 120, 375, 120, O, 2, "5 4") + tx(300, 113, "r", "#b45309", "middle", 13) + lb(20, 22, `r = ${sci(f(v.rE11, 1), 11)} m`)
+      + lb(20, 226, "apparent gravity = g;  T (days) = ?")),
+
+    bikeTrack: (v) => svg(200, `<ellipse cx="200" cy="100" rx="170" ry="60" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/>` + dot(200, 100)
+      + ln(200, 100, 200, 160, O, 2) + tx(210, 136, `r = ${f(v.r, 1)} m`, "#b45309", "start", 12) + circ(200, 160, 9, "#bfdbfe", A, 2.5) + ar(212, 172, 262, 172, G) + tx(270, 178, `v = ${f(v.v, 1)} m/s`, G, "start", 12)
+      + lb(20, 22, `woman: ${f(v.m, 0)} kg`)),
+
+    pennyDisk: (v) => svg(200, `<ellipse cx="200" cy="80" rx="170" ry="36" fill="#e2e8f0" stroke="${T}" stroke-width="2.5"/>` + `<rect x="190" y="116" width="20" height="70" fill="${K}" stroke="${T}" stroke-width="2"/>`
+      + dot(200, 80, T) + ln(200, 80, 320, 80, O, 2) + tx(258, 34, `r = ${f(v.rCm, 1)} cm`, "#b45309", "middle", 12) + `<ellipse cx="320" cy="80" rx="14" ry="5" fill="#fbbf24" stroke="#92400e" stroke-width="2"/>`
+      + spin(200, 80, 90, 18, R) + lb(20, 150, `T = ${f(v.T, 2)} s`) + lb(20, 176, `penny: ${f(v.mg, 2)} g`) + lb(250, 150, `&mu;${sb("s")} = ?`)),
+
+    valleyCar: (v) => svg(235, `<path d="M 20 30 Q 220 330 420 30 L 420 235 L 20 235 Z" fill="#e2e8f0" stroke="${S}" stroke-width="2.5"/>`
+      + `<rect x="196" y="160" width="48" height="18" rx="5" fill="#bfdbfe" stroke="${A}" stroke-width="2.5"/>` + ar(220, 156, 220, 96, R) + tx(232, 112, `F${sb("N")} = ${f(v.k, 2)} mg`, R, "start", 12.5)
+      + ar(150, 170, 110, 170, G) + tx(110, 160, "v = ?", G, "end", 12.5) + lb(20, 22, `radius of curvature r = ${f(v.r, 1)} m`)),
+
+    rightAngleMasses: (v) => svg(235, ln(80, 50, 330, 50, S, 1.5, "5 4") + ln(80, 50, 80, 190, S, 1.5, "5 4") + `<path d="M 80 64 L 94 64 L 94 50" fill="none" stroke="${S}" stroke-width="1.5"/>`
+      + circ(80, 50, 18, "#fde047", "#ca8a04", 2.5) + tx(80, 55, "A", T, "middle", 13) + circ(330, 50, 20, "#86efac", G, 2.5) + tx(330, 55, "B", T, "middle", 13) + circ(80, 190, 15, "#93c5fd", A, 2.5) + tx(80, 195, "C", T, "middle", 13)
+      + tx(205, 40, `${f(v.dAB, 1)} m`, K, "middle", 12.5) + tx(66, 124, `${f(v.dAC, 1)} m`, K, "end", 12.5)
+      + lb(220, 120, `m${sb("A")} = ${f(v.mA, 1)} kg`) + lb(220, 146, `m${sb("B")} = ${f(v.mB, 1)} kg`) + lb(220, 172, `m${sb("C")} = ${f(v.mC, 1)} kg`)),
+
+    loopCart: (v) => svg(235, circ(170, 120, 92, "none", T, 4) + ln(40, 213, 300, 213, T, 3) + dot(170, 120) + ln(170, 120, 262, 120, O, 2) + tx(216, 112, `r = ${f(v.r, 2)} m`, "#b45309", "middle", 12)
+      + `<rect x="156" y="30" width="28" height="16" rx="3" fill="#fecaca" stroke="${R}" stroke-width="2.5"/>` + ar(150, 18, 104, 18, G) + tx(96, 23, `v = ${f(v.v, 2)} m/s`, G, "end", 12.5)
+      + lb(290, 60, `m = ${f(v.m, 2)} kg`) + lb(290, 86, "force from track") + lb(290, 108, "at top = ?")),
+
+    twoPlanets: (v) => svg(200, circ(110, 95, 52, "#fde68a", "#92400e", 2.5) + tx(110, 100, "A", T, "middle", 14) + circ(300, 95, 66, "#bfdbfe", A, 2.5) + tx(300, 100, "B", T, "middle", 14)
+      + lb(20, 180, `M${sb("A")} = ${f(v.pct, 0)}% of M${sb("B")}`) + lb(230, 180, "same weight on both") + lb(20, 22, `r${sb("A")} / r${sb("B")} = ?`)),
+
+    raceRing: (v) => svg(235, circ(140, 118, 100, "none", T, 3) + circ(140, 118, 72, "none", T, 3) + circ(140, 118, 86, "none", "#94a3b8", 1.5, "6 5") + dot(140, 118)
+      + ln(140, 118, 226, 118, O, 2) + tx(175, 140, `r = ${f(v.r, 0)} m`, "#b45309", "middle", 12) + carTop(226, 150, R)
+      + lb(262, 60, `&mu;${sb("s")} = ${f(v.muS, 2)}`) + lb(262, 86, `&mu;${sb("k")} = ${f(v.muK, 2)}`) + lb(262, 150, "shortest lap time = ?")),
+
+    ovalTrack: (v) => svg(200, `<path d="M 120 30 L 300 30 A 70 70 0 0 1 300 170 L 120 170 A 70 70 0 0 1 120 30 Z" fill="none" stroke="${T}" stroke-width="3"/>`
+      + `<path d="M 120 55 L 300 55 A 45 45 0 0 1 300 145 L 120 145 A 45 45 0 0 1 120 55 Z" fill="none" stroke="${T}" stroke-width="3"/>` + dot(300, 100) + ln(300, 100, 357, 100, O, 2) + tx(320, 92, "r", "#b45309", "middle", 13)
+      + lb(150, 92, `r = ${f(v.r, 0)} m`) + lb(150, 118, `&mu;${sb("s")} = ${f(v.muS, 2)}, &mu;${sb("k")} = ${f(v.muK, 2)}`) + lb(20, 194, "ends are semicircles;  v max = ?")),
+
+    carLeftTurn: (v) => svg(235, `<path d="M 260 225 A 180 180 0 0 0 80 45" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/>` + dot(80, 225) + ln(80, 225, 127, 51, O, 2) + tx(112, 140, `r = ${f(v.r, 1)} m`, "#b45309", "end", 12)
+      + `<g transform="rotate(-25 250 140)">${carTop(250, 140)}</g>` + ar(238, 150, 196, 171, R) + tx(190, 192, "door on you: &frac12; mg", R, "end", 12) + ar(268, 116, 256, 74, G) + tx(268, 70, "v = ?", G, "start", 12.5)
+      + lb(290, 160, "turning left") + lb(290, 184, "(top view)")),
+
+    twoAsteroids: (v) => svg(190, `<path d="M 70 70 Q 95 40 130 58 Q 160 80 138 112 Q 110 135 80 118 Q 50 100 70 70 Z" fill="#e2e8f0" stroke="${T}" stroke-width="2.5"/>`
+      + `<path d="M 300 76 Q 320 62 340 76 Q 356 96 338 110 Q 316 120 302 106 Q 288 92 300 76 Z" fill="#e2e8f0" stroke="${T}" stroke-width="2.5"/>` + tx(105, 92, "3m", T, "middle", 13) + tx(322, 96, "m", T, "middle", 13)
+      + ln(104, 150, 322, 150, S, 1.5) + ln(104, 142, 104, 158, S, 1.5) + ln(322, 142, 322, 158, S, 1.5) + tx(213, 172, `${f(v.dKm, 2)} km`, K, "middle", 12.5)
+      + tx(213, 30, `F = ${sci(f(v.FE8, 2), 8)} N`, R, "middle", 12.5)),
+
+    planetAstronaut: (v) => svg(235, circ(140, 148, 84, "#fde68a", "#92400e", 2.5) + dot(140, 148, T) + ln(140, 148, 224, 148, O, 2.5) + tx(182, 140, "R", "#b45309", "middle", 13) + man(140, 64, A)
+      + lb(262, 100, `R = ${Math.round(v.RKm).toLocaleString()} km`) + lb(262, 126, `g = ${f(v.g, 2)} m/s&sup2;`) + lb(262, 160, "planet mass M = ?")),
+
+    curveCarLevel: (v) => svg(235, circ(170, 118, 82, "none", S, 2, "6 5") + dot(170, 118) + ln(170, 118, 252, 118, O, 2.5) + tx(212, 110, `r = ${f(v.r, 0)} m`, "#b45309", "middle", 12)
+      + carTop(252, 140) + ar(252, 116, 252, 64, G) + tx(264, 76, `v = ${f(v.vKmh, 0)} km/h`, G, "start", 12.5) + lb(300, 150, `&mu;${sb("s")} = ?`) + lb(20, 225, "top view: level (unbanked) curve")),
+
+    jetLoop: (v) => svg(235, circ(170, 112, 92, "none", S, 2, "6 5") + dot(170, 112) + ln(170, 112, 170, 204, O, 2) + tx(178, 160, "r = ?", "#b45309", "start", 12.5)
+      + `<polygon points="148,196 196,204 148,212" fill="#bfdbfe" stroke="${A}" stroke-width="2.5"/>` + ar(204, 204, 250, 204, G) + tx(256, 209, `v = ${f(v.vKmh, 0)} km/h`, G, "start", 12.5)
+      + lb(290, 70, `a${sb("c")} &le; ${f(v.k, 1)} g`) + lb(290, 96, "at the lowest point")),
+
+    ferrisWheel: (v) => { let s = ""; for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; s += ln(150, 105, 150 + 85 * Math.cos(a), 105 + 85 * Math.sin(a), S, 1.5) + `<rect x="${150 + 85 * Math.cos(a) - 7}" y="${105 + 85 * Math.sin(a) - 5}" width="14" height="12" rx="2" fill="#fecaca" stroke="${R}" stroke-width="1.5"/>`; }
+      return svg(235, circ(150, 105, 85, "none", T, 3) + s + ln(150, 105, 105, 225, T, 3) + ln(150, 105, 195, 225, T, 3) + ln(60, 225, 240, 225, T, 3) + dot(150, 105, T)
+        + lb(272, 80, `d = ${f(v.d, 1)} m`) + lb(272, 106, "weightless at the top") + lb(272, 140, "rev/min = ?")); },
+
+    semicircleArc: (v) => svg(200, `<path d="M 60 180 A 150 150 0 0 1 360 180" fill="none" stroke="${T}" stroke-width="3"/>` + dot(210, 180) + ln(210, 180, 360, 180, O, 2, "5 4") + tx(285, 172, `r = ${f(v.r, 0)} m`, "#b45309", "middle", 12)
+      + carTop(60, 160, A) + tx(44, 150, "start", A, "end", 12) + dot(210, 30, R) + tx(210, 20, "halfway", R, "middle", 12.5) + tx(372, 150, `${f(v.v, 0)} m/s`, G, "start", 12.5) + lb(20, 22, "top view")),
+
+    trainLamp: (v) => { const th = v.theta * Math.PI / 180, L = 90, x2 = 220 + L * Math.sin(th), y2 = 50 + L * Math.cos(th);
+      return svg(235, `<rect x="90" y="40" width="260" height="160" rx="10" fill="none" stroke="${T}" stroke-width="3"/>` + circ(130, 208, 12, "#475569", T, 2) + circ(310, 208, 12, "#475569", T, 2)
+        + ln(220, 50, 220, 150, S, 1.5, "5 4") + ln(220, 50, x2, y2, T, 2.5) + circ(x2, y2 + 8, 10, "#fde047", "#ca8a04", 2.5)
+        + tx(208, 120, `${f(v.theta, 1)}&deg;`, P, "end", 12.5) + lb(20, 26, `curve radius r = ${f(v.r, 0)} m`) + lb(300, 26, "v = ?") + lb(356, 120, "rear view")); },
+
+    earthSatellite: (v) => svg(235, circ(140, 118, 60, "#93c5fd", A, 2.5) + tx(140, 123, "Earth", T, "middle", 13) + circ(140, 118, 96, "none", S, 2, "6 5")
+      + `<rect x="228" y="108" width="16" height="20" rx="3" fill="${B}" stroke="${T}" stroke-width="2.5"/>` + ln(200, 118, 228, 118, O, 2.5) + lb(268, 140, "altitude h = ?")
+      + lb(268, 80, `T = ${f(v.Tmin, 0)} min`) + lb(268, 106, `m = ${Math.round(v.m).toLocaleString()} kg`)),
+
+    earthSpin: (v) => svg(235, circ(150, 118, 85, "#93c5fd", A, 2.5) + ln(150, 20, 150, 216, S, 1.5, "5 4") + ln(65, 118, 235, 118, S, 1.5, "5 4") + tx(150, 112, "Earth", T, "middle", 13)
+      + `<g transform="rotate(90 235 118)">${man(235, 118, T)}</g>` + spin(150, 40, 46, 12, R) + lb(268, 80, `R = ${sci("6.37", 6)} m`) + lb(268, 106, "person at the equator") + lb(268, 132, "feels weightless") + lb(268, 166, "length of day = ?")),
+
+    earthDistance: (v) => svg(190, circ(70, 95, 40, "#93c5fd", A, 2.5) + tx(70, 100, "Earth", T, "middle", 12) + ln(70, 95, 330, 95, O, 2, "5 4") + dot(330, 95, R) + tx(200, 85, "r = ?", "#b45309", "middle", 12.5)
+      + lb(250, 140, `g here = ${f(v.pct, 0)}% of g${sb("surface")}`) + lb(250, 166, `R${sb("E")} = ${sci("6.37", 6)} m`)),
+
+    twoObjects: (v) => svg(190, circ(110, 85, 30, "#bfdbfe", A, 2.5) + tx(110, 90, "m" + sb("1"), T, "middle", 13) + circ(320, 85, 20, "#bbf7d0", G, 2.5) + tx(320, 90, "m" + sb("2"), T, "middle", 13)
+      + ar(144, 85, 190, 85, R) + ar(296, 85, 250, 85, R) + tx(220, 60, `F = ${sci(f(v.FE10, 1), "&minus;10")} N`, R, "middle", 12.5)
+      + ln(110, 140, 320, 140, S, 1.5) + ln(110, 132, 110, 148, S, 1.5) + ln(320, 132, 320, 148, S, 1.5) + tx(215, 162, `${f(v.d, 2)} m`, K, "middle", 12.5) + lb(20, 22, `m${sb("1")} + m${sb("2")} = ${f(v.total, 2)} kg`))
+  };
+  Object.keys(D).forEach(function (k) { DIAGRAM_DRAWERS[k] = k === "hillRider" ? D[k] : function (v) { return pqStyle(D[k](v)); }; });
+})();
+
 function getDiagramSVG(type, v) {
   const draw = DIAGRAM_DRAWERS[type];
   return draw ? draw(v) : '';
@@ -8902,19 +9099,22 @@ const PHYSICS_QUESTIONS = [
         }}]
   },
   {
-    id: "CMG-03", docNum: "Set 1 #3", title: "Satellite Orbital Speed Around a Planet",
+    id: "CMG-03", docNum: "Set 1 #3", title: "Satellite Orbital Speed and Period Around a Planet (2 Parts)",
     unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "orbitSat",
     baseVars: { hKm: 2089, MpExp26: 5.38, RpExp7: 8.33 },
     randomize: (b) => ({ hKm: Math.round(rnd(b.hKm, 0.20, 0)), MpExp26: rnd(b.MpExp26, 0.20, 2), RpExp7: rnd(b.RpExp7, 0.20, 2) }),
-    renderPrompt: (v) => `A satellite is placed in a circular orbit <strong>${v.hKm.toLocaleString()} kilometers</strong> above the surface of a planet. The planet has a mass of <strong>${v.MpExp26} &times; 10<sup>26</sup> kg</strong> and a radius of <strong>${v.RpExp7} &times; 10<sup>7</sup> meters</strong>. Find the orbital speed of the satellite.`,
-    parts: [{ label: "Orbital speed (v)", unit: "m/s", solve: (v) => Math.sqrt((G_CONST * v.MpExp26 * 1e26) / (v.RpExp7 * 1e7 + v.hKm * 1e3)), steps: (v, ans) => {
+    renderPrompt: (v) => `A satellite is placed in a circular orbit <strong>${v.hKm.toLocaleString()} kilometers</strong> above the surface of a planet. The planet has a mass of <strong>${v.MpExp26} &times; 10<sup>26</sup> kg</strong> and a radius of <strong>${v.RpExp7} &times; 10<sup>7</sup> meters</strong>. <br/><strong>a.</strong> Find the orbital speed of the satellite.<br/><strong>b.</strong> Determine the orbital period of the satellite.`,
+    parts: [{ label: "a. Orbital speed (v)", unit: "m/s", solve: (v) => Math.sqrt((G_CONST * v.MpExp26 * 1e26) / (v.RpExp7 * 1e7 + v.hKm * 1e3)), steps: (v, ans) => {
           const r = v.RpExp7 * 1e7 + v.hKm * 1e3;
           return guidedSteps(
             `For a circular orbit, gravity supplies the centripetal force: <em>G</em><em>M</em><em>m</em> / <em>r</em>&sup2; = <em>m</em><em>v</em>&sup2; / <em>r</em>, so <em>v</em> = &radic;(<em>G</em><em>M</em> / <em>r</em>). The satellite's mass cancels.`,
             `The orbital radius <em>r</em> is measured from the planet's <em>center</em>, so add the radius and the altitude (in meters): <em>r</em> = ${v.RpExp7} &times; 10<sup>7</sup> m + ${v.hKm} km = ${v.RpExp7 * 1e7} m + ${v.hKm * 1e3} m = ${r.toExponential(4)} m.`,
             `Substitute: <em>v</em> = &radic;[(6.67 &times; 10<sup>&minus;11</sup>)(${v.MpExp26} &times; 10<sup>26</sup>) / ${r.toExponential(4)}] = <strong>${ans.toFixed(1)} m/s</strong>.`
           );
-        }}]
+        }},
+      { label: "b. Orbital period (T)", unit: "s", solve: (v) => { const r = v.RpExp7 * 1e7 + v.hKm * 1e3; return 2 * Math.PI * Math.sqrt(r * r * r / (G_CONST * v.MpExp26 * 1e26)); }, steps: (v, ans) => { const r = v.RpExp7 * 1e7 + v.hKm * 1e3, vel = Math.sqrt(G_CONST * v.MpExp26 * 1e26 / r); return guidedSteps(
+          `In one period the satellite goes once around its orbit, a distance of 2&pi;<em>r</em>, where <em>r</em> = ${r.toExponential(4)} m is measured from the planet's center.`,
+          `<em>T</em> = 2&pi;<em>r</em> / <em>v</em> = 2&pi;(${r.toExponential(4)}) / ${vel.toFixed(1)} = <strong>${ans.toFixed(0)} s</strong> (about ${(ans / 3600).toFixed(2)} hours).`); } }]
   },
   {
     id: "CMG-04", docNum: "Set 1 #4", title: "Ratio of Speedboat Speeds at Equal Centripetal Acceleration",
@@ -8930,20 +9130,22 @@ const PHYSICS_QUESTIONS = [
         )}]
   },
   {
-    id: "CMG-05", docNum: "Set 1 #5", title: "Normal Force on Motorcycle Cresting a Hill",
-    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "hillMotorcycle",
-    baseVars: { v: 19.3, r: 116, m: 291 },
-    randomize: (b) => ({ v: rnd(b.v, 0.18, 1), r: Math.round(rnd(b.r, 0.18, 0)), m: Math.round(rnd(b.m, 0.20, 0)) }),
-    renderPrompt: (v) => `A motorcycle (total mass <strong>${v.m} kg</strong>) travels at <strong>${v.v} m/s</strong> over a hill of radius <strong>${v.r} m</strong>. Find the normal force.`,
-    parts: [{ label: "Normal force (F<sub>N</sub>)", unit: "N", solve: (v) => v.m * (G_ACCEL - (v.v * v.v) / v.r), steps: (v, ans) => {
-          const need = v.m * v.v * v.v / v.r;
-          return guidedSteps(
-            `At the top of the hill, the center of the circle is <em>below</em> the motorcycle, so the net force must point downward with magnitude <em>m</em><em>v</em>&sup2; / <em>r</em>. Forces: weight <em>m</em><em>g</em> (down) and normal force <em>F</em><sub>N</sub> (up).`,
-            `Newton's second law, down positive: <em>m</em><em>g</em> &minus; <em>F</em><sub>N</sub> = <em>m</em><em>v</em>&sup2; / <em>r</em>, so <em>F</em><sub>N</sub> = <em>m</em>(<em>g</em> &minus; <em>v</em>&sup2; / <em>r</em>).`,
-            `Compute the parts: weight = ${v.m} &times; 9.80 = ${(v.m * G_ACCEL).toFixed(1)} N, and the required centripetal force is <em>m</em><em>v</em>&sup2; / <em>r</em> = ${v.m} &times; ${v.v}&sup2; / ${v.r} = ${need.toFixed(1)} N.`,
-            `<em>F</em><sub>N</sub> = ${(v.m * G_ACCEL).toFixed(1)} &minus; ${need.toFixed(1)} = <strong>${ans.toFixed(1)} N</strong>. It is less than the weight, which is why you feel lighter going over a hill.`
-          );
-        }}]
+    id: "CMG-05", docNum: "Set 2 #1", title: "Apparent Weight Riding Over a Hill (3 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "hillRider",
+    baseVars: { m: 52.0, v: 7.80, r: 10.30 },
+    randomize: (b) => ({ m: rnd(b.m, 0.15, 1), v: rnd(b.v, 0.12, 2), r: rnd(b.r, 0.12, 2) }),
+    renderPrompt: (v) => `A <strong>${v.m.toFixed(1)}-kg</strong> woman on a motorcycle has a speed of <strong>${v.v.toFixed(2)} m/s</strong> when she passes over a circular hill of radius <strong>${v.r.toFixed(2)} meters</strong>.<br/><strong>a.</strong> Find her apparent weight as she passes over the top of the hill.<br/><strong>b.</strong> Find her apparent mass at the top of the hill.<br/><strong>c.</strong> Determine the fastest speed she can travel over the top of the hill without losing contact with the road.`,
+    parts: [
+      { label: "a. Apparent weight at the top (F<sub>N</sub>)", unit: "N", solve: (v) => v.m * (G_ACCEL - v.v * v.v / v.r), steps: (v, ans) => guidedSteps(
+          `Her apparent weight is the normal force from the seat. At the top of the hill the center of the circle is below her, so the net force points down: <em>m</em><em>g</em> &minus; <em>F</em><sub>N</sub> = <em>m</em><em>v</em>&sup2; / <em>r</em>.`,
+          `<em>F</em><sub>N</sub> = <em>m</em>(<em>g</em> &minus; <em>v</em>&sup2; / <em>r</em>) = ${v.m}(9.80 &minus; ${v.v}&sup2; / ${v.r}) = ${v.m}(9.80 &minus; ${(v.v * v.v / v.r).toFixed(3)}) = <strong>${ans.toFixed(1)} N</strong>. That is less than her true weight, ${(v.m * G_ACCEL).toFixed(1)} N, so she feels lighter.`) },
+      { label: "b. Apparent mass at the top", unit: "kg", solve: (v) => v.m * (G_ACCEL - v.v * v.v / v.r) / G_ACCEL, steps: (v, ans) => guidedSteps(
+          `Apparent mass is what a scale would read in kilograms: the apparent weight divided by <em>g</em>.`,
+          `${(v.m * (G_ACCEL - v.v * v.v / v.r)).toFixed(1)} N &divide; 9.80 m/s&sup2; = <strong>${ans.toFixed(1)} kg</strong>. Her real mass is still ${v.m} kg.`) },
+      { label: "c. Fastest speed without losing contact (v<sub>max</sub>)", unit: "m/s", solve: (v) => Math.sqrt(G_ACCEL * v.r), steps: (v, ans) => guidedSteps(
+          `She is about to leave the road when the normal force drops to zero. Then gravity alone supplies the centripetal force: <em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>.`,
+          `<em>v</em> = &radic;(<em>g</em><em>r</em>) = &radic;(9.80 &times; ${v.r}) = <strong>${ans.toFixed(2)} m/s</strong>.`) }
+    ]
   },
   {
     id: "CMG-07", docNum: "Set 1 #7", title: "Planetary Weight from Speed-Time Graph",
@@ -8977,6 +9179,454 @@ const PHYSICS_QUESTIONS = [
             `Substitute: <em>v</em> = &radic;(2 &times; ${g.toExponential(3)} &times; ${(v.dCm / 100).toFixed(3)}) = <strong>${ans.toExponential(3)} m/s</strong>.`
           );
         }}
+    ]
+  },
+  // --- Circular motion and gravitation, Set 2 (added November 2026) ---
+  {
+    id: "CMG-09", docNum: "Set 2 #2", title: "Rock on a Rope in a Vertical Circle (3 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "vertCircleRock",
+    baseVars: { m: 6.0, rCm: 58.0, Tmax: 362 },
+    randomize: (b) => ({ m: rnd(b.m, 0.15, 1), rCm: rnd(b.rCm, 0.15, 1), Tmax: Math.round(rnd(b.Tmax, 0.15, 0)) }),
+    renderPrompt: (v) => `A <strong>${v.m.toFixed(1)}-kg</strong> rock is swinging at the end of a rope in a vertical circle, and the radius of the circle is <strong>${v.rCm.toFixed(1)} cm</strong>. The maximum tension the rope can withstand without breaking is <strong>${v.Tmax} N</strong>.<br/><strong>a.</strong> What is the largest speed the rock can have at the bottom of the path without breaking the rope?<br/><strong>b.</strong> What is the largest speed the rock can have at the top of the path without breaking the rope?<br/><strong>c.</strong> What minimum speed must the rock have at the top of the circle so as to prevent the rope from going slack?`,
+    parts: [
+      { label: "a. Largest speed at the bottom (v<sub>bottom</sub>)", unit: "m/s", solve: (v) => Math.sqrt((v.Tmax - v.m * G_ACCEL) * (v.rCm / 100) / v.m), steps: (v, ans) => guidedSteps(
+          `At the bottom, tension pulls up (toward the center) and gravity pulls down (away from the center). The net force toward the center is the centripetal force: <em>T</em> &minus; <em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>.`,
+          `Use the largest tension, <em>T</em> = ${v.Tmax} N, and <em>r</em> = ${v.rCm} cm = ${(v.rCm / 100).toFixed(3)} m. Then <em>v</em> = &radic;[(<em>T</em> &minus; <em>m</em><em>g</em>)<em>r</em> / <em>m</em>] = &radic;[(${v.Tmax} &minus; ${(v.m * G_ACCEL).toFixed(1)})(${(v.rCm / 100).toFixed(3)}) / ${v.m}] = <strong>${ans.toFixed(2)} m/s</strong>.`) },
+      { label: "b. Largest speed at the top (v<sub>top</sub>)", unit: "m/s", solve: (v) => Math.sqrt((v.Tmax + v.m * G_ACCEL) * (v.rCm / 100) / v.m), steps: (v, ans) => guidedSteps(
+          `At the top, tension and gravity both point down, toward the center: <em>T</em> + <em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>.`,
+          `With the largest tension: <em>v</em> = &radic;[(<em>T</em> + <em>m</em><em>g</em>)<em>r</em> / <em>m</em>] = &radic;[(${v.Tmax} + ${(v.m * G_ACCEL).toFixed(1)})(${(v.rCm / 100).toFixed(3)}) / ${v.m}] = <strong>${ans.toFixed(2)} m/s</strong>.`) },
+      { label: "c. Minimum speed at the top (v<sub>min</sub>)", unit: "m/s", solve: (v) => Math.sqrt(G_ACCEL * v.rCm / 100), steps: (v, ans) => guidedSteps(
+          `The rope is about to go slack when the tension at the top drops to zero. Then gravity alone supplies the centripetal force: <em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>.`,
+          `The mass cancels: <em>v</em> = &radic;(<em>g</em><em>r</em>) = &radic;(9.80 &times; ${(v.rCm / 100).toFixed(3)}) = <strong>${ans.toFixed(2)} m/s</strong>.`) }
+    ]
+  },
+  {
+    id: "CMG-10", docNum: "Set 2 #3", title: "Spinning Space Station Artificial Gravity (2 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "stationRing",
+    baseVars: { dKm: 1.30, frac: 0.85 },
+    randomize: (b) => ({ dKm: rnd(b.dKm, 0.20, 2), frac: rnd(b.frac, 0.12, 2) }),
+    renderPrompt: (v) => `Engineers are designing a circular space station with a diameter of <strong>${v.dKm.toFixed(2)} km</strong> that spins to simulate gravity.<br/><strong>a.</strong> Determine the time it would take for the space station to rotate once if the artificial gravity is desired to be <strong>${v.frac.toFixed(2)}g</strong>.<br/><strong>b.</strong> Determine the rate at which the space station would be spinning, in revolutions per minute.`,
+    parts: [
+      { label: "a. Time for one rotation (T)", unit: "s", solve: (v) => 2 * Math.PI * Math.sqrt((v.dKm * 500) / (v.frac * G_ACCEL)), steps: (v, ans) => guidedSteps(
+          `The floor of the station pushes people toward the center, and that push is what they feel as gravity. So the centripetal acceleration must equal ${v.frac}<em>g</em> = ${(v.frac * G_ACCEL).toFixed(2)} m/s&sup2;. The radius is half the diameter: <em>r</em> = ${(v.dKm * 500).toFixed(0)} m.`,
+          `For uniform circular motion, <em>a</em><sub>c</sub> = 4&pi;&sup2;<em>r</em> / <em>T</em>&sup2;, so <em>T</em> = 2&pi;&radic;(<em>r</em> / <em>a</em><sub>c</sub>) = 2&pi;&radic;(${(v.dKm * 500).toFixed(0)} / ${(v.frac * G_ACCEL).toFixed(2)}) = <strong>${ans.toFixed(1)} s</strong>.`) },
+      { label: "b. Rotation rate", unit: "rev/min", solve: (v) => 60 / (2 * Math.PI * Math.sqrt((v.dKm * 500) / (v.frac * G_ACCEL))), steps: (v, ans) => guidedSteps(
+          `One revolution takes <em>T</em> = ${(2 * Math.PI * Math.sqrt((v.dKm * 500) / (v.frac * G_ACCEL))).toFixed(1)} s, and a minute is 60 s.`,
+          `Revolutions per minute = 60 s / <em>T</em> = <strong>${ans.toFixed(2)} rev/min</strong>.`) }
+    ]
+  },
+  {
+    id: "CMG-11", docNum: "Set 2 #4", title: "Roller Coaster Loop Speeds at the Top (2 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "coasterLoop",
+    baseVars: { d: 18.0, pct: 60 },
+    randomize: (b) => ({ d: rnd(b.d, 0.20, 1), pct: Math.round(rnd(b.pct, 0.25, 0)) }),
+    renderPrompt: (v) => `Engineers are building a circular roller coaster loop with a diameter of <strong>${v.d.toFixed(1)} meters</strong>.<br/><strong>a.</strong> Determine the minimum speed the coaster must have at the top so that the passengers don&rsquo;t leave their seat.<br/><strong>b.</strong> Determine the speed the coaster would need at the top of the loop so that the riders feel pressed into their seat with a force equal to <strong>${v.pct}%</strong> of their weight.`,
+    parts: [
+      { label: "a. Minimum speed at the top (v<sub>min</sub>)", unit: "m/s", solve: (v) => Math.sqrt(G_ACCEL * v.d / 2), steps: (v, ans) => guidedSteps(
+          `At the top, the riders are upside down. Their seat pushes down on them (toward the center) and gravity pulls down too: <em>F</em><sub>N</sub> + <em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>. At the minimum speed the seat force is just zero.`,
+          `So <em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em> and <em>v</em> = &radic;(<em>g</em><em>r</em>), with <em>r</em> = ${v.d} / 2 = ${(v.d / 2).toFixed(2)} m: <em>v</em> = &radic;(9.80 &times; ${(v.d / 2).toFixed(2)}) = <strong>${ans.toFixed(2)} m/s</strong>.`) },
+      { label: "b. Speed for the larger seat force (v)", unit: "m/s", solve: (v) => Math.sqrt((1 + v.pct / 100) * G_ACCEL * v.d / 2), steps: (v, ans) => guidedSteps(
+          `Now the seat pushes on each rider with <em>F</em><sub>N</sub> = ${(v.pct / 100).toFixed(2)}<em>m</em><em>g</em>, still pointing down toward the center: ${(v.pct / 100).toFixed(2)}<em>m</em><em>g</em> + <em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>.`,
+          `The mass cancels: <em>v</em> = &radic;(${(1 + v.pct / 100).toFixed(2)}<em>g</em><em>r</em>) = &radic;(${(1 + v.pct / 100).toFixed(2)} &times; 9.80 &times; ${(v.d / 2).toFixed(2)}) = <strong>${ans.toFixed(2)} m/s</strong>.`) }
+    ]
+  },
+  {
+    id: "CMG-12", docNum: "Set 2 #5", title: "Rotor Ride: Minimum Coefficient of Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "rotorDrum",
+    baseVars: { r: 4.10, rpm: 23.0 },
+    randomize: (b) => ({ r: rnd(b.r, 0.15, 2), rpm: rnd(b.rpm, 0.15, 1) }),
+    renderPrompt: (v) => `Passengers are in a ride at an amusement park which consists of a cylindrical drum of radius <strong>${v.r.toFixed(2)} m</strong>. The drum spins, and the floor lowers beneath the riders as they feel &ldquo;pressed against&rdquo; the outer wall. If the drum spins at a rate of <strong>${v.rpm.toFixed(1)} rpm</strong>, determine the minimum coefficient of static friction necessary to keep the people from sliding down.`,
+    parts: [{ label: "Minimum coefficient of static friction (&mu;<sub>s</sub>)", unit: "No units", solve: (v) => G_ACCEL / (Math.pow(2 * Math.PI * v.rpm / 60, 2) * v.r), steps: (v, ans) => { const T = 60 / v.rpm, vel = 2 * Math.PI * v.r / T; return guidedSteps(
+          `The wall's normal force points toward the center and supplies the centripetal force: <em>F</em><sub>N</sub> = <em>m</em><em>v</em>&sup2; / <em>r</em>. Static friction points up and must hold the rider's weight: <em>f</em><sub>s</sub> = <em>m</em><em>g</em>.`,
+          `Find the speed: one turn takes <em>T</em> = 60 / ${v.rpm} = ${T.toFixed(3)} s, so <em>v</em> = 2&pi;<em>r</em> / <em>T</em> = ${vel.toFixed(2)} m/s.`,
+          `At the minimum coefficient, <em>f</em><sub>s</sub> = &mu;<sub>s</sub><em>F</em><sub>N</sub>, so &mu;<sub>s</sub><em>m</em><em>v</em>&sup2; / <em>r</em> = <em>m</em><em>g</em> and &mu;<sub>s</sub> = <em>g</em><em>r</em> / <em>v</em>&sup2; = (9.80 &times; ${v.r}) / ${vel.toFixed(2)}&sup2; = <strong>${ans.toFixed(3)}</strong>.`); } }]
+  },
+  {
+    id: "CMG-13", docNum: "Set 2 #6", title: "Carnival Swing Ride: Tension, Speed and Rate (3 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "swingRide",
+    baseVars: { m: 52.0, L: 6.3, theta: 27.0 },
+    randomize: (b) => ({ m: rnd(b.m, 0.15, 1), L: rnd(b.L, 0.15, 1), theta: rnd(b.theta, 0.15, 1) }),
+    renderPrompt: (v) => `A boy and his seat have a mass of <strong>${v.m.toFixed(1)} kg</strong>, and he rides on a rotating carnival swing ride. He travels along a circular path at the end of a <strong>${v.L.toFixed(1)}-meter</strong> cable which hangs at an angle of <strong>${v.theta.toFixed(1)}&deg;</strong> with the vertical.<br/><strong>a.</strong> Determine the tension in the cable.<br/><strong>b.</strong> Determine his speed.<br/><strong>c.</strong> Determine the rate at which the ride rotates, in revolutions per minute.`,
+    parts: [
+      { label: "a. Tension in the cable (F<sub>T</sub>)", unit: "N", solve: (v) => v.m * G_ACCEL / Math.cos(v.theta * DEG2RAD), steps: (v, ans) => guidedSteps(
+          `Vertically there is no acceleration, so the vertical part of the tension holds up the weight: <em>F</em><sub>T</sub> cos &theta; = <em>m</em><em>g</em>.`,
+          `<em>F</em><sub>T</sub> = <em>m</em><em>g</em> / cos &theta; = (${v.m} &times; 9.80) / cos ${v.theta}&deg; = <strong>${ans.toFixed(1)} N</strong>.`) },
+      { label: "b. His speed (v)", unit: "m/s", solve: (v) => Math.sqrt(G_ACCEL * v.L * Math.sin(v.theta * DEG2RAD) * Math.tan(v.theta * DEG2RAD)), steps: (v, ans) => { const r = v.L * Math.sin(v.theta * DEG2RAD); return guidedSteps(
+          `The circle's radius is the horizontal distance from the axis: <em>r</em> = <em>L</em> sin &theta; = ${v.L} sin ${v.theta}&deg; = ${r.toFixed(3)} m.`,
+          `The horizontal part of the tension is the centripetal force: <em>F</em><sub>T</sub> sin &theta; = <em>m</em><em>v</em>&sup2; / <em>r</em>. Dividing by <em>F</em><sub>T</sub> cos &theta; = <em>m</em><em>g</em> gives tan &theta; = <em>v</em>&sup2; / (<em>g</em><em>r</em>).`,
+          `<em>v</em> = &radic;(<em>g</em><em>r</em> tan &theta;) = &radic;(9.80 &times; ${r.toFixed(3)} &times; tan ${v.theta}&deg;) = <strong>${ans.toFixed(2)} m/s</strong>.`); } },
+      { label: "c. Rotation rate", unit: "rev/min", solve: (v) => { const r = v.L * Math.sin(v.theta * DEG2RAD), vel = Math.sqrt(G_ACCEL * r * Math.tan(v.theta * DEG2RAD)); return 60 * vel / (2 * Math.PI * r); }, steps: (v, ans) => { const r = v.L * Math.sin(v.theta * DEG2RAD), vel = Math.sqrt(G_ACCEL * r * Math.tan(v.theta * DEG2RAD)), T = 2 * Math.PI * r / vel; return guidedSteps(
+          `One trip around takes <em>T</em> = 2&pi;<em>r</em> / <em>v</em> = 2&pi;(${r.toFixed(3)}) / ${vel.toFixed(2)} = ${T.toFixed(2)} s.`,
+          `Revolutions per minute = 60 s / <em>T</em> = <strong>${ans.toFixed(2)} rev/min</strong>.`); } }
+    ]
+  },
+  {
+    id: "CMG-14", docNum: "Set 2 #7", title: "Speeding Up on a Curve: Net Acceleration (2 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "carCurveAccel",
+    baseVars: { r: 46.0, v0: 7.0, v1: 11.0, t: 5.0, tq: 2.0 },
+    randomize: (b) => { const v0 = rnd(b.v0, 0.15, 1); return { r: rnd(b.r, 0.15, 1), v0: v0, v1: Number((v0 + rnd(b.v1 - b.v0, 0.25, 1)).toFixed(1)), t: b.t, tq: b.tq }; },
+    renderPrompt: (v) => `A car traveling along a circular road of radius <strong>${v.r.toFixed(1)} meters</strong> initially has a speed of <strong>${v.v0.toFixed(1)} m/s</strong>. Over the next <strong>${v.t.toFixed(1)} seconds</strong>, it accelerates uniformly to a speed of <strong>${v.v1.toFixed(1)} m/s</strong>.<br/><strong>a.</strong> Determine the net acceleration of the car <strong>${v.tq.toFixed(1)} seconds</strong> after it begins to speed up.<br/><strong>b.</strong> Determine the angle that acceleration vector makes with the car&rsquo;s velocity vector.`,
+    parts: [
+      { label: "a. Net acceleration (a)", unit: "m/s²", solve: (v) => { const at = (v.v1 - v.v0) / v.t, vq = v.v0 + at * v.tq; return Math.hypot(at, vq * vq / v.r); }, steps: (v, ans) => { const at = (v.v1 - v.v0) / v.t, vq = v.v0 + at * v.tq, ac = vq * vq / v.r; return guidedSteps(
+          `The tangential acceleration changes the speed: <em>a</em><sub>t</sub> = &Delta;<em>v</em> / &Delta;<em>t</em> = (${v.v1} &minus; ${v.v0}) / ${v.t} = ${at.toFixed(3)} m/s&sup2;.`,
+          `After ${v.tq} s the speed is <em>v</em> = ${v.v0} + ${at.toFixed(3)} &times; ${v.tq} = ${vq.toFixed(2)} m/s, so the centripetal acceleration is <em>a</em><sub>c</sub> = <em>v</em>&sup2; / <em>r</em> = ${vq.toFixed(2)}&sup2; / ${v.r} = ${ac.toFixed(3)} m/s&sup2;.`,
+          `The two are perpendicular, so <em>a</em> = &radic;(<em>a</em><sub>t</sub>&sup2; + <em>a</em><sub>c</sub>&sup2;) = <strong>${ans.toFixed(2)} m/s&sup2;</strong>.`); } },
+      { label: "b. Angle between acceleration and velocity (&theta;)", unit: "°", solve: (v) => { const at = (v.v1 - v.v0) / v.t, vq = v.v0 + at * v.tq; return Math.atan2(vq * vq / v.r, at) * RAD2DEG; }, steps: (v, ans) => { const at = (v.v1 - v.v0) / v.t, vq = v.v0 + at * v.tq, ac = vq * vq / v.r; return guidedSteps(
+          `The velocity points along the road, the same direction as <em>a</em><sub>t</sub>. The centripetal part <em>a</em><sub>c</sub> is at 90&deg; to it, toward the center.`,
+          `tan &theta; = <em>a</em><sub>c</sub> / <em>a</em><sub>t</sub> = ${ac.toFixed(3)} / ${at.toFixed(3)}, so &theta; = <strong>${ans.toFixed(1)}&deg;</strong> from the velocity, tilted toward the center of the circle.`); } }
+    ]
+  },
+  {
+    id: "CMG-15", docNum: "Set 2 #8", title: "Frictionless Banked Track Angle",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "bankedBlock",
+    baseVars: { m: 3.2, r: 8.4, v: 17.4 },
+    randomize: (b) => ({ m: rnd(b.m, 0.20, 1), r: rnd(b.r, 0.15, 1), v: rnd(b.v, 0.15, 1) }),
+    renderPrompt: (v) => `A block of mass <strong>${v.m.toFixed(1)} kg</strong> is on a frictionless circular track with a banked surface. The radius of the block&rsquo;s path is <strong>${v.r.toFixed(1)} meters</strong>, and the block travels around the track without sliding up or down the track at a speed of <strong>${v.v.toFixed(1)} m/s</strong>. Determine the angle the bank makes with the horizontal.`,
+    parts: [{ label: "Bank angle (&theta;)", unit: "°", solve: (v) => Math.atan(v.v * v.v / (v.r * G_ACCEL)) * RAD2DEG, steps: (v, ans) => guidedSteps(
+          `With no friction, only gravity and the normal force act. The normal force is tilted by the bank angle: its vertical part holds up the weight (<em>F</em><sub>N</sub> cos &theta; = <em>m</em><em>g</em>) and its horizontal part points toward the center (<em>F</em><sub>N</sub> sin &theta; = <em>m</em><em>v</em>&sup2; / <em>r</em>).`,
+          `Divide the two equations: tan &theta; = <em>v</em>&sup2; / (<em>g</em><em>r</em>) = ${v.v}&sup2; / (9.80 &times; ${v.r}) = ${(v.v * v.v / (v.r * G_ACCEL)).toFixed(3)}. The mass cancels.`,
+          `&theta; = tan<sup>&minus;1</sup>(${(v.v * v.v / (v.r * G_ACCEL)).toFixed(3)}) = <strong>${ans.toFixed(1)}&deg;</strong>.`) }]
+  },
+  {
+    id: "CMG-16", docNum: "Set 2 #9", title: "Space Station Orbiting the Moon",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "moonStation",
+    baseVars: { hKm: 345 },
+    randomize: (b) => ({ hKm: Math.round(rnd(b.hKm, 0.30, 0)) }),
+    renderPrompt: (v) => `A circular space station is being designed to be in a circular orbit around our moon. If the space station is to be positioned <strong>${v.hKm} kilometers</strong> above the surface of the moon, what must the speed of the space station be? The moon&rsquo;s radius is <strong>1,737 kilometers</strong>, and its mass is <strong>7.348 &times; 10<sup>22</sup> kg</strong>.`,
+    parts: [{ label: "Orbital speed (v)", unit: "m/s", solve: (v) => Math.sqrt(G_CONST * 7.348e22 / ((1737 + v.hKm) * 1000)), steps: (v, ans) => guidedSteps(
+          `Gravity supplies the centripetal force: <em>G</em><em>M</em><em>m</em> / <em>r</em>&sup2; = <em>m</em><em>v</em>&sup2; / <em>r</em>, so <em>v</em> = &radic;(<em>G</em><em>M</em> / <em>r</em>).`,
+          `The orbit radius is measured from the moon's center: <em>r</em> = 1,737 km + ${v.hKm} km = ${(1737 + v.hKm).toLocaleString()} km = ${((1737 + v.hKm) * 1000).toExponential(4)} m.`,
+          `<em>v</em> = &radic;[(6.67 &times; 10<sup>&minus;11</sup>)(7.348 &times; 10<sup>22</sup>) / ${((1737 + v.hKm) * 1000).toExponential(4)}] = <strong>${ans.toFixed(0)} m/s</strong>.`) }]
+  },
+  {
+    id: "CMG-17", docNum: "Set 2 #10", title: "Moon's Orbit: Speed and Planet Mass (2 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "moonPlanet",
+    baseVars: { Th: 18.7, rE5: 1.63 },
+    randomize: (b) => ({ Th: rnd(b.Th, 0.15, 1), rE5: rnd(b.rE5, 0.15, 2) }),
+    renderPrompt: (v) => `A moon orbits a planet once every <strong>${v.Th.toFixed(1)} hours</strong>, and the moon&rsquo;s orbital radius is <strong>${v.rE5.toFixed(2)} &times; 10<sup>5</sup> km</strong>.<br/><strong>a.</strong> Determine the speed of the moon.<br/><strong>b.</strong> Determine the mass of the planet.`,
+    parts: [
+      { label: "a. Speed of the moon (v)", unit: "m/s", solve: (v) => 2 * Math.PI * v.rE5 * 1e8 / (v.Th * 3600), steps: (v, ans) => guidedSteps(
+          `Convert to SI units: <em>r</em> = ${v.rE5} &times; 10<sup>5</sup> km = ${v.rE5} &times; 10<sup>8</sup> m and <em>T</em> = ${v.Th} h &times; 3600 s/h = ${(v.Th * 3600).toFixed(0)} s.`,
+          `In one period the moon travels one circumference: <em>v</em> = 2&pi;<em>r</em> / <em>T</em> = 2&pi;(${v.rE5} &times; 10<sup>8</sup>) / ${(v.Th * 3600).toFixed(0)} = <strong>${ans.toFixed(0)} m/s</strong>.`) },
+      { label: "b. Mass of the planet (M)", unit: "kg", solve: (v) => { const r = v.rE5 * 1e8, T = v.Th * 3600; return 4 * Math.PI * Math.PI * r * r * r / (G_CONST * T * T); }, steps: (v, ans) => { const r = v.rE5 * 1e8, vel = 2 * Math.PI * r / (v.Th * 3600); return guidedSteps(
+          `Gravity supplies the centripetal force: <em>G</em><em>M</em><em>m</em> / <em>r</em>&sup2; = <em>m</em><em>v</em>&sup2; / <em>r</em>, so <em>M</em> = <em>v</em>&sup2;<em>r</em> / <em>G</em>.`,
+          `<em>M</em> = (${vel.toFixed(0)})&sup2;(${r.toExponential(3)}) / (6.67 &times; 10<sup>&minus;11</sup>) = <strong>${ans.toExponential(3)} kg</strong>.`); } }
+    ]
+  },
+  {
+    id: "CMG-18", docNum: "Set 2 #11", title: "Astronaut's Weight Far from Earth",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "earthShuttle",
+    baseVars: { m: 59, n: 3.8 },
+    randomize: (b) => ({ m: Math.round(rnd(b.m, 0.15, 0)), n: rnd(b.n, 0.20, 1) }),
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> astronaut is in a space shuttle that is <strong>${v.n.toFixed(1)} Earth radii</strong> from the center of Earth. What is her weight at that location?`,
+    parts: [{ label: "Weight at that location (W)", unit: "N", solve: (v) => G_CONST * 5.97e24 * v.m / Math.pow(v.n * 6.37e6, 2), steps: (v, ans) => guidedSteps(
+          `Her weight is the gravitational force from Earth: <em>W</em> = <em>G</em><em>M</em><sub>E</sub><em>m</em> / <em>r</em>&sup2;, with <em>M</em><sub>E</sub> = 5.97 &times; 10<sup>24</sup> kg and <em>R</em><sub>E</sub> = 6.37 &times; 10<sup>6</sup> m.`,
+          `<em>r</em> = ${v.n} &times; 6.37 &times; 10<sup>6</sup> m = ${(v.n * 6.37e6).toExponential(3)} m.`,
+          `<em>W</em> = (6.67 &times; 10<sup>&minus;11</sup>)(5.97 &times; 10<sup>24</sup>)(${v.m}) / (${(v.n * 6.37e6).toExponential(3)})&sup2; = <strong>${ans.toFixed(1)} N</strong>. (Check: her surface weight divided by ${v.n}&sup2; gives about the same.)`) }]
+  },
+  {
+    id: "CMG-19", docNum: "Set 2 #12", title: "Scaling the Force of Gravity (2 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "twoMassesF",
+    baseVars: { k2: 3.8, kd: 1.4, p1: 44, k3: 1.2, pd: 56 },
+    randomize: (b) => ({ k2: rnd(b.k2, 0.20, 1), kd: rnd(b.kd, 0.20, 1), p1: Math.round(rnd(b.p1, 0.20, 0)), k3: rnd(b.k3, 0.15, 1), pd: Math.round(rnd(b.pd, 0.15, 0)) }),
+    renderPrompt: (v) => `Two small masses separated by some distance exert a force of gravity <em>F</em> on each other.<br/><strong>a.</strong> Determine the magnitude of the force they would exert on each other if one mass doubled, the other increased by a factor of <strong>${v.k2.toFixed(1)}</strong>, and the distance between them became <strong>${v.kd.toFixed(1)} times</strong> as large. Give your answer as a multiple of <em>F</em>.<br/><strong>b.</strong> Determine the magnitude of the force if one mass was reduced to <strong>${v.p1}%</strong> of its size, the other became <strong>${v.k3.toFixed(1)} times</strong> as large, and distance between them became <strong>${v.pd}%</strong> of what it was. Give your answer as a multiple of <em>F</em>.`,
+    parts: [
+      { label: "a. New force as a multiple of F", unit: "No units", solve: (v) => 2 * v.k2 / (v.kd * v.kd), steps: (v, ans) => guidedSteps(
+          `<em>F</em> = <em>G</em><em>m</em><sub>1</sub><em>m</em><sub>2</sub> / <em>r</em>&sup2;, so the force is multiplied by each mass factor and divided by the square of the distance factor.`,
+          `New force = (2)(${v.k2}) / (${v.kd})&sup2; &times; <em>F</em> = ${(2 * v.k2).toFixed(2)} / ${(v.kd * v.kd).toFixed(2)} &times; <em>F</em> = <strong>${ans.toFixed(2)}<em>F</em></strong>.`) },
+      { label: "b. New force as a multiple of F", unit: "No units", solve: (v) => (v.p1 / 100) * v.k3 / Math.pow(v.pd / 100, 2), steps: (v, ans) => guidedSteps(
+          `${v.p1}% means a factor of ${(v.p1 / 100).toFixed(2)}, and ${v.pd}% of the distance means a factor of ${(v.pd / 100).toFixed(2)}.`,
+          `New force = (${(v.p1 / 100).toFixed(2)})(${v.k3}) / (${(v.pd / 100).toFixed(2)})&sup2; &times; <em>F</em> = <strong>${ans.toFixed(2)}<em>F</em></strong>. Moving the masses closer makes the force larger.`) }
+    ]
+  },
+  {
+    id: "CMG-20", docNum: "Set 2 #13", title: "Planet's Surface Gravity: Acceleration and Field Strength (2 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "planetMR",
+    baseVars: { ME25: 8.39, RE6: 9.40 },
+    randomize: (b) => ({ ME25: rnd(b.ME25, 0.20, 2), RE6: rnd(b.RE6, 0.20, 2) }),
+    renderPrompt: (v) => `A planet has a mass of <strong>${v.ME25.toFixed(2)} &times; 10<sup>25</sup> kg</strong> and a radius of <strong>${v.RE6.toFixed(2)} &times; 10<sup>6</sup> meters</strong>.<br/><strong>a.</strong> Determine the acceleration due to gravity on the planet.<br/><strong>b.</strong> Determine the gravitational field strength on the planet.`,
+    parts: [
+      { label: "a. Acceleration due to gravity (g)", unit: "m/s²", strictUnit: true, solve: (v) => G_CONST * v.ME25 * 1e25 / Math.pow(v.RE6 * 1e6, 2), steps: (v, ans) => guidedSteps(
+          `An object falling near the surface has only gravity acting on it: <em>m</em><em>a</em> = <em>G</em><em>M</em><em>m</em> / <em>R</em>&sup2;, so <em>a</em> = <em>G</em><em>M</em> / <em>R</em>&sup2;.`,
+          `<em>g</em> = (6.67 &times; 10<sup>&minus;11</sup>)(${v.ME25} &times; 10<sup>25</sup>) / (${v.RE6} &times; 10<sup>6</sup>)&sup2; = <strong>${ans.toFixed(1)} m/s&sup2;</strong>. An acceleration is measured in m/s&sup2;.`) },
+      { label: "b. Gravitational field strength (g)", unit: "N/kg", strictUnit: true, solve: (v) => G_CONST * v.ME25 * 1e25 / Math.pow(v.RE6 * 1e6, 2), steps: (v, ans) => guidedSteps(
+          `The gravitational field strength is the gravitational force on each kilogram of mass: <em>g</em> = <em>F</em><sub>g</sub> / <em>m</em> = <em>G</em><em>M</em> / <em>R</em>&sup2;.`,
+          `It has the same number as part a, <strong>${ans.toFixed(1)} N/kg</strong>, but it is a force per kilogram, so its units are N/kg. (1 N/kg = 1 m/s&sup2;, but the two units describe different ideas.)`) }
+    ]
+  },
+  {
+    id: "CMG-21", docNum: "Set 2 #15", title: "Flying Pig Conical Pendulum (2 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "conicalPig",
+    baseVars: { mg: 165, Lcm: 84.0, T: 1.40 },
+    randomize: (b) => ({ mg: Math.round(rnd(b.mg, 0.20, 0)), Lcm: rnd(b.Lcm, 0.10, 1), T: rnd(b.T, 0.08, 2) }),
+    renderPrompt: (v) => `A <strong>${v.mg}-gram</strong> flying pig is in motion along a circular path at the end of an <strong>${v.Lcm.toFixed(1)}-cm</strong> string along a conical pendulum, and the pig travels around the circle every <strong>${v.T.toFixed(2)} seconds</strong>.<br/><strong>a.</strong> Determine the magnitude of the centripetal force acting on the pig.<br/><strong>b.</strong> Determine the angle the string makes with the vertical.`,
+    parts: [
+      { label: "a. Centripetal force (F<sub>c</sub>)", unit: "N", solve: (v) => { const L = v.Lcm / 100, c = G_ACCEL * v.T * v.T / (4 * Math.PI * Math.PI * L), r = L * Math.sqrt(1 - c * c); return (v.mg / 1000) * 4 * Math.PI * Math.PI * r / (v.T * v.T); }, steps: (v, ans) => { const L = v.Lcm / 100, c = G_ACCEL * v.T * v.T / (4 * Math.PI * Math.PI * L), th = Math.acos(c) * RAD2DEG, r = L * Math.sin(th * DEG2RAD); return guidedSteps(
+          `The radius depends on the string's angle, so find the angle first. Vertically: <em>F</em><sub>T</sub> cos &theta; = <em>m</em><em>g</em>. Horizontally: <em>F</em><sub>T</sub> sin &theta; = <em>m</em>(4&pi;&sup2;<em>r</em> / <em>T</em>&sup2;) with <em>r</em> = <em>L</em> sin &theta;, which gives <em>F</em><sub>T</sub> = 4&pi;&sup2;<em>m</em><em>L</em> / <em>T</em>&sup2;.`,
+          `Put that into the vertical equation: cos &theta; = <em>g</em><em>T</em>&sup2; / (4&pi;&sup2;<em>L</em>) = (9.80)(${v.T})&sup2; / (4&pi;&sup2; &times; ${L.toFixed(3)}) = ${c.toFixed(4)}, so &theta; = ${th.toFixed(1)}&deg; and <em>r</em> = ${L.toFixed(3)} sin ${th.toFixed(1)}&deg; = ${r.toFixed(4)} m.`,
+          `<em>F</em><sub>c</sub> = <em>m</em>(4&pi;&sup2;<em>r</em> / <em>T</em>&sup2;) = (${(v.mg / 1000).toFixed(3)})(4&pi;&sup2; &times; ${r.toFixed(4)}) / ${v.T}&sup2; = <strong>${ans.toFixed(3)} N</strong>.`); } },
+      { label: "b. Angle with the vertical (&theta;)", unit: "°", solve: (v) => Math.acos(G_ACCEL * v.T * v.T / (4 * Math.PI * Math.PI * v.Lcm / 100)) * RAD2DEG, steps: (v, ans) => guidedSteps(
+          `From the two force equations, the tension is <em>F</em><sub>T</sub> = 4&pi;&sup2;<em>m</em><em>L</em> / <em>T</em>&sup2;, and <em>F</em><sub>T</sub> cos &theta; = <em>m</em><em>g</em>.`,
+          `cos &theta; = <em>g</em><em>T</em>&sup2; / (4&pi;&sup2;<em>L</em>) = ${(G_ACCEL * v.T * v.T / (4 * Math.PI * Math.PI * v.Lcm / 100)).toFixed(4)}, so &theta; = <strong>${ans.toFixed(1)}&deg;</strong>. The mass does not matter.`) }
+    ]
+  },
+  {
+    id: "CMG-22", docNum: "Set 2 #17", title: "Indy 500 Turn Radius from g's",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "indyTurn",
+    baseVars: { v: 102, k: 3.95 },
+    randomize: (b) => ({ v: Math.round(rnd(b.v, 0.12, 0)), k: rnd(b.k, 0.15, 2) }),
+    renderPrompt: (v) => `Computer-controlled display screens provide drivers in the Indianapolis 500 with a variety of information about how their cars are performing. If a car is going through a turn with a speed of <strong>${v.v} m/s</strong> and its centripetal acceleration is <strong>${v.k.toFixed(2)}g</strong>, determine the radius of the car&rsquo;s turn.`,
+    parts: [{ label: "Radius of the turn (r)", unit: "m", solve: (v) => v.v * v.v / (v.k * G_ACCEL), steps: (v, ans) => guidedSteps(
+          `Convert the acceleration: ${v.k}<em>g</em> = ${v.k} &times; 9.80 = ${(v.k * G_ACCEL).toFixed(2)} m/s&sup2;.`,
+          `<em>a</em><sub>c</sub> = <em>v</em>&sup2; / <em>r</em>, so <em>r</em> = <em>v</em>&sup2; / <em>a</em><sub>c</sub> = ${v.v}&sup2; / ${(v.k * G_ACCEL).toFixed(2)} = <strong>${ans.toFixed(1)} m</strong>.`) }]
+  },
+  {
+    id: "CMG-23", docNum: "Set 2 #18", title: "Tarzan's Maximum Speed on a Vine",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "tarzanVine",
+    baseVars: { m: 84.0, L: 5.1, F: 1240 },
+    randomize: (b) => { const m = rnd(b.m, 0.12, 1); return { m: m, L: rnd(b.L, 0.15, 1), F: Math.round(m * G_ACCEL * rnd(b.F / (b.m * G_ACCEL), 0.10, 3) / 10) * 10 }; },
+    renderPrompt: (v) => `Tarzan (<strong>${v.m.toFixed(1)} kg</strong>) plans to swing across a river by swinging along an arc from a hanging vine which is <strong>${v.L.toFixed(1)} meters</strong> long. If his arms are strong enough to exert a force of <strong>${v.F.toLocaleString()} N</strong> on the vine, determine the maximum speed he can tolerate at the lowest point of his swing.`,
+    parts: [{ label: "Maximum speed at the lowest point (v)", unit: "m/s", solve: (v) => Math.sqrt((v.F - v.m * G_ACCEL) * v.L / v.m), steps: (v, ans) => guidedSteps(
+          `At the lowest point the vine pulls up on Tarzan with the tension (equal to the force his arms can exert) and gravity pulls down. The net upward force is the centripetal force: <em>F</em><sub>T</sub> &minus; <em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>, with <em>r</em> = ${v.L} m.`,
+          `<em>v</em> = &radic;[(<em>F</em><sub>T</sub> &minus; <em>m</em><em>g</em>)<em>r</em> / <em>m</em>] = &radic;[(${v.F} &minus; ${(v.m * G_ACCEL).toFixed(1)})(${v.L}) / ${v.m}] = <strong>${ans.toFixed(2)} m/s</strong>.`) }]
+  },
+  {
+    id: "CMG-24", docNum: "Set 2 #19", title: "Ring-Shaped Artificial Planet's Rotation Period",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "ringWorld",
+    baseVars: { rE11: 8.2 },
+    randomize: (b) => ({ rE11: rnd(b.rE11, 0.20, 1) }),
+    renderPrompt: (v) => `A science-fiction tale describes an artificial &ldquo;planet&rdquo; in the form of a band completely encircling a star. The inhabitants live on the inside surface. The radius of the band is <strong>${v.rE11.toFixed(1)} &times; 10<sup>11</sup> meters</strong>, and the ring rotates quickly enough to produce an apparent gravity equivalent to that on Earth. Determine the period of revolution of this band, in Earth days.`,
+    parts: [{ label: "Period of revolution (T)", unit: "days", solve: (v) => 2 * Math.PI * Math.sqrt(v.rE11 * 1e11 / G_ACCEL) / 86400, steps: (v, ans) => { const Ts = 2 * Math.PI * Math.sqrt(v.rE11 * 1e11 / G_ACCEL); return guidedSteps(
+          `The band's inside surface pushes the inhabitants toward the center, and that feels like gravity. So the centripetal acceleration must be <em>g</em> = 9.80 m/s&sup2;: 4&pi;&sup2;<em>r</em> / <em>T</em>&sup2; = <em>g</em>.`,
+          `<em>T</em> = 2&pi;&radic;(<em>r</em> / <em>g</em>) = 2&pi;&radic;(${v.rE11} &times; 10<sup>11</sup> / 9.80) = ${Ts.toExponential(4)} s.`,
+          `A day is 24 &times; 3600 = 86,400 s, so <em>T</em> = ${Ts.toExponential(4)} / 86,400 = <strong>${ans.toFixed(1)} days</strong>.`); } }]
+  },
+  {
+    id: "CMG-25", docNum: "Set 2 #20", title: "Cyclist on a Circular Track (2 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "bikeTrack",
+    baseVars: { m: 56, r: 32.8, v: 11.2 },
+    randomize: (b) => ({ m: Math.round(rnd(b.m, 0.15, 0)), r: rnd(b.r, 0.15, 1), v: rnd(b.v, 0.15, 1) }),
+    renderPrompt: (v) => `A <strong>${v.m}-kg</strong> woman is riding her bicycle around a circular track of radius <strong>${v.r.toFixed(1)} meters</strong> with a speed of <strong>${v.v.toFixed(1)} m/s</strong>.<br/><strong>a.</strong> Determine her centripetal acceleration.<br/><strong>b.</strong> Determine the magnitude of the centripetal force acting on her.`,
+    parts: [
+      { label: "a. Centripetal acceleration (a<sub>c</sub>)", unit: "m/s²", solve: (v) => v.v * v.v / v.r, steps: (v, ans) => guidedSteps(`<em>a</em><sub>c</sub> = <em>v</em>&sup2; / <em>r</em> = ${v.v}&sup2; / ${v.r} = <strong>${ans.toFixed(2)} m/s&sup2;</strong>, pointing toward the center of the track.`) },
+      { label: "b. Centripetal force (F<sub>c</sub>)", unit: "N", solve: (v) => v.m * v.v * v.v / v.r, steps: (v, ans) => guidedSteps(`Newton's second law: <em>F</em><sub>c</sub> = <em>m</em><em>a</em><sub>c</sub> = ${v.m} &times; ${(v.v * v.v / v.r).toFixed(3)} = <strong>${ans.toFixed(1)} N</strong>.`) }
+    ]
+  },
+  {
+    id: "CMG-26", docNum: "Set 2 #21", title: "Penny on a Rotating Disk: Minimum Friction",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "pennyDisk",
+    baseVars: { mg: 2.50, rCm: 31.7, T: 1.53 },
+    randomize: (b) => ({ mg: b.mg, rCm: rnd(b.rCm, 0.15, 1), T: rnd(b.T, 0.12, 2) }),
+    renderPrompt: (v) => `A <strong>${v.mg.toFixed(2)}-gram</strong> penny is placed on a rotating disk <strong>${v.rCm.toFixed(1)} cm</strong> from the center of the disk. The period of the disk&rsquo;s rotation is <strong>${v.T.toFixed(2)} seconds</strong>. Determine the minimum coefficient of static friction necessary to allow the penny to rotate along with the disk without sliding off.`,
+    parts: [{ label: "Minimum coefficient of static friction (&mu;<sub>s</sub>)", unit: "No units", solve: (v) => 4 * Math.PI * Math.PI * (v.rCm / 100) / (G_ACCEL * v.T * v.T), steps: (v, ans) => { const ac = 4 * Math.PI * Math.PI * (v.rCm / 100) / (v.T * v.T); return guidedSteps(
+          `Static friction is the only horizontal force, so it supplies the centripetal force: <em>f</em><sub>s</sub> = <em>m</em><em>a</em><sub>c</sub>. The normal force equals the weight: <em>F</em><sub>N</sub> = <em>m</em><em>g</em>.`,
+          `<em>a</em><sub>c</sub> = 4&pi;&sup2;<em>r</em> / <em>T</em>&sup2; = 4&pi;&sup2;(${(v.rCm / 100).toFixed(3)}) / ${v.T}&sup2; = ${ac.toFixed(3)} m/s&sup2;.`,
+          `At the minimum coefficient, &mu;<sub>s</sub><em>m</em><em>g</em> = <em>m</em><em>a</em><sub>c</sub>, so &mu;<sub>s</sub> = <em>a</em><sub>c</sub> / <em>g</em> = ${ac.toFixed(3)} / 9.80 = <strong>${ans.toFixed(3)}</strong>. The penny's mass cancels.`); } }]
+  },
+  {
+    id: "CMG-27", docNum: "Set 2 #22", title: "Car at the Bottom of a Valley",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "valleyCar",
+    baseVars: { r: 77.0, k: 2.30 },
+    randomize: (b) => ({ r: rnd(b.r, 0.15, 1), k: rnd(b.k, 0.15, 2) }),
+    renderPrompt: (v) => `A car drives straight down towards the bottom of a valley and up the other side on a road whose bottom has a radius of curvature of <strong>${v.r.toFixed(1)} meters</strong>. At the very bottom, the normal force on the driver is <strong>${v.k.toFixed(2)} times</strong> his weight. Determine the speed of the car at the bottom of the valley.`,
+    parts: [{ label: "Speed at the bottom (v)", unit: "m/s", solve: (v) => Math.sqrt((v.k - 1) * G_ACCEL * v.r), steps: (v, ans) => guidedSteps(
+          `At the bottom, the seat's normal force points up (toward the center) and gravity points down: <em>F</em><sub>N</sub> &minus; <em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>, with <em>F</em><sub>N</sub> = ${v.k}<em>m</em><em>g</em>.`,
+          `(${v.k} &minus; 1)<em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>, so <em>v</em> = &radic;(${(v.k - 1).toFixed(2)}<em>g</em><em>r</em>) = &radic;(${(v.k - 1).toFixed(2)} &times; 9.80 &times; ${v.r}) = <strong>${ans.toFixed(2)} m/s</strong>.`) }]
+  },
+  {
+    id: "CMG-28", docNum: "Set 2 #23", title: "Net Gravitational Force on a Mass at a Right Angle",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "rightAngleMasses",
+    baseVars: { mA: 17.0, mB: 22.0, mC: 11.0, dAB: 35.0, dAC: 19.0 },
+    randomize: (b) => ({ mA: rnd(b.mA, 0.20, 1), mB: rnd(b.mB, 0.20, 1), mC: rnd(b.mC, 0.20, 1), dAB: rnd(b.dAB, 0.15, 1), dAC: rnd(b.dAC, 0.15, 1) }),
+    renderPrompt: (v) => `The masses pictured are <em>m</em><sub>A</sub> = <strong>${v.mA.toFixed(1)} kg</strong>, <em>m</em><sub>B</sub> = <strong>${v.mB.toFixed(1)} kg</strong>, and <em>m</em><sub>C</sub> = <strong>${v.mC.toFixed(1)} kg</strong>. The distance between the masses A and B is <strong>${v.dAB.toFixed(1)} meters</strong>, and the distance between masses A and C is <strong>${v.dAC.toFixed(1)} meters</strong>. Find the magnitude of the gravitational net force on mass <em>A</em>. Assume no other forces act on the system.`,
+    parts: [{ label: "Net gravitational force on A (F<sub>net,A</sub>)", unit: "N", solve: (v) => Math.hypot(G_CONST * v.mA * v.mB / (v.dAB * v.dAB), G_CONST * v.mA * v.mC / (v.dAC * v.dAC)), steps: (v, ans) => { const fB = G_CONST * v.mA * v.mB / (v.dAB * v.dAB), fC = G_CONST * v.mA * v.mC / (v.dAC * v.dAC); return guidedSteps(
+          `B pulls A toward B (to the right in the picture) and C pulls A toward C (down). The two pulls are perpendicular.`,
+          `<em>F</em><sub>AB</sub> = <em>G</em><em>m</em><sub>A</sub><em>m</em><sub>B</sub> / <em>r</em><sub>AB</sub>&sup2; = (6.67 &times; 10<sup>&minus;11</sup>)(${v.mA})(${v.mB}) / ${v.dAB}&sup2; = ${fB.toExponential(3)} N. <em>F</em><sub>AC</sub> = (6.67 &times; 10<sup>&minus;11</sup>)(${v.mA})(${v.mC}) / ${v.dAC}&sup2; = ${fC.toExponential(3)} N.`,
+          `Add them as perpendicular vectors: <em>F</em><sub>net</sub> = &radic;(<em>F</em><sub>AB</sub>&sup2; + <em>F</em><sub>AC</sub>&sup2;) = <strong>${ans.toExponential(3)} N</strong>.`); } }]
+  },
+  {
+    id: "CMG-29", docNum: "Set 2 #24", title: "Track Force on a Cart at the Top of a Loop",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "loopCart",
+    baseVars: { m: 6.70, r: 1.90, v: 5.40 },
+    randomize: (b) => ({ m: rnd(b.m, 0.15, 2), r: rnd(b.r, 0.10, 2), v: rnd(b.v, 0.08, 2) }),
+    renderPrompt: (v) => `A <strong>${v.m.toFixed(2)}-kg</strong> cart goes around the inside of a vertical circular loop. The radius of the loop is <strong>${v.r.toFixed(2)} meters</strong>, and the cart moves at a speed of <strong>${v.v.toFixed(2)} m/s</strong> at the top. How large is the force exerted by the track on the cart at the top of the loop?`,
+    parts: [{ label: "Force from the track at the top (F<sub>N</sub>)", unit: "N", solve: (v) => v.m * (v.v * v.v / v.r - G_ACCEL), steps: (v, ans) => guidedSteps(
+          `At the top, the track pushes down on the cart (toward the center) and gravity also pulls down: <em>F</em><sub>N</sub> + <em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>.`,
+          `<em>F</em><sub>N</sub> = <em>m</em>(<em>v</em>&sup2; / <em>r</em> &minus; <em>g</em>) = ${v.m}(${v.v}&sup2; / ${v.r} &minus; 9.80) = ${v.m}(${(v.v * v.v / v.r).toFixed(3)} &minus; 9.80) = <strong>${ans.toFixed(1)} N</strong>.`) }]
+  },
+  {
+    id: "CMG-30", docNum: "Set 2 #25", title: "Equal Weights on Two Planets: Radius Ratio",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "twoPlanets",
+    baseVars: { pct: 72 },
+    randomize: (b) => ({ pct: Math.round(rnd(b.pct, 0.20, 0)) }),
+    renderPrompt: (v) => `The weight of an object is the same on two different planets. The mass of planet A is <strong>${v.pct} percent</strong> of the mass of planet B. Find the ratio <em>r</em><sub>A</sub> / <em>r</em><sub>B</sub> of the radii of the planets.`,
+    parts: [{ label: "Ratio of radii (r<sub>A</sub> / r<sub>B</sub>)", unit: "No units", solve: (v) => Math.sqrt(v.pct / 100), steps: (v, ans) => guidedSteps(
+          `Same weight means the same surface gravity: <em>G</em><em>M</em><sub>A</sub> / <em>r</em><sub>A</sub>&sup2; = <em>G</em><em>M</em><sub>B</sub> / <em>r</em><sub>B</sub>&sup2;.`,
+          `Rearrange: (<em>r</em><sub>A</sub> / <em>r</em><sub>B</sub>)&sup2; = <em>M</em><sub>A</sub> / <em>M</em><sub>B</sub> = ${(v.pct / 100).toFixed(2)}, so <em>r</em><sub>A</sub> / <em>r</em><sub>B</sub> = &radic;${(v.pct / 100).toFixed(2)} = <strong>${ans.toFixed(3)}</strong>.`) }]
+  },
+  {
+    id: "CMG-31", docNum: "Set 2 #26", title: "Shortest Lap Time on a Circular Race Track",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "raceRing",
+    baseVars: { r: 197, muS: 0.95, muK: 0.76 },
+    randomize: (b) => { const muS = rnd(b.muS, 0.08, 2); return { r: Math.round(rnd(b.r, 0.20, 0)), muS: muS, muK: Number((muS - rnd(b.muS - b.muK, 0.20, 2)).toFixed(2)) }; },
+    renderPrompt: (v) => `A circular race track has a radius of <strong>${v.r} meters</strong>. The coefficients of static and kinetic friction between the ground and a race car&rsquo;s tires are <strong>${v.muS.toFixed(2)}</strong> and <strong>${v.muK.toFixed(2)}</strong>, respectively. What is the shortest amount of time a race car can travel once around the track without skidding?`,
+    parts: [{ label: "Shortest time for one lap (T)", unit: "s", solve: (v) => 2 * Math.PI * v.r / Math.sqrt(v.muS * G_ACCEL * v.r), steps: (v, ans) => { const vel = Math.sqrt(v.muS * G_ACCEL * v.r); return guidedSteps(
+          `Static friction supplies the centripetal force (the tires are not skidding, so use &mu;<sub>s</sub>, not &mu;<sub>k</sub>). At top speed, &mu;<sub>s</sub><em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>, so <em>v</em> = &radic;(&mu;<sub>s</sub><em>g</em><em>r</em>) = &radic;(${v.muS} &times; 9.80 &times; ${v.r}) = ${vel.toFixed(2)} m/s.`,
+          `The fastest lap: <em>T</em> = 2&pi;<em>r</em> / <em>v</em> = 2&pi;(${v.r}) / ${vel.toFixed(2)} = <strong>${ans.toFixed(1)} s</strong>.`); } }]
+  },
+  {
+    id: "CMG-32", docNum: "Set 2 #27", title: "Maximum Speed Around an Oval Track's Turn",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "ovalTrack",
+    baseVars: { r: 282, muS: 0.96, muK: 0.81 },
+    randomize: (b) => { const muS = rnd(b.muS, 0.08, 2); return { r: Math.round(rnd(b.r, 0.20, 0)), muS: muS, muK: Number((muS - rnd(b.muS - b.muK, 0.20, 2)).toFixed(2)) }; },
+    renderPrompt: (v) => `The ends of an oval race track are semicircles of radius <strong>${v.r} meters</strong>. The coefficients of static and kinetic friction between the ground and a race car&rsquo;s tires are <strong>${v.muS.toFixed(2)}</strong> and <strong>${v.muK.toFixed(2)}</strong>, respectively. Determine the maximum speed a race car can have as it travels around one of the turns without skidding.`,
+    parts: [{ label: "Maximum speed in the turn (v)", unit: "m/s", solve: (v) => Math.sqrt(v.muS * G_ACCEL * v.r), steps: (v, ans) => guidedSteps(
+          `Static friction is the centripetal force, and at top speed it is at its maximum: &mu;<sub>s</sub><em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>. Use &mu;<sub>s</sub> because the tires are not skidding.`,
+          `<em>v</em> = &radic;(&mu;<sub>s</sub><em>g</em><em>r</em>) = &radic;(${v.muS} &times; 9.80 &times; ${v.r}) = <strong>${ans.toFixed(1)} m/s</strong>.`) }]
+  },
+  {
+    id: "CMG-33", docNum: "Set 2 #28", title: "Hospital Space Station Rotation Period",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "stationHospital",
+    baseVars: { r: 250 },
+    randomize: (b) => ({ r: Math.round(rnd(b.r, 0.25, 0)) }),
+    renderPrompt: (v) => `A future use of space stations may be to provide hospitals for severely burned persons. It is very painful for a badly burned person on Earth to lie in bed. In a space station, the effect of gravity can be reduced or eliminated. If the radius of a circular space station is <strong>${v.r} meters</strong>, and the simulated gravity is to be one-tenth of what it is on Earth, determine the period of rotation of the space station.`,
+    parts: [{ label: "Period of rotation (T)", unit: "s", solve: (v) => 2 * Math.PI * Math.sqrt(v.r / (0.1 * G_ACCEL)), steps: (v, ans) => guidedSteps(
+          `The simulated gravity is the centripetal acceleration of the floor: <em>a</em><sub>c</sub> = 0.1 &times; 9.80 = 0.980 m/s&sup2;.`,
+          `<em>a</em><sub>c</sub> = 4&pi;&sup2;<em>r</em> / <em>T</em>&sup2;, so <em>T</em> = 2&pi;&radic;(<em>r</em> / <em>a</em><sub>c</sub>) = 2&pi;&radic;(${v.r} / 0.980) = <strong>${ans.toFixed(1)} s</strong>.`) }]
+  },
+  {
+    id: "CMG-34", docNum: "Set 2 #29", title: "Pushed into the Car Door on a Turn",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "carLeftTurn",
+    baseVars: { r: 40.0 },
+    randomize: (b) => ({ r: rnd(b.r, 0.25, 1) }),
+    renderPrompt: (v) => `You&rsquo;re in the passenger seat of a car that takes a sharp left turn with a circular path of radius <strong>${v.r.toFixed(1)} m</strong>. You feel pushed to the right into the door of the car. If you&rsquo;re pushed into the door with half of your weight, determine the speed of the car.`,
+    parts: [{ label: "Speed of the car (v)", unit: "m/s", solve: (v) => Math.sqrt(0.5 * G_ACCEL * v.r), steps: (v, ans) => guidedSteps(
+          `You press on the door with half your weight, so by Newton's third law the door pushes you toward the center of the turn with &frac12;<em>m</em><em>g</em>. That push is your centripetal force: &frac12;<em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>.`,
+          `The mass cancels: <em>v</em> = &radic;(0.5<em>g</em><em>r</em>) = &radic;(0.5 &times; 9.80 &times; ${v.r}) = <strong>${ans.toFixed(2)} m/s</strong>.`) }]
+  },
+  {
+    id: "CMG-35", docNum: "Set 2 #30", title: "Mass of the Larger of Two Asteroids",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "twoAsteroids",
+    baseVars: { dKm: 1.40, FE8: 1.90 },
+    randomize: (b) => ({ dKm: rnd(b.dKm, 0.15, 2), FE8: rnd(b.FE8, 0.20, 2) }),
+    renderPrompt: (v) => `Two asteroids are <strong>${v.dKm.toFixed(2)} kilometers</strong> apart, and they exert a force of <strong>${v.FE8.toFixed(2)} &times; 10<sup>8</sup> N</strong> on each other. The mass of the larger asteroid is three times that of the smaller asteroid. Determine the mass of the larger asteroid.`,
+    parts: [{ label: "Mass of the larger asteroid (M)", unit: "kg", solve: (v) => 3 * Math.sqrt(v.FE8 * 1e8 * Math.pow(v.dKm * 1000, 2) / (3 * G_CONST)), steps: (v, ans) => { const m = ans / 3; return guidedSteps(
+          `Call the smaller mass <em>m</em>; the larger is 3<em>m</em>. Then <em>F</em> = <em>G</em>(3<em>m</em>)(<em>m</em>) / <em>r</em>&sup2; = 3<em>G</em><em>m</em>&sup2; / <em>r</em>&sup2;, with <em>r</em> = ${v.dKm} km = ${(v.dKm * 1000).toFixed(0)} m.`,
+          `<em>m</em> = &radic;[<em>F</em><em>r</em>&sup2; / (3<em>G</em>)] = &radic;[(${v.FE8} &times; 10<sup>8</sup>)(${(v.dKm * 1000).toFixed(0)})&sup2; / (3 &times; 6.67 &times; 10<sup>&minus;11</sup>)] = ${m.toExponential(3)} kg.`,
+          `The larger asteroid has 3<em>m</em> = <strong>${ans.toExponential(3)} kg</strong>.`); } }]
+  },
+  {
+    id: "CMG-36", docNum: "Set 2 #31", title: "New Planet's Mass from Measured Gravity",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "planetAstronaut",
+    baseVars: { RKm: 2350, g: 3.20 },
+    randomize: (b) => ({ RKm: Math.round(rnd(b.RKm, 0.20, 0) / 10) * 10, g: rnd(b.g, 0.20, 2) }),
+    renderPrompt: (v) => `An astronaut lands on a new planet of radius <strong>${v.RKm.toLocaleString()} km</strong> and he measures the acceleration of gravity to be <strong>${v.g.toFixed(2)} m/s<sup>2</sup></strong>. Determine the mass of the new planet.`,
+    parts: [{ label: "Mass of the planet (M)", unit: "kg", solve: (v) => v.g * Math.pow(v.RKm * 1000, 2) / G_CONST, steps: (v, ans) => guidedSteps(
+          `At the surface, <em>g</em> = <em>G</em><em>M</em> / <em>R</em>&sup2;, so <em>M</em> = <em>g</em><em>R</em>&sup2; / <em>G</em>. Convert the radius: <em>R</em> = ${v.RKm.toLocaleString()} km = ${(v.RKm * 1000).toExponential(3)} m.`,
+          `<em>M</em> = (${v.g})(${(v.RKm * 1000).toExponential(3)})&sup2; / (6.67 &times; 10<sup>&minus;11</sup>) = <strong>${ans.toExponential(3)} kg</strong>.`) }]
+  },
+  {
+    id: "CMG-37", docNum: "Set 2 #32", title: "Friction Needed on a Level Curve",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "curveCarLevel",
+    baseVars: { r: 125, vKmh: 95 },
+    randomize: (b) => ({ r: Math.round(rnd(b.r, 0.20, 0)), vKmh: Math.round(rnd(b.vKmh, 0.15, 0)) }),
+    renderPrompt: (v) => `Determine what the coefficient of static friction must be between the tires and the road if a car is to round a level curve of radius <strong>${v.r} m</strong> at a speed of <strong>${v.vKmh} km/hr</strong>.`,
+    parts: [{ label: "Coefficient of static friction (&mu;<sub>s</sub>)", unit: "No units", solve: (v) => Math.pow(v.vKmh / 3.6, 2) / (v.r * G_ACCEL), steps: (v, ans) => guidedSteps(
+          `Convert the speed: ${v.vKmh} km/h &divide; 3.6 = ${(v.vKmh / 3.6).toFixed(2)} m/s.`,
+          `On a level curve, static friction is the centripetal force: &mu;<sub>s</sub><em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>, so &mu;<sub>s</sub> = <em>v</em>&sup2; / (<em>g</em><em>r</em>) = ${(v.vKmh / 3.6).toFixed(2)}&sup2; / (9.80 &times; ${v.r}) = <strong>${ans.toFixed(3)}</strong>.`) }]
+  },
+  {
+    id: "CMG-38", docNum: "Set 2 #33", title: "Jet's Minimum Loop Radius",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "jetLoop",
+    baseVars: { vKmh: 850, k: 6.0 },
+    randomize: (b) => ({ vKmh: Math.round(rnd(b.vKmh, 0.15, 0) / 5) * 5, k: rnd(b.k, 0.15, 1) }),
+    renderPrompt: (v) => `A jet pilot takes his aircraft in a vertical loop. If the jet is moving at a speed of <strong>${v.vKmh} km/hr</strong> at the lowest point of the loop, determine the minimum radius of the circle so that the centripetal acceleration at the lowest point does not exceed <strong>${v.k.toFixed(1)} g&rsquo;s</strong>.`,
+    parts: [{ label: "Minimum radius (r)", unit: "m", solve: (v) => Math.pow(v.vKmh / 3.6, 2) / (v.k * G_ACCEL), steps: (v, ans) => guidedSteps(
+          `Convert: <em>v</em> = ${v.vKmh} km/h &divide; 3.6 = ${(v.vKmh / 3.6).toFixed(1)} m/s, and ${v.k} g&rsquo;s = ${v.k} &times; 9.80 = ${(v.k * G_ACCEL).toFixed(1)} m/s&sup2;.`,
+          `<em>a</em><sub>c</sub> = <em>v</em>&sup2; / <em>r</em>, and a larger radius gives a smaller acceleration. The smallest allowed radius is <em>r</em> = <em>v</em>&sup2; / <em>a</em><sub>c,max</sub> = ${(v.vKmh / 3.6).toFixed(1)}&sup2; / ${(v.k * G_ACCEL).toFixed(1)} = <strong>${ans.toFixed(0)} m</strong>.`) }]
+  },
+  {
+    id: "CMG-39", docNum: "Set 2 #34", title: "Ferris Wheel Rate for Weightlessness at the Top",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "ferrisWheel",
+    baseVars: { d: 26.4 },
+    randomize: (b) => ({ d: rnd(b.d, 0.20, 1) }),
+    renderPrompt: (v) => `How many revolutions per minute would a <strong>${v.d.toFixed(1)}-meter</strong> diameter Ferris wheel need to make for the passengers to feel weightless at the topmost point?`,
+    parts: [{ label: "Rotation rate", unit: "rev/min", solve: (v) => 60 / (2 * Math.PI * Math.sqrt((v.d / 2) / G_ACCEL)), steps: (v, ans) => { const r = v.d / 2, vel = Math.sqrt(G_ACCEL * r), T = 2 * Math.PI * r / vel; return guidedSteps(
+          `Feeling weightless means the seat pushes with zero force, so at the top gravity alone is the centripetal force: <em>m</em><em>g</em> = <em>m</em><em>v</em>&sup2; / <em>r</em>, and <em>v</em> = &radic;(<em>g</em><em>r</em>) with <em>r</em> = ${r.toFixed(1)} m: <em>v</em> = ${vel.toFixed(2)} m/s.`,
+          `One turn takes <em>T</em> = 2&pi;<em>r</em> / <em>v</em> = ${T.toFixed(2)} s. Revolutions per minute = 60 / <em>T</em> = <strong>${ans.toFixed(2)} rev/min</strong>.`); } }]
+  },
+  {
+    id: "CMG-40", docNum: "Set 2 #35", title: "Race Car Speeding Up Along a Semicircle (2 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "semicircleArc",
+    baseVars: { v: 66, r: 220 },
+    randomize: (b) => ({ v: Math.round(rnd(b.v, 0.12, 0)), r: Math.round(rnd(b.r, 0.15, 0)) }),
+    renderPrompt: (v) => `A race car accelerates uniformly from the pit area, going from rest to <strong>${v.v} m/s</strong> in a semicircular arc with a radius of <strong>${v.r} m</strong>.<br/><strong>a.</strong> Determine the magnitude of the net acceleration of the car when it is halfway through the arc.<br/><strong>b.</strong> If the curve were flat, what coefficient of static friction would be necessary between the tires and the road to provide this acceleration with no slipping or skidding?`,
+    parts: [
+      { label: "a. Net acceleration halfway (a)", unit: "m/s²", solve: (v) => Math.hypot(v.v * v.v / (2 * Math.PI * v.r), v.v * v.v / (2 * v.r)), steps: (v, ans) => { const s = Math.PI * v.r, at = v.v * v.v / (2 * s), ac = v.v * v.v / (2 * v.r); return guidedSteps(
+          `The arc is half a circle: <em>s</em> = &pi;<em>r</em> = ${s.toFixed(1)} m. The speed rises uniformly from 0 to ${v.v} m/s over that distance, so <em>v</em>&sup2; = 2<em>a</em><sub>t</sub><em>s</em> gives <em>a</em><sub>t</sub> = ${v.v}&sup2; / (2 &times; ${s.toFixed(1)}) = ${at.toFixed(3)} m/s&sup2;.`,
+          `Halfway (<em>s</em> = &pi;<em>r</em>/2), <em>v</em>&sup2; = 2<em>a</em><sub>t</sub>(&pi;<em>r</em>/2) = ${(v.v * v.v / 2).toFixed(0)} m&sup2;/s&sup2;, so <em>a</em><sub>c</sub> = <em>v</em>&sup2; / <em>r</em> = ${(v.v * v.v / 2).toFixed(0)} / ${v.r} = ${ac.toFixed(3)} m/s&sup2;.`,
+          `The two parts are perpendicular: <em>a</em> = &radic;(<em>a</em><sub>t</sub>&sup2; + <em>a</em><sub>c</sub>&sup2;) = <strong>${ans.toFixed(2)} m/s&sup2;</strong>.`); } },
+      { label: "b. Coefficient of static friction needed (&mu;<sub>s</sub>)", unit: "No units", solve: (v) => Math.hypot(v.v * v.v / (2 * Math.PI * v.r), v.v * v.v / (2 * v.r)) / G_ACCEL, steps: (v, ans) => { const a = Math.hypot(v.v * v.v / (2 * Math.PI * v.r), v.v * v.v / (2 * v.r)); return guidedSteps(
+          `On a flat road, static friction is the only horizontal force, so it must provide the whole net acceleration: &mu;<sub>s</sub><em>m</em><em>g</em> = <em>m</em><em>a</em>.`,
+          `&mu;<sub>s</sub> = <em>a</em> / <em>g</em> = ${a.toFixed(2)} / 9.80 = <strong>${ans.toFixed(2)}</strong>.`); } }
+    ]
+  },
+  {
+    id: "CMG-41", docNum: "Set 2 #36", title: "Train Speed from a Swinging Lamp",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "trainLamp",
+    baseVars: { r: 215, theta: 16.5 },
+    randomize: (b) => ({ r: Math.round(rnd(b.r, 0.20, 0)), theta: rnd(b.theta, 0.15, 1) }),
+    renderPrompt: (v) => `A train traveling at a constant speed rounds a curve of radius <strong>${v.r} m</strong>. A lamp suspended from the ceiling swings out to an angle of <strong>${v.theta.toFixed(1)}&deg;</strong> throughout the curve. What is the speed of the train?`,
+    parts: [{ label: "Speed of the train (v)", unit: "m/s", solve: (v) => Math.sqrt(G_ACCEL * v.r * Math.tan(v.theta * DEG2RAD)), steps: (v, ans) => guidedSteps(
+          `The lamp moves in the same circle as the train. Its cord tension has a vertical part that holds up its weight (<em>F</em><sub>T</sub> cos &theta; = <em>m</em><em>g</em>) and a horizontal part toward the center of the curve (<em>F</em><sub>T</sub> sin &theta; = <em>m</em><em>v</em>&sup2; / <em>r</em>).`,
+          `Divide: tan &theta; = <em>v</em>&sup2; / (<em>g</em><em>r</em>), so <em>v</em> = &radic;(<em>g</em><em>r</em> tan &theta;) = &radic;(9.80 &times; ${v.r} &times; tan ${v.theta}&deg;) = <strong>${ans.toFixed(1)} m/s</strong>.`) }]
+  },
+  {
+    id: "CMG-42", docNum: "Set 2 #37", title: "Satellite Altitude from Its Period",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "earthSatellite",
+    baseVars: { m: 5500, Tmin: 110 },
+    randomize: (b) => ({ m: Math.round(rnd(b.m, 0.20, 0) / 100) * 100, Tmin: Math.round(rnd(b.Tmin, 0.12, 0)) }),
+    renderPrompt: (v) => `A satellite of mass <strong>${v.m.toLocaleString()} kg</strong> orbits the Earth with a period of <strong>${v.Tmin} minutes</strong>. Determine the altitude of the satellite.`,
+    parts: [{ label: "Altitude above the surface (h)", unit: "m", solve: (v) => Math.cbrt(G_CONST * 5.97e24 * Math.pow(v.Tmin * 60, 2) / (4 * Math.PI * Math.PI)) - 6.37e6, steps: (v, ans) => { const r = Math.cbrt(G_CONST * 5.97e24 * Math.pow(v.Tmin * 60, 2) / (4 * Math.PI * Math.PI)); return guidedSteps(
+          `Gravity is the centripetal force: <em>G</em><em>M</em><em>m</em> / <em>r</em>&sup2; = <em>m</em>(4&pi;&sup2;<em>r</em> / <em>T</em>&sup2;). The satellite's mass cancels, leaving <em>r</em>&sup3; = <em>G</em><em>M</em><em>T</em>&sup2; / (4&pi;&sup2;).`,
+          `With <em>T</em> = ${v.Tmin} min = ${v.Tmin * 60} s and <em>M</em><sub>E</sub> = 5.97 &times; 10<sup>24</sup> kg: <em>r</em> = &#8731;[(6.67 &times; 10<sup>&minus;11</sup>)(5.97 &times; 10<sup>24</sup>)(${v.Tmin * 60})&sup2; / (4&pi;&sup2;)] = ${r.toExponential(4)} m.`,
+          `That is measured from Earth's center, so subtract Earth's radius: <em>h</em> = ${r.toExponential(4)} &minus; 6.37 &times; 10<sup>6</sup> = <strong>${ans.toExponential(3)} m</strong> (about ${(ans / 1000).toFixed(0)} km).`); } }]
+  },
+  {
+    id: "CMG-43", docNum: "Set 2 #38", title: "Length of a Day for Weightlessness at the Equator",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "earthSpin",
+    baseVars: { R: 6.37e6 },
+    randomize: (b) => ({ R: b.R }),
+    renderPrompt: (v) => `How long would a day be (in minutes) if the Earth were rotating so fast that objects at the equator were apparently weightless?`,
+    parts: [{ label: "Length of a day (T)", unit: "min", solve: (v) => 2 * Math.PI * Math.sqrt(v.R / G_ACCEL) / 60, steps: (v, ans) => guidedSteps(
+          `&ldquo;Apparently weightless&rdquo; means the ground pushes with zero force, so gravity alone supplies the centripetal force: <em>m</em><em>g</em> = <em>m</em>(4&pi;&sup2;<em>R</em> / <em>T</em>&sup2;), with <em>R</em> = 6.37 &times; 10<sup>6</sup> m.`,
+          `<em>T</em> = 2&pi;&radic;(<em>R</em> / <em>g</em>) = 2&pi;&radic;(6.37 &times; 10<sup>6</sup> / 9.80) = ${(ans * 60).toFixed(0)} s.`,
+          `In minutes: ${(ans * 60).toFixed(0)} / 60 = <strong>${ans.toFixed(1)} min</strong>.`) }]
+  },
+  {
+    id: "CMG-44", docNum: "Set 2 #39", title: "Distance Where Gravity Is a Fraction of g",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "earthDistance",
+    baseVars: { pct: 18 },
+    randomize: (b) => ({ pct: Math.round(rnd(b.pct, 0.30, 0)) }),
+    renderPrompt: (v) => `Determine the distance from the Earth&rsquo;s center to a point outside the Earth where the acceleration due to gravity is <strong>${v.pct}%</strong> of what it is at Earth&rsquo;s surface.`,
+    parts: [{ label: "Distance from Earth's center (r)", unit: "m", solve: (v) => 6.37e6 / Math.sqrt(v.pct / 100), steps: (v, ans) => guidedSteps(
+          `Gravity falls off as 1/<em>r</em>&sup2;: <em>g</em>(<em>r</em>) / <em>g</em><sub>surface</sub> = (<em>R</em><sub>E</sub> / <em>r</em>)&sup2; = ${(v.pct / 100).toFixed(2)}.`,
+          `<em>r</em> = <em>R</em><sub>E</sub> / &radic;${(v.pct / 100).toFixed(2)} = 6.37 &times; 10<sup>6</sup> / ${Math.sqrt(v.pct / 100).toFixed(4)} = <strong>${ans.toExponential(3)} m</strong> (about ${(ans / 6.37e6).toFixed(2)} Earth radii).`) }]
+  },
+  {
+    id: "CMG-45", docNum: "Set 2 #40", title: "Two Masses from Their Force and Total Mass (2 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Circular Motion and Gravitation", diagram: "twoObjects",
+    baseVars: { FE10: 3.9, d: 0.70, total: 5.00 },
+    randomize: (b) => ({ FE10: rnd(b.FE10, 0.15, 1), d: rnd(b.d, 0.10, 2), total: b.total }),
+    renderPrompt: (v) => `Two objects attract each other gravitationally with a force of <strong>${v.FE10.toFixed(1)} &times; 10<sup>&minus;10</sup> N</strong> when they are <strong>${v.d.toFixed(2)} meters</strong> apart. Their total mass is <strong>${v.total.toFixed(2)} kg</strong>. Find the mass of each object.<br/><strong>a.</strong> Find the larger mass.<br/><strong>b.</strong> Find the smaller mass.`,
+    parts: [
+      { label: "a. Larger mass (m<sub>1</sub>)", unit: "kg", solve: (v) => { const p = v.FE10 * 1e-10 * v.d * v.d / G_CONST; return (v.total + Math.sqrt(v.total * v.total - 4 * p)) / 2; }, steps: (v, ans) => { const p = v.FE10 * 1e-10 * v.d * v.d / G_CONST; return guidedSteps(
+          `From <em>F</em> = <em>G</em><em>m</em><sub>1</sub><em>m</em><sub>2</sub> / <em>r</em>&sup2;, the product of the masses is <em>m</em><sub>1</sub><em>m</em><sub>2</sub> = <em>F</em><em>r</em>&sup2; / <em>G</em> = (${v.FE10} &times; 10<sup>&minus;10</sup>)(${v.d})&sup2; / (6.67 &times; 10<sup>&minus;11</sup>) = ${p.toFixed(3)} kg&sup2;.`,
+          `Use <em>m</em><sub>2</sub> = ${v.total} &minus; <em>m</em><sub>1</sub>: <em>m</em><sub>1</sub>(${v.total} &minus; <em>m</em><sub>1</sub>) = ${p.toFixed(3)}, or <em>m</em><sub>1</sub>&sup2; &minus; ${v.total}<em>m</em><sub>1</sub> + ${p.toFixed(3)} = 0.`,
+          `The quadratic formula gives <em>m</em> = [${v.total} &plusmn; &radic;(${v.total}&sup2; &minus; 4 &times; ${p.toFixed(3)})] / 2. The larger root is <strong>${ans.toFixed(2)} kg</strong>.`); } },
+      { label: "b. Smaller mass (m<sub>2</sub>)", unit: "kg", solve: (v) => { const p = v.FE10 * 1e-10 * v.d * v.d / G_CONST; return (v.total - Math.sqrt(v.total * v.total - 4 * p)) / 2; }, steps: (v, ans) => guidedSteps(
+          `The two roots of the same quadratic are the two masses, and they add up to ${v.total} kg.`,
+          `The smaller root is <strong>${ans.toFixed(2)} kg</strong> (${v.total} &minus; larger mass).`) }
     ]
   },
   {

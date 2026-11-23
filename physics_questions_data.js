@@ -1,6 +1,6 @@
 // ============================================================================
 // PHYSICS QUESTION LIBRARY DATA (physics_questions_data.js)
-// 171 questions, plus the code that draws their diagrams.
+// 173 questions, plus the code that draws their diagrams.
 // Loaded by the Library App via <script src=".../physics_questions_data.js">
 //
 // What is in this file, top to bottom:
@@ -7843,6 +7843,7 @@ const DIAGRAM_DRAWERS = {
 };
 
 // 4. Draws the diagram a question asks for.
+
 // 3b. Diagrams for the circular motion and gravitation questions added in November 2026 (CMG-05 and CMG-09 to CMG-45).
 // They share one set of drawing helpers, and pqStyle() gives them the same textbook look as the other diagrams.
 (function () {
@@ -7888,6 +7889,19 @@ const DIAGRAM_DRAWERS = {
 
   }
   const D = {
+    twoBoxesFriction: (v) => svg(200, `<rect x="20" y="160" width="400" height="18" fill="#e2e8f0" stroke="none"/>` + ln(20, 160, 420, 160, T, 2.5)
+      + `<rect x="92" y="78" width="96" height="82" rx="3" fill="#bfdbfe" stroke="${A}" stroke-width="2.5"/>` + `<rect x="188" y="62" width="110" height="98" rx="3" fill="#fecaca" stroke="${R}" stroke-width="2.5"/>`
+      + tx(140, 124, `${f(v.m1, 1)} kg`, T, "middle", 13) + tx(243, 116, `${f(v.m2, 1)} kg`, T, "middle", 13)
+      + ar(392, 111, 304, 111, R) + tx(350, 100, `F = ${f(v.F, 0)} N`, R, "middle", 12.5) + lb(20, 194, `rough floor:  &mu;${sb("k")} = ${f(v.mu, 2)}`)),
+
+    jetClimb: (v) => { const th = v.theta * Math.PI / 180, ox = 60, oy = 200, rot = (x, y) => [ox + (x - ox) * Math.cos(th) + (y - oy) * Math.sin(th), oy - (x - ox) * Math.sin(th) + (y - oy) * Math.cos(th)];
+      const p1 = rot(285, 172), p2 = rot(375, 172), lab = rot(335, 150), tail = rot(132, 200);
+      return svg(235, ln(ox, oy, 380, oy, S, 1.5, "6 5") + ln(ox, oy, tail[0], tail[1], S, 1.5, "6 5") + `<path d="M ${ox + 52} ${oy} A 52 52 0 0 0 ${ox + 52 * Math.cos(th)} ${oy - 52 * Math.sin(th)}" fill="none" stroke="${P}" stroke-width="2"/>` + tx(ox + 58, oy - 4, `${f(v.theta, 0)}&deg;`, P, "start", 12.5)
+        + `<g transform="rotate(${-v.theta} ${ox} ${oy})"><ellipse cx="255" cy="${oy}" rx="125" ry="13" fill="#e2e8f0" stroke="${T}" stroke-width="2.5"/>`
+        + `<polygon points="230,${oy + 4} 280,${oy + 4} 245,${oy + 34}" fill="#cbd5e1" stroke="${T}" stroke-width="2"/><polygon points="136,${oy - 4} 160,${oy - 4} 140,${oy - 32}" fill="#cbd5e1" stroke="${T}" stroke-width="2"/>`
+        + `<rect x="342" y="${oy - 10}" width="18" height="7" rx="3" fill="#bfdbfe" stroke="${A}" stroke-width="1.5"/></g>`
+        + ar(p1[0], p1[1], p2[0], p2[1], G) + tx(lab[0], lab[1], `a = ${f(v.a, 1)} m/s&sup2;`, G, "end", 12.5) + lb(20, 30, `pilot: ${f(v.m, 0)} kg`) + lb(20, 54, "climbing, speeding up")); },
+
 
     vertCircleRock: (v) => svg(235, circ(140, 112, 96, "none", S, 2, "6 5") + dot(140, 112, T) + ln(140, 112, 140, 200, T, 2.5)
       + `<ellipse cx="140" cy="210" rx="15" ry="11" fill="#94a3b8" stroke="${T}" stroke-width="2.5"/>` + lb(124, 160, "r", "end")
@@ -8046,7 +8060,6 @@ const DIAGRAM_DRAWERS = {
     DIAGRAM_DRAWERS.hillRider = new Function("return " + hm.slice(0, at) + "\n    v = { v: Number(v.v).toFixed(2), m: Number(v.m).toFixed(1), r: Number(v.r).toFixed(2) };" + hm.slice(at).replace("(bike + rider)", "(rider)") + ";")();
   }
 })();
-
 function getDiagramSVG(type, v) {
   const draw = DIAGRAM_DRAWERS[type];
   return draw ? draw(v) : '';
@@ -11657,5 +11670,39 @@ const PHYSICS_QUESTIONS = [
         `<em>T</em> = <em>m</em><em>g</em> / (2 sin &theta;) = ${(v.m * G_ACCEL).toFixed(1)} / (2 sin ${v.theta}&deg;) = <strong>${ans.toFixed(0)} N</strong>. This is much larger than her weight because the wire is nearly horizontal, so only a small part of each tension points up.`
       )
     }]
+  },
+  {
+    id: "DYN-103", docNum: "Set 6 #1", title: "Two Boxes in Contact on a Rough Floor (2 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: Multi-Body Systems and Pulleys", diagram: "twoBoxesFriction",
+    baseVars: { m1: 62.0, m2: 88.0, F: 430, mu: 0.22 },
+    randomize: (b) => ({ m1: rnd(b.m1, 0.08, 1), m2: rnd(b.m2, 0.08, 1), F: Math.round(rnd(b.F, 0.08, 0)), mu: rnd(b.mu, 0.08, 2) }),
+    renderPrompt: (v) => `Two boxes, of mass <strong>${v.m1.toFixed(1)} kg</strong> and <strong>${v.m2.toFixed(1)} kg</strong>, are in contact and at rest on a rough horizontal surface. A <strong>${v.F}-N</strong> force is exerted on the <strong>${v.m2.toFixed(1)}-kg</strong> box, and the coefficient of kinetic friction is <strong>${v.mu.toFixed(2)}</strong>.<br/><strong>a.</strong> Determine the acceleration of the boxes.<br/><strong>b.</strong> Determine the magnitude of the force the two boxes exert on each other.`,
+    parts: [
+      { label: "a. Acceleration of the boxes (a)", unit: "m/s²", solve: (v) => (v.F - v.mu * (v.m1 + v.m2) * G_ACCEL) / (v.m1 + v.m2), steps: (v, ans) => { const M = v.m1 + v.m2, fk = v.mu * M * G_ACCEL; return guidedSteps(
+          `The boxes move together, so treat them as one system of mass <em>M</em> = ${v.m1} + ${v.m2} = ${M.toFixed(1)} kg. The contact forces between the boxes are internal and cancel.`,
+          `Kinetic friction acts on both boxes: <em>f</em><sub>k</sub> = &mu;<sub>k</sub><em>M</em><em>g</em> = ${v.mu} &times; ${M.toFixed(1)} &times; 9.80 = ${fk.toFixed(1)} N, opposite the motion.`,
+          `Newton's second law: <em>a</em> = (<em>F</em> &minus; <em>f</em><sub>k</sub>) / <em>M</em> = (${v.F} &minus; ${fk.toFixed(1)}) / ${M.toFixed(1)} = <strong>${ans.toFixed(3)} m/s&sup2;</strong>.`); } },
+      { label: "b. Force the boxes exert on each other (F<sub>contact</sub>)", unit: "N", solve: (v) => { const a = (v.F - v.mu * (v.m1 + v.m2) * G_ACCEL) / (v.m1 + v.m2); return v.m1 * (a + v.mu * G_ACCEL); }, steps: (v, ans) => { const a = (v.F - v.mu * (v.m1 + v.m2) * G_ACCEL) / (v.m1 + v.m2); return guidedSteps(
+          `Look at the ${v.m1}-kg box alone. The only forces along the floor are the push from the ${v.m2}-kg box (forward) and its own kinetic friction, &mu;<sub>k</sub><em>m</em><sub>1</sub><em>g</em> = ${(v.mu * v.m1 * G_ACCEL).toFixed(1)} N (backward).`,
+          `Newton's second law for that box: <em>F</em><sub>contact</sub> &minus; &mu;<sub>k</sub><em>m</em><sub>1</sub><em>g</em> = <em>m</em><sub>1</sub><em>a</em>, so <em>F</em><sub>contact</sub> = <em>m</em><sub>1</sub>(<em>a</em> + &mu;<sub>k</sub><em>g</em>) = ${v.m1}(${a.toFixed(3)} + ${(v.mu * G_ACCEL).toFixed(3)}) = <strong>${ans.toFixed(1)} N</strong>.`,
+          `By Newton's third law, the ${v.m1}-kg box pushes back on the ${v.m2}-kg box with the same ${ans.toFixed(1)} N.`); } }
+    ]
+  },
+  {
+    id: "DYN-104", docNum: "Set 6 #2", title: "Seat Force on a Pilot in a Climbing, Accelerating Jet (2 Parts)",
+    unitTag: "Unit 2: Force and Translational Dynamics", topic: "Unit 2: 2D Forces and Vectors", diagram: "jetClimb",
+    baseVars: { a: 3.6, theta: 17, m: 73 },
+    randomize: (b) => ({ a: rnd(b.a, 0.20, 1), theta: Math.round(rnd(b.theta, 0.25, 0)), m: Math.round(rnd(b.m, 0.15, 0)) }),
+    renderPrompt: (v) => `A jet aircraft is accelerating at <strong>${v.a.toFixed(1)} m/s<sup>2</sup></strong> as it climbs at an angle of <strong>${v.theta}&deg;</strong> above the horizontal.<br/><strong>a.</strong> Determine the magnitude of the force that the cockpit seat exerts on the <strong>${v.m}-kg</strong> pilot.<br/><strong>b.</strong> Determine the direction of the force that the cockpit seat exerts on the <strong>${v.m}-kg</strong> pilot.`,
+    parts: [
+      { label: "a. Magnitude of the seat's force (F<sub>seat</sub>)", unit: "N", solve: (v) => { const t = v.theta * DEG2RAD; return v.m * Math.hypot(v.a * Math.cos(t), v.a * Math.sin(t) + G_ACCEL); }, steps: (v, ans) => { const t = v.theta * DEG2RAD, ax = v.a * Math.cos(t), ay = v.a * Math.sin(t); return guidedSteps(
+          `Only two forces act on the pilot: gravity (<em>m</em><em>g</em>, straight down) and the seat's force. The pilot accelerates with the jet, so <strong>F</strong><sub>seat</sub> + <em>m</em><strong>g</strong> = <em>m</em><strong>a</strong>.`,
+          `Split the acceleration into parts: <em>a</em><sub>x</sub> = ${v.a} cos ${v.theta}&deg; = ${ax.toFixed(3)} m/s&sup2; and <em>a</em><sub>y</sub> = ${v.a} sin ${v.theta}&deg; = ${ay.toFixed(3)} m/s&sup2;.`,
+          `Horizontal: <em>F</em><sub>x</sub> = <em>m</em><em>a</em><sub>x</sub> = ${v.m} &times; ${ax.toFixed(3)} = ${(v.m * ax).toFixed(1)} N. Vertical: <em>F</em><sub>y</sub> &minus; <em>m</em><em>g</em> = <em>m</em><em>a</em><sub>y</sub>, so <em>F</em><sub>y</sub> = ${v.m}(${ay.toFixed(3)} + 9.80) = ${(v.m * (ay + G_ACCEL)).toFixed(1)} N.`,
+          `<em>F</em><sub>seat</sub> = &radic;(<em>F</em><sub>x</sub>&sup2; + <em>F</em><sub>y</sub>&sup2;) = <strong>${ans.toFixed(1)} N</strong>.`); } },
+      { label: "b. Direction of the seat's force (&theta;)", unit: "°", directionOptions: ["above the horizontal", "below the horizontal"], expectedDirection: "above the horizontal", solve: (v) => { const t = v.theta * DEG2RAD; return Math.atan2(v.a * Math.sin(t) + G_ACCEL, v.a * Math.cos(t)) * RAD2DEG; }, steps: (v, ans) => { const t = v.theta * DEG2RAD, Fx = v.m * v.a * Math.cos(t), Fy = v.m * (v.a * Math.sin(t) + G_ACCEL); return guidedSteps(
+          `Both parts of the seat's force are positive: <em>F</em><sub>x</sub> = ${Fx.toFixed(1)} N forward and <em>F</em><sub>y</sub> = ${Fy.toFixed(1)} N up, so the force points forward and upward.`,
+          `tan &theta; = <em>F</em><sub>y</sub> / <em>F</em><sub>x</sub> = ${Fy.toFixed(1)} / ${Fx.toFixed(1)}, so &theta; = <strong>${ans.toFixed(1)}&deg; above the horizontal</strong>. It is much steeper than the ${v.theta}&deg; climb because the seat must also hold the pilot up against gravity.`); } }
+    ]
   }
 ];

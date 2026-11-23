@@ -446,7 +446,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v56
+              Teacher Studio · v57
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -1910,8 +1910,8 @@ img,video{max-width:100%;height:auto}
         opts = opts || {};
         var wrap = document.createElement("div"); wrap.id = "mgProgWrap"; wrap.style.cssText = "position:relative;flex:none";
         var b = document.createElement("button"); b.id = "mgProgBtn"; b.type = "button"; b.title = "Save, load or reset your progress"; b.setAttribute("aria-label", "Progress options"); b.setAttribute("aria-haspopup", "true");
-        b.style.cssText = "height:36px;width:36px;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font:700 18px/1 Inter,system-ui,sans-serif;cursor:pointer;padding:0";
-        b.textContent = "⋯";
+        b.style.cssText = "height:36px;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font:600 14px/1 Inter,system-ui,sans-serif;cursor:pointer;padding:0 14px;white-space:nowrap";
+        b.textContent = "Progress";
         var p = document.createElement("div"); p.id = "mgProgMenu"; p.style.cssText = "display:none;position:absolute;right:0;top:42px;z-index:60;min-width:240px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.15);padding:6px;font:600 13px Inter,system-ui,sans-serif;color:#0f172a;text-align:left";
         var msg = document.createElement("div"); msg.style.cssText = "display:none;padding:6px 10px 4px;font:500 12px Inter,system-ui,sans-serif;color:#64748b";
         function say(t, bad) { msg.textContent = t; msg.style.color = bad ? "#b91c1c" : "#047857"; msg.style.display = "block"; }
@@ -2987,7 +2987,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v56";
+    const APP_VERSION = "v57";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off

@@ -9,10 +9,10 @@
        That makes every browser download the new file right away instead of using an old saved copy. -->
   <!-- The question data is fetched fresh from GitHub when the page opens (see loadExternalGitHubQuestions), so a new upload shows up right away. This inert tag is only a marker so Export knows where to put a review app's own copy of the questions; the browser does not load it. -->
   <script type="text/plain" src="https://raw.githubusercontent.com/euler010/PhysicsQuestionBank/main/physics_questions_data.js"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+  <style>/* One typeface everywhere (Inter), and variables shown upright instead of in italics (v59). */ *, *::before, *::after { font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif !important; } .mono, .font-mono, input, select { font-variant-numeric: tabular-nums; } em { font-style: normal; } 
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     body { font-family: 'Inter', sans-serif; }
-    .mono { font-family: 'JetBrains Mono', monospace; }
+    .mono { font-family: Inter, system-ui, sans-serif; }
     /* Review app answer cards: two across on wider screens, one across on narrow ones. */
     .parts-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; align-items: start; }
     @media (min-width: 1000px) {
@@ -446,7 +446,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v54
+              Teacher Studio · v59
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -997,8 +997,10 @@ img,video{max-width:100%;height:auto}
     const PROBLEMS_PER_PAGE = 50;
 
     const UNIT_OPTIONS = [
-      "m", "cm", "mm", "km", "s", "kg", "m/s", "km/h", "m/s²", "g's", "N", "kN", "lb", "N/kg", "J", "W", "N·s", "kg·m/s", "°", "rad", "No units"
+      "m", "cm", "mm", "km", "s", "kg", "m/s", "km/h", "m/s²", "g's", "N", "kN", "lb", "N/kg", "J", "W", "N·s", "kg·m/s", "°", "rad", "rev/min", "min", "days", "No units"
     ];
+    // Any unit a question uses is always offered, even if it is not in the list above (keeps exported apps working with new questions).
+    function ensureUnitOption(u) { u = normalizeUnit(u); if (u && UNIT_OPTIONS.indexOf(u) < 0) UNIT_OPTIONS.splice(Math.max(0, UNIT_OPTIONS.length - 1), 0, u); }
 
     function normalizeUnit(u) {
       if (!u || u === "" || u === "ratio" || u === "unitless") return "No units";
@@ -1722,7 +1724,8 @@ img,video{max-width:100%;height:auto}
         }
         vars = { ...staticVarsStore[q.id] };
       } else if (randomizationMode === "random" && typeof q.randomize === "function") {
-        try { vars = { ...base, ...q.randomize(base) }; }
+        const start = (q.baseVars && typeof q.baseVars === "object") ? { ...q.baseVars } : { ...base };
+        try { vars = { ...start, ...q.randomize(start) }; }
         catch (err) { console.error("randomize() failed for " + q.id + ", using original values:", err); vars = { ...base }; }
       }
       return {
@@ -1910,8 +1913,8 @@ img,video{max-width:100%;height:auto}
         opts = opts || {};
         var wrap = document.createElement("div"); wrap.id = "mgProgWrap"; wrap.style.cssText = "position:relative;flex:none";
         var b = document.createElement("button"); b.id = "mgProgBtn"; b.type = "button"; b.title = "Save, load or reset your progress"; b.setAttribute("aria-label", "Progress options"); b.setAttribute("aria-haspopup", "true");
-        b.style.cssText = "height:36px;width:36px;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font:700 18px/1 Inter,system-ui,sans-serif;cursor:pointer;padding:0";
-        b.textContent = "⋯";
+        b.style.cssText = "height:36px;box-sizing:border-box;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;color:#475569;font:600 14px/1 Inter,system-ui,sans-serif;cursor:pointer;padding:0 14px;white-space:nowrap";
+        b.textContent = "Progress";
         var p = document.createElement("div"); p.id = "mgProgMenu"; p.style.cssText = "display:none;position:absolute;right:0;top:42px;z-index:60;min-width:240px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.15);padding:6px;font:600 13px Inter,system-ui,sans-serif;color:#0f172a;text-align:left";
         var msg = document.createElement("div"); msg.style.cssText = "display:none;padding:6px 10px 4px;font:500 12px Inter,system-ui,sans-serif;color:#64748b";
         function say(t, bad) { msg.textContent = t; msg.style.color = bad ? "#b91c1c" : "#047857"; msg.style.display = "block"; }
@@ -2041,6 +2044,7 @@ img,video{max-width:100%;height:auto}
         // (an extra control), a very long label (more than about two lines at half width), or a long placeholder.
         const labelPlainLen = String(partLabelHTML).replace(/<[^>]+>/g, "").replace(/&[a-zA-Z#0-9]+;/g, "x").length;
         const needsFullWidth = !!part.directionOptions || labelPlainLen > 110 || placeholderStr.length > 26;
+        ensureUnitOption(part.unit);
         const unitSelectHTML = `<select id="unit-${activeQ.id}-${pIdx}" onchange="updatePartDraft('${activeQ.id}', ${pIdx})" ${pState.completed ? 'disabled' : ''} class="part-unit-select px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-medium text-slate-800 mono focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="">Units</option>${UNIT_OPTIONS.map(u => `<option value="${u}" ${pState.userUnit === u ? 'selected' : ''}>${u}</option>`).join("")}</select>`;
         const dirSelectHTML = part.directionOptions ? `<select id="dir-${activeQ.id}-${pIdx}" onchange="updatePartDraft('${activeQ.id}', ${pIdx})" ${pState.completed ? 'disabled' : ''} class="part-dir-select px-3 py-2 rounded-xl bg-white border border-slate-300 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"><option value="">Select Direction...</option>${part.directionOptions.map(opt => `<option value="${opt}" ${pState.userDir === opt ? 'selected' : ''}>${opt}</option>`).join("")}</select>` : "";
         let feedbackHTML = "";
@@ -2269,7 +2273,7 @@ img,video{max-width:100%;height:auto}
 
       if (!promptTemplate) return showMessageModal("Please provide a question prompt.", "Missing Prompt");
 
-      const rawItem = { id: "CUST-" + Date.now().toString().slice(-4), docNum: "Custom #" + (questionLibrary.length - 61), title, topic, promptTemplate, v1, v2, formula, unit, solutionText, unitTag: getUnitTagFromTopic(topic) };
+      const rawItem = { id: "CUST-" + Date.now().toString(36).toUpperCase(), docNum: "Custom #" + (questionLibrary.filter(q => /^CUST-/.test(q.id)).length + 1), title, topic, promptTemplate, v1, v2, formula, unit, solutionText, unitTag: getUnitTagFromTopic(topic) };
       const savedRaw = JSON.parse(safeGetStorage(CUSTOM_Q_STORAGE_KEY, "[]") || "[]");
       savedRaw.push(rawItem); safeSetStorage(CUSTOM_Q_STORAGE_KEY, JSON.stringify(savedRaw));
 
@@ -2282,12 +2286,16 @@ img,video{max-width:100%;height:auto}
       const cleanUnit = normalizeUnit(item.unit);
       if (!UNIT_OPTIONS.includes(cleanUnit)) UNIT_OPTIONS.push(cleanUnit);
       const resolvedTopic = item.topic ? item.topic.replace(/^Unit 3: Circular Motion/, "Unit 2: Circular Motion") : "Unit 2: Dynamics and Forces";
+      const data = JSON.stringify({ p: String(item.promptTemplate || ""), f: String(item.formula || "0"), s: String(item.solutionText || ""), u: cleanUnit }).replace(/</g, "\\u003c");
       return {
         id: item.id, docNum: item.docNum || "Custom", title: item.title, topic: resolvedTopic, unitTag: getUnitTagFromTopic(resolvedTopic),
         baseVars: { v1: Number(item.v1), v2: Number(item.v2) },
         randomize: (b) => ({ v1: rnd(b.v1, 0.2, 2), v2: rnd(b.v2, 0.2, 2) }),
-        renderPrompt: (v) => item.promptTemplate.replace(/\{\{v1\}\}/g, `<strong>${v.v1}</strong>`).replace(/\{\{v2\}\}/g, `<strong>${v.v2}</strong>`),
-        parts: [{ label: "Answer", unit: cleanUnit, solve: (v) => (new Function("v1", "v2", "g", "G", `return (${item.formula});`))(v.v1, v.v2, G_ACCEL, G_CONST), steps: (v, ans) => `${item.solutionText} (With <em>v</em><sub>1</sub> = ${v.v1}, <em>v</em><sub>2</sub> = ${v.v2}: Answer = ${ans.toFixed(3)} ${cleanUnit})` }]
+        // Each function carries the question's own text (an exported review app copies these functions by themselves).
+        renderPrompt: new Function("v", "var item = " + data + "; return item.p.replace(/\\{\\{v1\\}\\}/g, '<strong>' + v.v1 + '</strong>').replace(/\\{\\{v2\\}\\}/g, '<strong>' + v.v2 + '</strong>');"),
+        parts: [{ label: "Answer", unit: cleanUnit,
+          solve: new Function("v", "var item = " + data + "; return (new Function('v1', 'v2', 'g', 'G', 'return (' + item.f + ');'))(v.v1, v.v2, G_ACCEL, G_CONST);"),
+          steps: new Function("v", "ans", "var item = " + data + "; return item.s + ' (With <em>v</em><sub>1</sub> = ' + v.v1 + ', <em>v</em><sub>2</sub> = ' + v.v2 + ': Answer = ' + ans.toFixed(3) + ' ' + item.u + ')';") }]
       };
     }
 
@@ -2369,6 +2377,8 @@ img,video{max-width:100%;height:auto}
       // Work on a copy of the page, minus the teacher-only sections added in v28 (start page, free-body diagram builder, preview).
       const docClone = document.documentElement.cloneNode(true);
       ["#landingView", "#fbdView", "#flowBar", "#combinedPreview", "#appTypeBtn", "#saveRecipeTopBtn", "script[id^='fbdFile_']"].forEach(sel => docClone.querySelectorAll(sel).forEach(n => n.remove()));
+      // The library locks its own scrolling while the preview window is open. Never copy that lock into the student app.
+      [docClone, docClone.querySelector("body")].forEach(n => { if (n && n.style) { n.style.overflow = ""; if (!n.getAttribute("style")) n.removeAttribute("style"); } });
       let fullSource = docClone.outerHTML;
       // Google Sites (and similar hosts) can add their own tags to a page while it runs inside their frame, such as a <base> link back to a googleusercontent.com address.
       // Those must not be saved into the exported app, or the copy looks for its parts in the wrong place. Remove them.
@@ -2985,7 +2995,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v54";
+    const APP_VERSION = "v59";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off
@@ -3246,6 +3256,38 @@ img,video{max-width:100%;height:auto}
       }
     }
 
+    // ---- puts the centre of the title + buttons group at 40% of the visible height, even inside a taller embedded frame ----
+    function mgFit40() {
+      var ch = document.getElementById("choose");
+      if (!ch || !window.IntersectionObserver) return;
+      var probe = document.createElement("div");
+      probe.style.cssText = "position:fixed;left:0;top:0;width:2px;height:100vh;opacity:0;pointer-events:none";
+      document.body.appendChild(probe);
+      function group() {
+        return Array.prototype.filter.call(ch.children, function (e) { return e.tagName !== "CANVAS" && e.getBoundingClientRect().height > 0; })
+          .map(function (e) { return e.getBoundingClientRect(); });
+      }
+      function place(vis) {
+        var k = group(); if (!k.length) return;
+        var top = Math.min.apply(null, k.map(function (r) { return r.top; })), bot = Math.max.apply(null, k.map(function (r) { return r.bottom; }));
+        var c0 = (top + bot) / 2, target = vis.top + 0.4 * vis.height;
+        var pb = parseFloat(getComputedStyle(ch).paddingBottom) || 24;
+        var npb = Math.max(24, pb + 2 * (c0 - target));
+        if (Math.abs(npb - pb) > 1) ch.style.paddingBottom = npb + "px";
+      }
+      function measure() {
+        var io = new IntersectionObserver(function (es) {
+          io.disconnect();
+          var r = es[es.length - 1].intersectionRect;
+          if (r && r.height > 0) place({ top: r.top, height: r.height });
+        });
+        io.observe(probe);
+      }
+      var tm = null;
+      window.addEventListener("resize", function () { clearTimeout(tm); tm = setTimeout(function () { ch.style.paddingBottom = ""; setTimeout(measure, 30); }, 150); });
+      measure();
+    }
+
     function buildWrapperHtml(name, physicsHtml, fbdHtml, physTotal, fbdTotal, mgKey) {
       const S = "<" + "script", E = "<" + "/script>";
       const css = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;background:#f1f5f9;color:#0f172a}" +
@@ -3276,7 +3318,7 @@ img,video{max-width:100%;height:auto}
         "}window.addEventListener('message',function(ev){var d=ev.data;if(!d||d.type!=='mg-switch')return;if(ev.source!==el('f-physics').contentWindow&&ev.source!==el('f-fbd').contentWindow)return;show(d.to==='fbd'?'fbd':'physics');});" +
         "el('pickPhysics').onclick=function(){show('physics')};el('pickFbd').onclick=function(){show('fbd')};";
       return "<!DOC" + "TYPE html>\n<html lang=\"en\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>" + mgEsc(name) + "</title><style>" + css + "</style></head><body>" +
-        body + S + ">" + script + E + S + ">var MGKEY=" + mgJsStr(String(mgKey || "")) + ";" + mgProgressKit.toString() + ";(" + mgWrapTail.toString() + ")();" + E + "<" + "/body></html>";
+        body + S + ">" + script + E + S + ">var MGKEY=" + mgJsStr(String(mgKey || "")) + ";" + mgProgressKit.toString() + ";(" + mgWrapTail.toString() + ")();" + E + S + ">(" + mgFit40.toString() + ")();" + E + "<" + "/body></html>";
     }
 
     function buildCombinedHTML() {
@@ -3306,6 +3348,7 @@ img,video{max-width:100%;height:auto}
     }
 
     window.addEventListener("DOMContentLoaded", () => {
+      if (window.STANDALONE_BOOT_CONFIG && document.body.style.overflow === "hidden") document.body.style.overflow = "";
       initScratchpadEvents();
       loadExternalGitHubQuestions();
       if (!window.STANDALONE_BOOT_CONFIG) showLanding();

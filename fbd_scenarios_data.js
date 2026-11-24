@@ -322,6 +322,55 @@ window.FBD_SCENARIO_DATA_FN = function () {
                         '&bull; Acceleration is downward, so F<sub>T</sub> &lt; F<sub>g</sub>',
                         '&bull; Note: No surface touches the bucket, so there is <strong>no</strong> normal force or friction'
                     ]
+                },
+
+                // ---------- Circular motion ----------
+                {
+                    id: 'sc19', group: 'circular', geomType: 'swing', extraSnapDeg: -120,
+                    baseTitle: 'Child on a Swing Ride (Conical Pendulum)', shortName: 'Child on a Swing Ride',
+                    prompt: 'A child on a swing ride (a conical pendulum) is traveling along a horizontal circle at a constant speed. Draw the complete free-body diagram.',
+                    targetForces: [
+                        T('fg', FG, DOWN, 90, `${FG} acts vertically downward toward Earth.`),
+                        T('t', FT, -2 * Math.PI / 3, 90 / Math.cos(Math.PI / 6), `${FT} pulls along the cable, up and toward the center of the circle.`)
+                    ],
+                    breakdown: [
+                        '&bull; F<sub>g</sub>: Vertically downward',
+                        '&bull; F<sub>T</sub>: Along the cable, up and toward the center of the circle',
+                        '&bull; The vertical part of F<sub>T</sub> balances F<sub>g</sub>, so F<sub>T</sub> &gt; F<sub>g</sub>',
+                        '&bull; The horizontal part of F<sub>T</sub> points toward the center: it is the centripetal force',
+                        '&bull; Note: There is <strong>no</strong> separate &ldquo;centripetal force&rdquo; vector to draw'
+                    ]
+                },
+                {
+                    id: 'sc20', group: 'circular', geomType: 'valley',
+                    baseTitle: 'Car at the Bottom of a Valley', shortName: 'Car at Bottom of a Valley',
+                    prompt: 'A car drives down into a valley that is semi-circular, and the car is at the bottom of the valley. Draw the complete free-body diagram.',
+                    targetForces: [
+                        T('fg', FG, DOWN, 85, `${FG} acts vertically downward toward Earth.`),
+                        T('fn', FN, UP, 125, `${FN} from the road acts vertically upward, toward the center of the circle.`)
+                    ],
+                    breakdown: [
+                        '&bull; F<sub>g</sub>: Vertically downward',
+                        '&bull; F<sub>N</sub>: Vertically upward, toward the center of the valley&rsquo;s circle',
+                        '&bull; The net force must point up (toward the center), so F<sub>N</sub> &gt; F<sub>g</sub>',
+                        '&bull; Note: There is <strong>no</strong> separate &ldquo;centripetal force&rdquo; vector to draw'
+                    ]
+                },
+                {
+                    id: 'sc21', group: 'circular', geomType: 'loopTop', collinearPair: ['fg', 'fn'],
+                    baseTitle: 'Rider Upside Down at the Top of a Loop', shortName: 'Rider at Top of a Loop',
+                    prompt: 'A boy riding on a roller coaster is upside down at the top of a loop, and he feels the seat pushing on him with twice his weight. Draw the complete free-body diagram.',
+                    targetForces: [
+                        T('fg', FG, DOWN, 60, `${FG} acts vertically downward toward Earth.`),
+                        T('fn', FN, DOWN, 120, `${FN} from the seat pushes the upside-down rider downward, toward the center of the loop.`)
+                    ],
+                    breakdown: [
+                        '&bull; F<sub>g</sub>: Vertically downward',
+                        '&bull; F<sub>N</sub>: Vertically <strong>downward</strong>: the seat is above the upside-down rider and pushes him toward the center',
+                        '&bull; F<sub>N</sub> = 2F<sub>g</sub> (the seat pushes with twice his weight)',
+                        '&bull; Both forces point toward the center, and together they are the centripetal force',
+                        '&bull; Note: There is <strong>no</strong> separate &ldquo;centripetal force&rdquo; vector to draw'
+                    ]
                 }
             ];
         }

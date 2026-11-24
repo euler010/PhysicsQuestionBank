@@ -446,7 +446,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v61
+              Teacher Studio · v62
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -2995,7 +2995,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v61";
+    const APP_VERSION = "v62";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off
@@ -3294,15 +3294,15 @@ img,video{max-width:100%;height:auto}
         "body{display:flex;flex-direction:column}" +
         "#choose{position:relative;overflow:hidden;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}@media(min-height:640px){#choose{padding-bottom:calc(24px + 20vh)}}" +
         "#flare{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}#choose>*:not(canvas){position:relative;z-index:1}" +
-        "#choose h1{font-size:29px;font-weight:800;margin:0 0 6px}#choose p{color:#64748b;font-size:14px;margin:0 0 28px}" +
-        ".cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;max-width:640px}" +
-        ".card{min-height:140px;border-radius:18px;border:2px solid #1d4ed8;background:#2563eb;color:#fff;font-weight:700;font-size:18px;font-family:inherit;cursor:pointer;padding:18px;box-shadow:0 8px 22px rgba(37,99,235,.25)}" +
-        ".card:hover{background:#1d4ed8}.card small{display:block;font-weight:500;font-size:14px;opacity:.9;margin-top:6px}" +
+        "#choose h1{font-size:29px;font-weight:800;margin:0 0 26px}#choose p{color:#64748b;font-size:14px;margin:0 0 28px}" +
+        ".cards{display:flex;flex-direction:column;gap:12px;width:100%;max-width:540px}" +
+        ".card{box-sizing:border-box;width:100%;cursor:pointer;display:grid;grid-template-columns:44px 1fr 22px;grid-template-rows:auto auto;column-gap:16px;align-items:center;text-align:left;background:#fff;border:1px solid #e2e8f0;border-left:6px solid #2563eb;border-radius:12px;padding:14px 18px 14px 16px;font:700 17px Inter,system-ui,sans-serif;color:#0f172a;transition:box-shadow .15s,transform .15s}#pickFbd{border-left-color:#059669}.card:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}.card .ic{grid-row:1/3;width:44px;height:44px;border-radius:10px;display:grid;place-items:center}#pickPhysics .ic{background:#dbeafe;color:#2563eb}#pickFbd .ic{background:#d1fae5;color:#059669}.card .tt{grid-column:2}.card .go{grid-column:3;grid-row:1/3;font-size:20px;color:#94a3b8;transition:color .15s}#pickPhysics:hover .go{color:#2563eb}#pickFbd:hover .go{color:#059669}" +
+        ".card:hover{box-shadow:0 6px 18px rgba(15,23,42,.08);transform:translateY(-1px)}.card small{grid-column:2;display:block;font:500 13px Inter,system-ui,sans-serif;color:#64748b;margin-top:2px}" +
                 "#stage{position:relative;flex:1;min-height:0;display:none}#stage iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;background:#f1f5f9;visibility:hidden}#stage iframe.on{visibility:visible}" +
-        "@media(max-width:560px){.cards{grid-template-columns:1fr}}";
-      const body = "<div id=\"choose\"><canvas id=\"flare\" aria-hidden=\"true\"></canvas><h1 id=\"ttl\"></h1><p>Choose a practice set to begin.</p><div class=\"cards\">" +
-        "<button class=\"card\" id=\"pickPhysics\">Practice Physics Problems<small>Numerical problems with feedback</small></button>" +
-        "<button class=\"card\" id=\"pickFbd\">Free-Body Diagram Practice<small>Draw and label the forces</small></button></div></div>" +
+        "";
+      const body = "<div id=\"choose\"><canvas id=\"flare\" aria-hidden=\"true\"></canvas><h1 id=\"ttl\"></h1><div class=\"cards\">" +
+        "<button class=\"card\" id=\"pickPhysics\"><span class=\"ic\"><svg viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' aria-hidden='true'><circle cx='12' cy='12' r='9' stroke-dasharray='3 3'/><circle cx='12' cy='12' r='2.2' fill='currentColor'/><circle cx='21' cy='12' r='2' fill='currentColor'/></svg></span><span class=\"tt\">Practice Physics Problems</span><small>Numerical problems with feedback</small><span class=\"go\" aria-hidden=\"true\">&rarr;</span></button>" +
+        "<button class=\"card\" id=\"pickFbd\"><span class=\"ic\"><svg viewBox='0 0 24 24' width='22' height='22' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='8.5' y='8.5' width='7' height='7' rx='1'/><path d='M12 8.5V2.5M9.8 4.7 12 2.5l2.2 2.2M12 15.5v6M9.8 19.3 12 21.5l2.2-2.2M15.5 12h6M19.3 9.8 21.5 12l-2.2 2.2'/></svg></span><span class=\"tt\">Free-Body Diagram Practice</span><small>Draw and label the forces</small><span class=\"go\" aria-hidden=\"true\">&rarr;</span></button></div></div>" +
         "<div id=\"stage\"><iframe id=\"f-physics\" title=\"Physics problems\"></iframe><iframe id=\"f-fbd\" title=\"Free-body diagrams\"></iframe></div>";
       const script = "var PHYSICS_HTML=" + mgJsStr(physicsHtml) + ";var FBD_HTML=" + mgJsStr(fbdHtml) + ";var TITLE=" + mgJsStr(name) + ";" +
         "function el(i){return document.getElementById(i)}" +

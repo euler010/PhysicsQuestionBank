@@ -9,8 +9,8 @@
        That makes every browser download the new file right away instead of using an old saved copy. -->
   <!-- The question data is fetched fresh from GitHub when the page opens (see loadExternalGitHubQuestions), so a new upload shows up right away. This inert tag is only a marker so Export knows where to put a review app's own copy of the questions; the browser does not load it. -->
   <script type="text/plain" src="https://raw.githubusercontent.com/euler010/PhysicsQuestionBank/main/physics_questions_data.js"></script>
-  <style>/* One typeface everywhere (Inter), and variables shown upright instead of in italics (v59). */ *, *::before, *::after { font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif !important; } .mono, .font-mono, input, select { font-variant-numeric: tabular-nums; } em { font-style: normal; } 
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap'); /* One typeface everywhere (Inter), and variables shown upright instead of in italics (v59). */ *, *::before, *::after { font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif !important; } .mono, .font-mono, input, select { font-variant-numeric: tabular-nums; } em { font-style: normal; } 
     body { font-family: 'Inter', sans-serif; }
     .mono { font-family: Inter, system-ui, sans-serif; }
     /* Review app answer cards: two across on wider screens, one across on narrow ones. */
@@ -446,7 +446,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v59
+              Teacher Studio · v60
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -2995,7 +2995,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v59";
+    const APP_VERSION = "v60";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off

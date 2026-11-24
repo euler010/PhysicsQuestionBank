@@ -7846,6 +7846,8 @@ const DIAGRAM_DRAWERS = {
 
 
 
+
+
 // 3b. Diagrams for the circular motion and gravitation questions added in November 2026 (CMG-05 and CMG-09 to CMG-45).
 // They share one set of drawing helpers, and pqStyle() gives them the same textbook look as the other diagrams.
 (function () {
@@ -7886,7 +7888,7 @@ const DIAGRAM_DRAWERS = {
 
   // A rotating ring-shaped space station seen face on. lab1/lab2 are the size and gravity labels.
   const station = (sizeLine, lab1, lab2) => svg(235, circ(150, 118, 96, "none", T, 7) + circ(150, 118, 84, "none", S, 1.5) + dot(150, 118) + sizeLine
-    + man(150, 196, A) + `<g transform="rotate(180 150 118)">${man(150, 196, A)}</g>`
+    + man(150, 202, A) + `<g transform="rotate(180 150 118)">${man(150, 202, A)}</g>`
     + spin(150, 118, 112, 112, R) + lb(282, 70, lab1) + lb(282, 96, lab2) + lb(282, 150, "spins about its center"));
 
   }
@@ -8011,7 +8013,7 @@ const DIAGRAM_DRAWERS = {
       + lb(150, 92, `r = ${f(v.r, 0)} m`) + lb(150, 118, `&mu;${sb("s")} = ${f(v.muS, 2)}, &mu;${sb("k")} = ${f(v.muK, 2)}`) + lb(20, 194, "ends are semicircles;  v max = ?")),
 
     carLeftTurn: (v) => svg(235, `<path d="M 260 225 A 180 180 0 0 0 80 45" fill="none" stroke="${S}" stroke-width="2" stroke-dasharray="6 5"/>` + dot(80, 225) + ln(80, 225, 127, 51, O, 2) + tx(112, 140, `r = ${f(v.r, 1)} m`, "#b45309", "end", 12)
-      + `<g transform="rotate(-25 250 140)">${carTop(250, 140)}</g>` + ar(238, 150, 196, 171, R) + tx(190, 192, "door on you: &frac12; mg", R, "end", 12) + ar(268, 116, 256, 74, G) + tx(268, 70, "v = ?", G, "start", 12.5)
+      + `<g transform="rotate(-30 235.9 135)">${carTop(235.9, 135)}</g>` + ar(225.9, 140.8, 187, 163.3, R) + tx(108, 205, "door on you: &frac12; mg", R, "start", 12) + ar(224.9, 116, 202.4, 77, G) + tx(212, 70, "v = ?", G, "start", 12.5)
       + lb(290, 160, "turning left") + lb(290, 184, "(top view)")),
 
     twoAsteroids: (v) => svg(190, `<path d="M 70 70 Q 95 40 130 58 Q 160 80 138 112 Q 110 135 80 118 Q 50 100 70 70 Z" fill="#e2e8f0" stroke="${T}" stroke-width="2.5"/>`

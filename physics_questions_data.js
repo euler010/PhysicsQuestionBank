@@ -7844,6 +7844,8 @@ const DIAGRAM_DRAWERS = {
 
 // 4. Draws the diagram a question asks for.
 
+
+
 // 3b. Diagrams for the circular motion and gravitation questions added in November 2026 (CMG-05 and CMG-09 to CMG-45).
 // They share one set of drawing helpers, and pqStyle() gives them the same textbook look as the other diagrams.
 (function () {
@@ -7942,9 +7944,10 @@ const DIAGRAM_DRAWERS = {
       + circ(225, 118, 10, "#cbd5e1", S, 2) + ln(130, 118, 215, 118, O, 2) + tx(200, 110, "r", "#b45309", "middle", 13) + ar(225, 104, 225, 60, R) + tx(238, 74, "v = ?", R, "start", 12.5)
       + lb(262, 120, `r = ${sci(f(v.rE5, 2), 5)} km`) + lb(262, 146, `T = ${f(v.Th, 1)} h`) + lb(262, 172, "planet mass M = ?")),
 
-    earthShuttle: (v) => svg(200, circ(70, 100, 32, "#93c5fd", A, 2.5) + tx(70, 105, "Earth", T, "middle", 12) + ln(70, 100, 360, 100, O, 2, "5 4")
-      + `<rect x="352" y="88" width="26" height="24" rx="4" fill="${B}" stroke="${T}" stroke-width="2.5"/>` + tx(215, 90, `${f(v.n, 1)} Earth radii from center`, "#b45309", "middle", 12)
-      + lb(250, 150, `astronaut: ${f(v.m, 0)} kg`) + lb(250, 176, "weight = ?")),
+    earthShuttle: (v) => { const R = Math.min(52, 330 / v.n), ex = 72, sx = ex + v.n * R; let ticks = ""; for (let k = 1; k <= Math.floor(v.n); k++) ticks += ln(ex + k * R, 94, ex + k * R, 106, O, 1.5);
+      return svg(200, circ(ex, 100, R, "#93c5fd", A, 2.5) + tx(ex, 100 - R * 0.35, "Earth", T, "middle", 12) + ln(ex, 100, sx, 100, O, 2, "5 4") + ticks + dot(ex, 100, T)
+        + `<rect x="${sx - 12}" y="89" width="24" height="22" rx="4" fill="${B}" stroke="${T}" stroke-width="2.5"/>` + ln(ex, 36, sx, 36, O, 1.5) + ln(ex, 30, ex, 42, O, 1.5) + ln(sx, 30, sx, 42, O, 1.5) + tx((ex + sx) / 2, 28, `${f(v.n, 1)} Earth radii from center`, "#b45309", "middle", 12)
+        + lb(250, 150, `astronaut: ${f(v.m, 0)} kg`) + lb(250, 176, "weight = ?") + lb(20, 190, "(drawn to scale)")); },
 
     twoMassesF: (v) => svg(190, circ(110, 90, 26, "#bfdbfe", A, 2.5) + tx(110, 95, "m" + sb("1"), T, "middle", 13) + circ(330, 90, 26, "#bbf7d0", G, 2.5) + tx(330, 95, "m" + sb("2"), T, "middle", 13)
       + ar(140, 90, 190, 90, R) + ar(300, 90, 250, 90, R) + tx(170, 78, "F", R, "middle", 13) + tx(270, 78, "F", R, "middle", 13)
@@ -7960,13 +7963,15 @@ const DIAGRAM_DRAWERS = {
         + lb(310, 60, `L = ${f(v.Lcm, 1)} cm`) + lb(310, 86, `m = ${f(v.mg, 0)} g`) + lb(310, 112, `T = ${f(v.T, 2)} s`)); },
 
     indyTurn: (v) => svg(235, `<path d="M 60 220 A 170 170 0 0 1 230 50" fill="none" stroke="${T}" stroke-width="2.5"/><path d="M 100 220 A 130 130 0 0 1 230 90" fill="none" stroke="${T}" stroke-width="2.5"/>`
-      + carTop(118, 118) + ar(132, 104, 168, 70, G) + tx(176, 76, `v = ${f(v.v, 0)} m/s`, G, "start", 12.5) + ln(230, 220, 128, 126, O, 2, "5 4") + tx(196, 186, "r = ?", "#b45309", "start", 12.5) + dot(230, 220)
+      + `<g transform="rotate(45 124 114)">${carTop(124, 114)}</g>` + ar(140, 98, 176, 62, G) + tx(168, 46, `v = ${f(v.v, 0)} m/s`, G, "end", 12.5) + ln(230, 220, 124, 114, O, 2, "5 4") + tx(186, 178, "r = ?", "#b45309", "start", 12.5) + dot(230, 220)
       + lb(270, 120, `a${sb("c")} = ${f(v.k, 2)}g`) + lb(270, 40, "top view of the turn")),
 
     tarzanVine: (v) => svg(235, `<path d="M 15 120 L 90 120 L 90 235 L 15 235 Z" fill="#e2e8f0" stroke="${S}" stroke-width="2"/><path d="M 300 120 L 425 120 L 425 235 L 300 235 Z" fill="#e2e8f0" stroke="${S}" stroke-width="2"/>`
-      + `<path d="M 90 205 Q 125 195 160 205 T 230 205 T 300 205" fill="none" stroke="${A}" stroke-width="2.5"/>` + tx(195, 228, "river", A, "middle", 12)
-      + ln(60, 15, 340, 15, "#92400e", 5) + dot(195, 15, T) + ln(195, 15, 195, 135, G, 2.5) + `<path d="M 105 66 A 140 140 0 0 0 285 66" fill="none" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>`
-      + man(195, 185, T) + tx(208, 80, `L = ${f(v.L, 1)} m`, G, "start", 12.5) + lb(310, 60, `${f(v.m, 1)} kg`) + lb(310, 86, `grip &le; ${Math.round(v.F).toLocaleString()} N`)),
+      + `<path d="M 90 212 Q 125 202 160 212 T 230 212 T 300 212" fill="none" stroke="${A}" stroke-width="2.5"/>` + tx(195, 230, "river", A, "middle", 12)
+      + ln(60, 15, 340, 15, "#92400e", 5) + dot(195, 15, T) + ln(195, 15, 195, 137, G, 2.5) + `<path d="M ${195 - 150 * Math.sin(0.62)} ${15 + 150 * Math.cos(0.62)} A 150 150 0 0 0 ${195 + 150 * Math.sin(0.62)} ${15 + 150 * Math.cos(0.62)}" fill="none" stroke="${S}" stroke-width="1.5" stroke-dasharray="5 4"/>`
+      + `<polyline points="195,156 184,142 193,130" fill="none" stroke="${T}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><polyline points="195,156 206,144 197,136" fill="none" stroke="${T}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`
+      + `<circle cx="195" cy="130" r="3" fill="${T}"/><circle cx="195" cy="136" r="3" fill="${T}"/><circle cx="195" cy="147" r="7" fill="${B}" stroke="${T}" stroke-width="2.5"/><line x1="195" y1="154" x2="195" y2="178" stroke="${T}" stroke-width="3"/><line x1="195" y1="178" x2="188" y2="199" stroke="${T}" stroke-width="3"/><line x1="195" y1="178" x2="202" y2="199" stroke="${T}" stroke-width="3"/>`
+      + tx(208, 80, `L = ${f(v.L, 1)} m`, G, "start", 12.5) + lb(310, 60, `${f(v.m, 1)} kg`) + lb(310, 86, `grip &le; ${Math.round(v.F).toLocaleString()} N`)),
 
     ringWorld: (v) => svg(235, `<ellipse cx="200" cy="140" rx="180" ry="55" fill="none" stroke="${T}" stroke-width="2.5"/><ellipse cx="200" cy="100" rx="180" ry="55" fill="none" stroke="${T}" stroke-width="2.5"/>`
       + ln(20, 100, 20, 140, T, 2.5) + ln(380, 100, 380, 140, T, 2.5) + circ(200, 120, 20, "#fde047", "#ea580c", 2.5) + tx(174, 125, "star", "#c2410c", "end", 12)
@@ -7998,7 +8003,7 @@ const DIAGRAM_DRAWERS = {
       + lb(20, 180, `M${sb("A")} = ${f(v.pct, 0)}% of M${sb("B")}`) + lb(230, 180, "same weight on both") + lb(20, 22, `r${sb("A")} / r${sb("B")} = ?`)),
 
     raceRing: (v) => svg(235, circ(140, 118, 100, "none", T, 3) + circ(140, 118, 72, "none", T, 3) + circ(140, 118, 86, "none", "#94a3b8", 1.5, "6 5") + dot(140, 118)
-      + ln(140, 118, 226, 118, O, 2) + tx(175, 140, `r = ${f(v.r, 0)} m`, "#b45309", "middle", 12) + carTop(226, 150, R)
+      + ln(140, 118, 226, 118, O, 2) + tx(175, 140, `r = ${f(v.r, 0)} m`, "#b45309", "middle", 12) + `<g transform="rotate(30 214.5 161)">${carTop(214.5, 161, R)}</g>`
       + lb(262, 60, `&mu;${sb("s")} = ${f(v.muS, 2)}`) + lb(262, 86, `&mu;${sb("k")} = ${f(v.muK, 2)}`) + lb(262, 150, "shortest lap time = ?")),
 
     ovalTrack: (v) => svg(200, `<path d="M 120 30 L 300 30 A 70 70 0 0 1 300 170 L 120 170 A 70 70 0 0 1 120 30 Z" fill="none" stroke="${T}" stroke-width="3"/>`
@@ -8017,8 +8022,8 @@ const DIAGRAM_DRAWERS = {
     planetAstronaut: (v) => svg(235, circ(140, 148, 84, "#fde68a", "#92400e", 2.5) + dot(140, 148, T) + ln(140, 148, 224, 148, O, 2.5) + tx(182, 140, "R", "#b45309", "middle", 13) + man(140, 64, A)
       + lb(262, 100, `R = ${Math.round(v.RKm).toLocaleString()} km`) + lb(262, 126, `g = ${f(v.g, 2)} m/s&sup2;`) + lb(262, 160, "planet mass M = ?")),
 
-    curveCarLevel: (v) => svg(235, circ(170, 118, 82, "none", S, 2, "6 5") + dot(170, 118) + ln(170, 118, 252, 118, O, 2.5) + tx(212, 110, `r = ${f(v.r, 0)} m`, "#b45309", "middle", 12)
-      + carTop(252, 140) + ar(252, 116, 252, 64, G) + tx(264, 76, `v = ${f(v.vKmh, 0)} km/h`, G, "start", 12.5) + lb(300, 150, `&mu;${sb("s")} = ?`) + lb(20, 225, "top view: level (unbanked) curve")),
+    curveCarLevel: (v) => svg(235, circ(170, 118, 82, "none", S, 2, "6 5") + dot(170, 118) + ln(170, 118, 252, 118, O, 2.5) + tx(198, 110, `r = ${f(v.r, 0)} m`, "#b45309", "middle", 12)
+      + carTop(252, 118) + ar(252, 96, 252, 48, G) + tx(264, 62, `v = ${f(v.vKmh, 0)} km/h`, G, "start", 12.5) + lb(300, 150, `&mu;${sb("s")} = ?`) + lb(20, 225, "top view: level (unbanked) curve")),
 
     jetLoop: (v) => svg(235, circ(170, 112, 92, "none", S, 2, "6 5") + dot(170, 112) + ln(170, 112, 170, 204, O, 2) + tx(178, 160, "r = ?", "#b45309", "start", 12.5)
       + `<polygon points="148,196 196,204 148,212" fill="#bfdbfe" stroke="${A}" stroke-width="2.5"/>` + ar(204, 204, 250, 204, G) + tx(256, 209, `v = ${f(v.vKmh, 0)} km/h`, G, "start", 12.5)
@@ -8040,8 +8045,8 @@ const DIAGRAM_DRAWERS = {
       + `<rect x="228" y="108" width="16" height="20" rx="3" fill="${B}" stroke="${T}" stroke-width="2.5"/>` + ln(200, 118, 228, 118, O, 2.5) + lb(268, 140, "altitude h = ?")
       + lb(268, 80, `T = ${f(v.Tmin, 0)} min`) + lb(268, 106, `m = ${Math.round(v.m).toLocaleString()} kg`)),
 
-    earthSpin: (v) => svg(235, circ(150, 118, 85, "#93c5fd", A, 2.5) + ln(150, 20, 150, 216, S, 1.5, "5 4") + ln(65, 118, 235, 118, S, 1.5, "5 4") + tx(150, 112, "Earth", T, "middle", 13)
-      + `<g transform="rotate(90 235 118)">${man(235, 118, T)}</g>` + spin(150, 40, 46, 12, R) + lb(268, 80, `R = ${sci("6.37", 6)} m`) + lb(268, 106, "person at the equator") + lb(268, 132, "feels weightless") + lb(268, 166, "length of day = ?")),
+    earthSpin: (v) => svg(235, circ(105, 118, 85, "#93c5fd", A, 2.5) + ln(105, 20, 105, 216, S, 1.5, "5 4") + ln(20, 118, 190, 118, S, 1.5, "5 4") + tx(105, 112, "Earth", T, "middle", 13)
+      + `<g transform="rotate(90 190 118)">${man(190, 118, T)}</g>` + spin(105, 40, 46, 12, R) + lb(272, 80, `R = ${sci("6.37", 6)} m`) + lb(272, 106, "person at the equator") + lb(272, 132, "feels weightless") + lb(272, 166, "length of day = ?")),
 
     earthDistance: (v) => svg(190, circ(70, 95, 40, "#93c5fd", A, 2.5) + tx(70, 100, "Earth", T, "middle", 12) + ln(70, 95, 330, 95, O, 2, "5 4") + dot(330, 95, R) + tx(200, 85, "r = ?", "#b45309", "middle", 12.5)
       + lb(250, 140, `g here = ${f(v.pct, 0)}% of g${sb("surface")}`) + lb(250, 166, `R${sb("E")} = ${sci("6.37", 6)} m`)),

@@ -446,7 +446,7 @@ img,video{max-width:100%;height:auto}
           <div class="flex items-center gap-2">
             <h1 id="headerTitle" class="text-lg font-bold tracking-tight text-slate-900">Physics Question Library and Constructor</h1>
             <span id="modeBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-              Teacher Studio · v62
+              Teacher Studio · v63
             </span>
           </div>
           <p id="headerSubtitle" class="hidden text-sm text-slate-500"></p>
@@ -2995,7 +2995,7 @@ img,video{max-width:100%;height:auto}
     requestAnimationFrame(frame);
     }
     
-    const APP_VERSION = "v62";
+    const APP_VERSION = "v63";
     const STUDIO_BADGE = "Teacher Studio \u00b7 " + APP_VERSION;
     let appMode = null;                       // "physics" | "fbd" | "both"
     let fbdStash = null;   // FBD choices from a loaded recipe, kept even while the FBD section is switched off
@@ -3294,7 +3294,7 @@ img,video{max-width:100%;height:auto}
         "body{display:flex;flex-direction:column}" +
         "#choose{position:relative;overflow:hidden;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}@media(min-height:640px){#choose{padding-bottom:calc(24px + 20vh)}}" +
         "#flare{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}#choose>*:not(canvas){position:relative;z-index:1}" +
-        "#choose h1{font-size:29px;font-weight:800;margin:0 0 26px}#choose p{color:#64748b;font-size:14px;margin:0 0 28px}" +
+        "#choose h1{font-size:24.65px;font-weight:800;margin:0 0 26px}#choose p{color:#64748b;font-size:14px;margin:0 0 28px}" +
         ".cards{display:flex;flex-direction:column;gap:12px;width:100%;max-width:540px}" +
         ".card{box-sizing:border-box;width:100%;cursor:pointer;display:grid;grid-template-columns:44px 1fr 22px;grid-template-rows:auto auto;column-gap:16px;align-items:center;text-align:left;background:#fff;border:1px solid #e2e8f0;border-left:6px solid #2563eb;border-radius:12px;padding:14px 18px 14px 16px;font:700 17px Inter,system-ui,sans-serif;color:#0f172a;transition:box-shadow .15s,transform .15s}#pickFbd{border-left-color:#059669}.card:focus-visible{outline:3px solid #93c5fd;outline-offset:2px}.card .ic{grid-row:1/3;width:44px;height:44px;border-radius:10px;display:grid;place-items:center}#pickPhysics .ic{background:#dbeafe;color:#2563eb}#pickFbd .ic{background:#d1fae5;color:#059669}.card .tt{grid-column:2}.card .go{grid-column:3;grid-row:1/3;font-size:20px;color:#94a3b8;transition:color .15s}#pickPhysics:hover .go{color:#2563eb}#pickFbd:hover .go{color:#059669}" +
         ".card:hover{box-shadow:0 6px 18px rgba(15,23,42,.08);transform:translateY(-1px)}.card small{grid-column:2;display:block;font:500 13px Inter,system-ui,sans-serif;color:#64748b;margin-top:2px}" +
